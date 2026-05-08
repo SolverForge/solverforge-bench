@@ -1,0 +1,23 @@
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Rust and Java build outputs
+target/
+*.class
+*.jar
+
+# Python build outputs
+build/
+dist/
+*.whl
+*.so
+
+# Benchmark output artifacts
+list-variable/cvrp/data/benchmark*.csv
+scalar-variable/employee-scheduling/data/benchmark*.csv
