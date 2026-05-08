@@ -1,0 +1,20 @@
+[package]
+name = "solverforge"
+version = "0.1.0"
+edition = "2021"
+description = "SolverForge CVRP solver for benchmark comparison"
+publish = false
+
+[lib]
+name = "solverforge_cvrp"
+crate-type = ["cdylib"]
+
+[dependencies]
+solverforge = "=0.8.6"
+pyo3 = { version = "0.22", features = ["extension-module"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
