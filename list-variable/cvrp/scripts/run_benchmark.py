@@ -55,6 +55,7 @@ results = {
     "Size": [],
     "Time Limit (s)": [],
     "Actual Time (s)": [],
+    "Wall Time Over Limit": [],
     "Solver": [],
     "Solution Quality": [],
 }
@@ -77,22 +78,20 @@ for name in instance_names[:num_instances] if num_instances else instance_names:
             solution = solver(instance, time_limit)
             toc = time.time()
             real_time = toc - tic
-            if real_time > time_limit * 1.1:
-                print(
-                    f"Warning, solver {s_name} took {real_time:2f} s on instance {name} despite setting a time limit of {time_limit} s."
-                )
+            wall_time_over_limit = real_time > time_limit * 1.1
 
             results["Instance"].append(instance.name)
             results["Size"].append(len(instance.demand))
             results["Time Limit (s)"].append(time_limit)
             results["Actual Time (s)"].append(float(real_time))
+            results["Wall Time Over Limit"].append(wall_time_over_limit)
             results["Solver"].append(s_name)
             try:
                 validate(solution=solution, instance=instance)
                 results["Solution Quality"].append(
                     float(solution.cost / best_solution.cost)
                 )
-            except Exception:  # noqa: E722
+            except Exception:
                 results["Solution Quality"].append(-1.0)
             if s_name == "vroom":
                 time_limit = max(

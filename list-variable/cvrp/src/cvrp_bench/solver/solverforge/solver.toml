@@ -25,7 +25,8 @@ type = "late_acceptance"
 late_acceptance_size = 200
 
 [phases.forager]
-accepted_count_limit = 4
+type = "accepted_count"
+limit = 4
 
 [phases.move_selector]
 type = "union_move_selector"
@@ -64,11 +65,11 @@ entity_class = "Route"
 variable_name = "visits"
 
 [[phases.move_selector.selectors]]
-type = "selected_count_limit_move_selector"
+type = "limited_neighborhood"
 selected_count_limit = 500
 
 [phases.move_selector.selectors.selector]
-type = "sub_list_change_move_selector"
+type = "sublist_change_move_selector"
 min_sublist_size = 1
 max_sublist_size = 3
 entity_class = "Route"

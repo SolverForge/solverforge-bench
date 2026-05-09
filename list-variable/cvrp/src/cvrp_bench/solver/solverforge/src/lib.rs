@@ -1,10 +1,14 @@
-#![allow(
-    clippy::useless_conversion,
-    reason = "pyo3 0.22 pyfunction expansion emits this false positive for PyResult"
-)]
-
 mod constraints;
-mod domain;
+
+solverforge::planning_model! {
+    root = "src";
+
+    mod domain;
+
+    pub use domain::Customer;
+    pub use domain::CvrpPlan;
+    pub use domain::Route;
+}
 
 #[cfg(test)]
 #[path = "lib_tests.rs"]
@@ -16,8 +20,6 @@ use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use solverforge::cvrp::ProblemData;
 use solverforge::{SolverEvent, SolverManager};
-
-use crate::domain::{Customer, CvrpPlan, Route};
 
 static MANAGER: SolverManager<CvrpPlan> = SolverManager::new();
 

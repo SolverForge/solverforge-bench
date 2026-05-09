@@ -1,4 +1,4 @@
-PYTHON ?= python3
+PYTHON ?= $(CURDIR)/.venv/bin/python3
 SOLVERFORGE_DIR := src/cvrp_bench/solver/solverforge
 TIMEFOLD_POM := src/cvrp_bench/solver/timefold_java/pom.xml
 BENCH_CMD := taskset -c 0 env OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=src $(PYTHON) scripts/run_benchmark.py
@@ -12,7 +12,7 @@ build-timefold-java:
 	mvn -f $(TIMEFOLD_POM) package -q
 
 build-solverforge:
-	cd $(SOLVERFORGE_DIR) && maturin develop --release --locked
+	cd $(SOLVERFORGE_DIR) && PIP_DISABLE_PIP_VERSION_CHECK=1 maturin develop --release --locked
 
 bench: build
 	$(BENCH_CMD)
