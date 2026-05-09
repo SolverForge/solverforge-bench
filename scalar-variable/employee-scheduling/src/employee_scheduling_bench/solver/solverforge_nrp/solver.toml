@@ -1,2 +1,2 @@
-environment_mode = "full_assert"
+environment_mode = "non_reproducible"
 random_seed = 1
