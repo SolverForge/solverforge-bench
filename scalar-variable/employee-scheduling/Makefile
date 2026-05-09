@@ -10,7 +10,7 @@ build: build-timefold-java build-solverforge
 
 build-solverforge:
 	cd $(SOLVERFORGE_DIR) && maturin build --release --locked -i $(PYTHON)
-	$(PYTHON) -m pip install --force-reinstall $$(ls -t $(SOLVERFORGE_DIR)/target/wheels/*.whl | head -1)
+	PIP_DISABLE_PIP_VERSION_CHECK=1 $(PYTHON) -m pip install --user --force-reinstall $$(ls -t $(SOLVERFORGE_DIR)/target/wheels/*.whl | head -1)
 
 build-timefold-java:
 	mvn -f $(TIMEFOLD_POM) package -q

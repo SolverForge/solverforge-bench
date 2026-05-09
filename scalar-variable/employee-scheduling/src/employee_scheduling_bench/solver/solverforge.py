@@ -24,6 +24,9 @@ def solve_with_solverforge(instance: Instance, time_limit: int) -> Solution:
     import json
 
     result = json.loads(result_json)
+    solver_metadata = {
+        key: value for key, value in result.items() if key != "assignments"
+    }
     hard_violations = result.get("hard_violations", 0)
     if hard_violations:
         raise RuntimeError(
@@ -44,4 +47,14 @@ def solve_with_solverforge(instance: Instance, time_limit: int) -> Solution:
             )
         weekly.append(week)
 
-    return Solution(assignments=weekly, cost=result["cost"])
+    return Solution(
+        assignments=weekly,
+        cost=result.get("fresh_cost", result["cost"]),
+        reported_cost=result.get("reported_cost"),
+        fresh_cost=result.get("fresh_cost"),
+        score_delta=result.get("score_delta"),
+        score_drift=result.get("score_drift"),
+        reported_score=result.get("reported_score"),
+        fresh_score=result.get("fresh_score"),
+        solver_metadata=solver_metadata,
+    )

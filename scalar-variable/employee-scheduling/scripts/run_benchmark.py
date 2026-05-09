@@ -1,4 +1,6 @@
 import argparse
+import json
+import re
 import time
 from pathlib import Path
 from datetime import datetime
@@ -12,7 +14,7 @@ from employee_scheduling_bench.loader import (
     enumerate_instances,
 )
 from employee_scheduling_bench.solver.solver import create_solver
-from employee_scheduling_bench.domain.validation import validate
+from employee_scheduling_bench.domain.validation import validate_breakdown
 
 DEFAULT_SOLVER_NAMES = ["solverforge", "timefold_java", "ortools"]
 DEFAULT_TIME_LIMITS = [1, 10, 60]
@@ -38,6 +40,34 @@ parser.add_argument(
 )
 parser.add_argument("--time-limits", nargs="+", type=int, default=DEFAULT_TIME_LIMITS)
 args = parser.parse_args()
+run_stamp = datetime.now()
+artifact_dir = Path("data/artifacts") / f"employee_scheduling_{run_stamp:%Y%m%d_%H%M%S}"
+
+
+def _safe_name(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("_")
+
+
+def _solution_payload(solution):
+    if hasattr(solution, "model_dump"):
+        return solution.model_dump(mode="json")
+    return solution.dict()
+
+
+def _write_solution_artifact(
+    solution, *, instance_name: str, solver_name: str, time_limit: int
+):
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    path = artifact_dir / (
+        f"{_safe_name(instance_name)}__{_safe_name(solver_name)}__{time_limit}s.json"
+    )
+    solution.solution_artifact = str(path)
+    path.write_text(
+        json.dumps(_solution_payload(solution), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    return str(path)
+
 
 data_dir = Path("data/inrc2")
 instances = enumerate_instances(str(data_dir))
@@ -71,9 +101,14 @@ results = {
     "Solver": [],
     "Hard Feasible": [],
     "Cost": [],
+    "Reported Cost": [],
+    "Fresh Cost": [],
+    "Validator Model Delta": [],
+    "Score Drift": [],
     "Reference Cost": [],
     "Quality Ratio": [],
     "Validation Error": [],
+    "Solution Artifact": [],
 }
 
 for inst_info in instances:
@@ -117,27 +152,66 @@ for inst_info in instances:
             if solver_error is not None:
                 results["Hard Feasible"].append(False)
                 results["Cost"].append(None)
+                results["Reported Cost"].append(None)
+                results["Fresh Cost"].append(None)
+                results["Validator Model Delta"].append(None)
+                results["Score Drift"].append(None)
                 results["Quality Ratio"].append(None)
                 results["Validation Error"].append(
                     f"{solver_error.__class__.__name__}: {solver_error}"
                 )
+                results["Solution Artifact"].append(None)
                 continue
 
             try:
                 assert solution is not None
-                cost = validate(solution=solution, instance=instance)
+                validator_breakdown = validate_breakdown(
+                    solution=solution, instance=instance
+                )
+                validator_cost = sum(validator_breakdown.values())
+                solution.validator_cost = validator_cost
+                solution.validator_breakdown = validator_breakdown
+                reported_cost = solution.reported_cost
+                fresh_cost = solution.fresh_cost
+                model_cost = fresh_cost if fresh_cost is not None else solution.cost
+                model_delta = validator_cost - model_cost
+                solution.validator_model_delta = model_delta
+                artifact_path = _write_solution_artifact(
+                    solution,
+                    instance_name=inst_info["name"],
+                    solver_name=s_name,
+                    time_limit=time_limit,
+                )
                 results["Hard Feasible"].append(True)
-                results["Cost"].append(cost)
+                results["Cost"].append(validator_cost)
+                results["Reported Cost"].append(reported_cost)
+                results["Fresh Cost"].append(fresh_cost)
+                results["Validator Model Delta"].append(model_delta)
+                results["Score Drift"].append(solution.score_drift)
                 if best_solution and best_solution.cost > 0:
-                    results["Quality Ratio"].append(float(cost / best_solution.cost))
+                    results["Quality Ratio"].append(
+                        float(validator_cost / best_solution.cost)
+                    )
                 else:
                     results["Quality Ratio"].append(None)
                 results["Validation Error"].append("")
+                results["Solution Artifact"].append(artifact_path)
             except Exception as exc:
                 results["Hard Feasible"].append(False)
                 results["Cost"].append(None)
+                results["Reported Cost"].append(
+                    solution.reported_cost if solution is not None else None
+                )
+                results["Fresh Cost"].append(
+                    solution.fresh_cost if solution is not None else None
+                )
+                results["Validator Model Delta"].append(None)
+                results["Score Drift"].append(
+                    solution.score_drift if solution is not None else None
+                )
                 results["Quality Ratio"].append(None)
                 results["Validation Error"].append(f"{exc.__class__.__name__}: {exc}")
+                results["Solution Artifact"].append(None)
 
 df = pl.DataFrame(results)
-df.write_csv(f"data/benchmark_employee_scheduling_{datetime.now():%Y%m%d_%H%M%S}.csv")
+df.write_csv(f"data/benchmark_employee_scheduling_{run_stamp:%Y%m%d_%H%M%S}.csv")

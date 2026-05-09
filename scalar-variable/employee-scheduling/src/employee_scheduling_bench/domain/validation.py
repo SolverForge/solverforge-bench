@@ -29,6 +29,11 @@ def validate(solution: Solution, instance: Instance) -> int:
     Raises HardConstraintViolation subclasses for infeasible solutions.
     Returns the total soft constraint cost for feasible solutions.
     """
+    return sum(validate_breakdown(solution=solution, instance=instance).values())
+
+
+def validate_breakdown(solution: Solution, instance: Instance) -> dict[str, int]:
+    """Return INRC-II soft costs by constraint name after hard validation."""
     scenario = instance.scenario
     nurse_by_id = {n.id: n for n in scenario.nurses}
     contract_by_id = {c.id: c for c in scenario.contracts}
@@ -39,49 +44,40 @@ def validate(solution: Solution, instance: Instance) -> int:
 
     num_weeks = len(solution.assignments)
     total_days = num_weeks * 7
-
-    # Build per-nurse schedule: list of (shift_type, skill) or None for each day
     nurse_schedule: dict[str, list[tuple[str, str] | None]] = {
         n.id: [None] * total_days for n in scenario.nurses
     }
 
     for week_idx, week_assignments in enumerate(solution.assignments):
-        for a in week_assignments:
-            day_offset = DAYS.index(a.day)
+        for assignment in week_assignments:
+            day_offset = DAYS.index(assignment.day)
             global_day = week_idx * 7 + day_offset
 
-            # Hard: single assignment per day
-            if nurse_schedule[a.nurse][global_day] is not None:
+            if nurse_schedule[assignment.nurse][global_day] is not None:
                 raise SingleAssignmentViolation(
-                    f"Nurse {a.nurse} has multiple assignments on week {week_idx} {a.day}"
+                    f"Nurse {assignment.nurse} has multiple assignments on week {week_idx} "
+                    f"{assignment.day}"
                 )
-            nurse_schedule[a.nurse][global_day] = (a.shiftType, a.skill)
+            nurse_schedule[assignment.nurse][global_day] = (
+                assignment.shiftType,
+                assignment.skill,
+            )
 
-            # Hard: missing skill
-            nurse = nurse_by_id[a.nurse]
-            if a.skill not in nurse.skills:
+            nurse = nurse_by_id[assignment.nurse]
+            if assignment.skill not in nurse.skills:
                 raise MissingSkillViolation(
-                    f"Nurse {a.nurse} lacks skill {a.skill} for assignment on {a.day}"
+                    f"Nurse {assignment.nurse} lacks skill {assignment.skill} "
+                    f"for assignment on {assignment.day}"
                 )
 
-    # Hard: minimum coverage
     for week_idx, week_data in enumerate(instance.weeks):
-        # Count assignments per (shift, skill, day)
         coverage: dict[tuple[str, str, str], int] = {}
-        for a in solution.assignments[week_idx]:
-            key = (a.shiftType, a.skill, a.day)
+        for assignment in solution.assignments[week_idx]:
+            key = (assignment.shiftType, assignment.skill, assignment.day)
             coverage[key] = coverage.get(key, 0) + 1
 
         for req in week_data.requirements:
-            for day_name, day_req in [
-                ("Mon", req.requirementOnMonday),
-                ("Tue", req.requirementOnTuesday),
-                ("Wed", req.requirementOnWednesday),
-                ("Thu", req.requirementOnThursday),
-                ("Fri", req.requirementOnFriday),
-                ("Sat", req.requirementOnSaturday),
-                ("Sun", req.requirementOnSunday),
-            ]:
+            for day_name, day_req in _day_requirements(req):
                 actual = coverage.get((req.shiftType, req.skill, day_name), 0)
                 if actual < day_req.minimum:
                     raise MinCoverageViolation(
@@ -89,73 +85,66 @@ def validate(solution: Solution, instance: Instance) -> int:
                         f"has {actual} nurses, minimum is {day_req.minimum}"
                     )
 
-    # Hard: forbidden shift successions (across all days including cross-week)
     for nurse_id, schedule in nurse_schedule.items():
-        last_shift = instance.history.nurseHistory[
-            next(
-                i
-                for i, nh in enumerate(instance.history.nurseHistory)
-                if nh.nurse == nurse_id
-            )
-        ].lastAssignedShiftType
+        nurse_hist = next(
+            nh for nh in instance.history.nurseHistory if nh.nurse == nurse_id
+        )
+        last_shift = nurse_hist.lastAssignedShiftType
 
         for day in range(total_days):
-            if schedule[day] is not None:
-                current_shift = schedule[day][0]
-                prev_shift = (
-                    last_shift
-                    if day == 0
-                    else (
-                        schedule[day - 1][0] if schedule[day - 1] is not None else None
-                    )
+            if schedule[day] is None:
+                continue
+            current_shift = schedule[day][0]
+            prev_shift = (
+                last_shift
+                if day == 0
+                else (schedule[day - 1][0] if schedule[day - 1] is not None else None)
+            )
+            if (
+                prev_shift
+                and prev_shift in forbidden
+                and current_shift in forbidden[prev_shift]
+            ):
+                week = day // 7
+                day_name = DAYS[day % 7]
+                raise ForbiddenSuccessionViolation(
+                    f"Nurse {nurse_id}: forbidden succession {prev_shift} -> {current_shift} "
+                    f"on week {week} {day_name}"
                 )
-                if (
-                    prev_shift
-                    and prev_shift in forbidden
-                    and current_shift in forbidden[prev_shift]
-                ):
-                    week = day // 7
-                    day_name = DAYS[day % 7]
-                    raise ForbiddenSuccessionViolation(
-                        f"Nurse {nurse_id}: forbidden succession {prev_shift} -> {current_shift} "
-                        f"on week {week} {day_name}"
-                    )
 
-    # Soft constraints
-    cost = 0
+    breakdown = {
+        "optimalCoverage": 0,
+        "shiftOffRequests": 0,
+        "totalAssignmentBounds": 0,
+        "consecutiveWorkBounds": 0,
+        "consecutiveOffBounds": 0,
+        "consecutiveShiftTypeBounds": 0,
+        "workingWeekends": 0,
+        "completeWeekends": 0,
+    }
 
-    # Soft: optimal coverage (under-staffing below optimal)
     for week_idx, week_data in enumerate(instance.weeks):
         coverage: dict[tuple[str, str, str], int] = {}
-        for a in solution.assignments[week_idx]:
-            key = (a.shiftType, a.skill, a.day)
+        for assignment in solution.assignments[week_idx]:
+            key = (assignment.shiftType, assignment.skill, assignment.day)
             coverage[key] = coverage.get(key, 0) + 1
 
         for req in week_data.requirements:
-            for day_name, day_req in [
-                ("Mon", req.requirementOnMonday),
-                ("Tue", req.requirementOnTuesday),
-                ("Wed", req.requirementOnWednesday),
-                ("Thu", req.requirementOnThursday),
-                ("Fri", req.requirementOnFriday),
-                ("Sat", req.requirementOnSaturday),
-                ("Sun", req.requirementOnSunday),
-            ]:
+            for day_name, day_req in _day_requirements(req):
                 actual = coverage.get((req.shiftType, req.skill, day_name), 0)
                 if actual < day_req.optimal:
-                    cost += 30 * (day_req.optimal - actual)
+                    breakdown["optimalCoverage"] += 30 * (day_req.optimal - actual)
 
-    # Soft: shift-off request violations
     for week_idx, week_data in enumerate(instance.weeks):
         for req in week_data.shiftOffRequests:
             day_offset = DAYS.index(req.day)
             global_day = week_idx * 7 + day_offset
             entry = nurse_schedule[req.nurse][global_day]
-            if entry is not None:
-                if req.shiftType == "Any" or entry[0] == req.shiftType:
-                    cost += 10
+            if entry is not None and (
+                req.shiftType == "Any" or entry[0] == req.shiftType
+            ):
+                breakdown["shiftOffRequests"] += 10
 
-    # Per-nurse soft constraints
     for nurse_id, schedule in nurse_schedule.items():
         nurse = nurse_by_id[nurse_id]
         contract = contract_by_id[nurse.contract]
@@ -163,15 +152,17 @@ def validate(solution: Solution, instance: Instance) -> int:
             nh for nh in instance.history.nurseHistory if nh.nurse == nurse_id
         )
 
-        # Total assignments
-        total_assigned = sum(1 for s in schedule if s is not None)
+        total_assigned = sum(1 for entry in schedule if entry is not None)
         total_assigned += nurse_hist.numberOfAssignments
         if total_assigned < contract.minimumNumberOfAssignments:
-            cost += 20 * (contract.minimumNumberOfAssignments - total_assigned)
+            breakdown["totalAssignmentBounds"] += 20 * (
+                contract.minimumNumberOfAssignments - total_assigned
+            )
         elif total_assigned > contract.maximumNumberOfAssignments:
-            cost += 20 * (total_assigned - contract.maximumNumberOfAssignments)
+            breakdown["totalAssignmentBounds"] += 20 * (
+                total_assigned - contract.maximumNumberOfAssignments
+            )
 
-        # Consecutive working days violations
         cons_work = (
             nurse_hist.numberOfConsecutiveWorkingDays
             if nurse_hist.lastAssignedShiftType != "None"
@@ -183,19 +174,19 @@ def validate(solution: Solution, instance: Instance) -> int:
             else:
                 if cons_work > 0:
                     if cons_work < contract.minimumNumberOfConsecutiveWorkingDays:
-                        cost += 30 * (
+                        breakdown["consecutiveWorkBounds"] += 30 * (
                             contract.minimumNumberOfConsecutiveWorkingDays - cons_work
                         )
                     if cons_work > contract.maximumNumberOfConsecutiveWorkingDays:
-                        cost += 30 * (
+                        breakdown["consecutiveWorkBounds"] += 30 * (
                             cons_work - contract.maximumNumberOfConsecutiveWorkingDays
                         )
                 cons_work = 0
-        # End-of-horizon streak
         if cons_work > contract.maximumNumberOfConsecutiveWorkingDays:
-            cost += 30 * (cons_work - contract.maximumNumberOfConsecutiveWorkingDays)
+            breakdown["consecutiveWorkBounds"] += 30 * (
+                cons_work - contract.maximumNumberOfConsecutiveWorkingDays
+            )
 
-        # Consecutive days off violations
         cons_off = (
             nurse_hist.numberOfConsecutiveDaysOff
             if nurse_hist.lastAssignedShiftType == "None"
@@ -207,40 +198,52 @@ def validate(solution: Solution, instance: Instance) -> int:
             else:
                 if cons_off > 0:
                     if cons_off < contract.minimumNumberOfConsecutiveDaysOff:
-                        cost += 30 * (
+                        breakdown["consecutiveOffBounds"] += 30 * (
                             contract.minimumNumberOfConsecutiveDaysOff - cons_off
                         )
                     if cons_off > contract.maximumNumberOfConsecutiveDaysOff:
-                        cost += 30 * (
+                        breakdown["consecutiveOffBounds"] += 30 * (
                             cons_off - contract.maximumNumberOfConsecutiveDaysOff
                         )
                 cons_off = 0
         if cons_off > contract.maximumNumberOfConsecutiveDaysOff:
-            cost += 30 * (cons_off - contract.maximumNumberOfConsecutiveDaysOff)
+            breakdown["consecutiveOffBounds"] += 30 * (
+                cons_off - contract.maximumNumberOfConsecutiveDaysOff
+            )
 
-        # Consecutive shift type assignments
-        for st in scenario.shiftTypes:
-            cons_shift = 0
-            if nurse_hist.lastAssignedShiftType == st.id:
-                cons_shift = nurse_hist.numberOfConsecutiveAssignments
+        for shift_type in scenario.shiftTypes:
+            cons_shift = (
+                nurse_hist.numberOfConsecutiveAssignments
+                if nurse_hist.lastAssignedShiftType == shift_type.id
+                else 0
+            )
             for day in range(total_days):
-                if schedule[day] is not None and schedule[day][0] == st.id:
+                if schedule[day] is not None and schedule[day][0] == shift_type.id:
                     cons_shift += 1
                 else:
                     if cons_shift > 0:
-                        if cons_shift < st.minimumNumberOfConsecutiveAssignments:
-                            cost += 15 * (
-                                st.minimumNumberOfConsecutiveAssignments - cons_shift
+                        if (
+                            cons_shift
+                            < shift_type.minimumNumberOfConsecutiveAssignments
+                        ):
+                            breakdown["consecutiveShiftTypeBounds"] += 15 * (
+                                shift_type.minimumNumberOfConsecutiveAssignments
+                                - cons_shift
                             )
-                        if cons_shift > st.maximumNumberOfConsecutiveAssignments:
-                            cost += 15 * (
-                                cons_shift - st.maximumNumberOfConsecutiveAssignments
+                        if (
+                            cons_shift
+                            > shift_type.maximumNumberOfConsecutiveAssignments
+                        ):
+                            breakdown["consecutiveShiftTypeBounds"] += 15 * (
+                                cons_shift
+                                - shift_type.maximumNumberOfConsecutiveAssignments
                             )
                     cons_shift = 0
-            if cons_shift > st.maximumNumberOfConsecutiveAssignments:
-                cost += 15 * (cons_shift - st.maximumNumberOfConsecutiveAssignments)
+            if cons_shift > shift_type.maximumNumberOfConsecutiveAssignments:
+                breakdown["consecutiveShiftTypeBounds"] += 15 * (
+                    cons_shift - shift_type.maximumNumberOfConsecutiveAssignments
+                )
 
-        # Working weekends
         working_weekends = nurse_hist.numberOfWorkingWeekends
         for week_idx in range(num_weeks):
             sat = week_idx * 7 + 5
@@ -249,9 +252,10 @@ def validate(solution: Solution, instance: Instance) -> int:
                 working_weekends += 1
 
         if working_weekends > contract.maximumNumberOfWorkingWeekends:
-            cost += 30 * (working_weekends - contract.maximumNumberOfWorkingWeekends)
+            breakdown["workingWeekends"] += 30 * (
+                working_weekends - contract.maximumNumberOfWorkingWeekends
+            )
 
-        # Complete weekends
         if contract.completeWeekends:
             for week_idx in range(num_weeks):
                 sat = week_idx * 7 + 5
@@ -259,6 +263,18 @@ def validate(solution: Solution, instance: Instance) -> int:
                 sat_works = schedule[sat] is not None
                 sun_works = schedule[sun] is not None
                 if sat_works != sun_works:
-                    cost += 30
+                    breakdown["completeWeekends"] += 30
 
-    return cost
+    return breakdown
+
+
+def _day_requirements(req):
+    return [
+        ("Mon", req.requirementOnMonday),
+        ("Tue", req.requirementOnTuesday),
+        ("Wed", req.requirementOnWednesday),
+        ("Thu", req.requirementOnThursday),
+        ("Fri", req.requirementOnFriday),
+        ("Sat", req.requirementOnSaturday),
+        ("Sun", req.requirementOnSunday),
+    ]

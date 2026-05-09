@@ -21,3 +21,4 @@ dist/
 # Benchmark output artifacts
 list-variable/cvrp/data/benchmark*.csv
 scalar-variable/employee-scheduling/data/benchmark*.csv
+scalar-variable/employee-scheduling/data/artifacts/

@@ -40,4 +40,11 @@ def solve_with_timefold_java(instance: Instance, time_limit: int) -> Solution:
             ]
         )
 
-    return Solution(assignments=weekly, cost=output["cost"])
+    return Solution(
+        assignments=weekly,
+        cost=output["cost"],
+        reported_cost=output["cost"],
+        fresh_cost=output["cost"],
+        score_delta=0,
+        score_drift=False,
+    )

@@ -316,8 +316,6 @@ pub fn scalar_groups() -> Vec<ScalarGroup<NrpPlan>> {
             .with_capacity_key(shift_nurse_day_capacity_key)
             .with_position_key(shift_position_key)
             .with_sequence_key(shift_nurse_sequence_key)
-            .with_entity_order(shift_assignment_entity_order_key)
-            .with_value_order(shift_assignment_value_order_key)
             .with_limits(ScalarGroupLimits {
                 max_augmenting_depth: Some(4),
                 max_rematch_size: Some(8),
@@ -374,69 +372,6 @@ fn shift_nurse_sequence_key(
         .shifts
         .get(entity_index)
         .map(NrpShift::global_day)
-}
-
-fn shift_assignment_entity_order_key(solution: &NrpPlan, entity_index: usize) -> i64 {
-    let Some(shift) = solution.shifts.get(entity_index) else {
-        return i64::MAX;
-    };
-    let priority = if shift.is_minimum { 0_i64 } else { 1_i64 };
-    priority
-        .saturating_mul(1_000_000_000)
-        .saturating_add(shift_position_key(solution, entity_index))
-}
-
-fn shift_assignment_value_order_key(
-    solution: &NrpPlan,
-    entity_index: usize,
-    nurse_idx: usize,
-) -> i64 {
-    let Some(shift) = solution.shifts.get(entity_index) else {
-        return i64::MAX;
-    };
-    assignment_value_order_key(solution, shift, nurse_idx)
-}
-
-fn assignment_value_order_key(solution: &NrpPlan, shift: &NrpShift, nurse_idx: usize) -> i64 {
-    let data = solution.problem_data();
-    let global_day = shift.week * 7 + shift.day;
-    let has_skill = data
-        .nurses
-        .get(nurse_idx)
-        .is_some_and(|nurse| nurse.skills.contains(&shift.skill_idx));
-    let skill_penalty = if has_skill { 0 } else { 1_000_000 };
-    let same_day_conflict = solution
-        .shifts
-        .iter()
-        .any(|other| {
-            other.nurse_idx == Some(nurse_idx)
-                && other.week == shift.week
-                && other.day == shift.day
-        });
-    let same_day_penalty = if same_day_conflict { 100_000 } else { 0 };
-    let request_penalty = if data.shift_off_requested(nurse_idx, global_day, shift.shift_type_idx) {
-        10_000
-    } else {
-        0
-    };
-    let temporal_penalty = if solution.assignment_temporally_allowed(shift.id, nurse_idx) {
-        0
-    } else {
-        500_000
-    };
-    let existing_assignments = solution
-        .shifts
-        .iter()
-        .filter(|other| other.nurse_idx == Some(nurse_idx))
-        .count();
-    let existing_assignments = i64::try_from(existing_assignments).unwrap_or(i64::MAX);
-
-    skill_penalty
-        + temporal_penalty
-        + same_day_penalty
-        + request_penalty
-        + existing_assignments.saturating_mul(100)
-        + i64::try_from(nurse_idx).unwrap_or(i64::MAX)
 }
 
 pub(super) fn nearby_nurse_candidates_for_shift(

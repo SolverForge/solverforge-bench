@@ -103,3 +103,14 @@ class Assignment(BaseModel):
 class Solution(BaseModel):
     assignments: list[list[Assignment]]
     cost: int = 0
+    reported_cost: int | None = None
+    fresh_cost: int | None = None
+    score_delta: int | None = None
+    score_drift: bool | None = None
+    reported_score: str | None = None
+    fresh_score: str | None = None
+    solver_metadata: dict | None = None
+    validator_cost: int | None = None
+    validator_breakdown: dict[str, int] | None = None
+    validator_model_delta: int | None = None
+    solution_artifact: str | None = None

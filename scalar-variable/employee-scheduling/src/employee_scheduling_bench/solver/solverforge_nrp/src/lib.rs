@@ -19,6 +19,7 @@ mod solver;
 
 use pyo3::prelude::*;
 use serde::Deserialize;
+use solverforge::Analyzable;
 
 use solver::solve;
 
@@ -288,12 +289,28 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
     let score = solved
         .score
         .ok_or_else(|| "SolverForge NRP produced no score".to_string())?;
-    if score.hard() < 0 {
+    let analysis = solved.analyze();
+    let fresh_score = analysis.score;
+    if score.hard() < 0 || fresh_score.hard() < 0 {
         return Err(format!(
-            "SolverForge NRP produced no hard-feasible solution: {} hard score debt",
-            -score.hard()
+            "SolverForge NRP produced no hard-feasible solution: reported hard debt {}, fresh hard debt {}",
+            (-score.hard()).max(0),
+            (-fresh_score.hard()).max(0)
         ));
     }
+    let reported_cost = -score.soft();
+    let fresh_cost = -fresh_score.soft();
+    let constraint_breakdown: Vec<_> = analysis
+        .constraints
+        .iter()
+        .map(|constraint| {
+            serde_json::json!({
+                "name": &constraint.name,
+                "score": constraint.score.to_string(),
+                "match_count": constraint.match_count,
+            })
+        })
+        .collect();
 
     // Build output: assignments grouped by week
     let days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -312,8 +329,15 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
 
     let output = serde_json::json!({
         "assignments": weekly,
-        "cost": -score.soft(),
-        "hard_violations": -score.hard(),
+        "cost": fresh_cost,
+        "reported_cost": reported_cost,
+        "fresh_cost": fresh_cost,
+        "score_delta": reported_cost - fresh_cost,
+        "score_drift": score != fresh_score,
+        "hard_violations": -fresh_score.hard(),
+        "reported_score": score.to_string(),
+        "fresh_score": fresh_score.to_string(),
+        "constraint_breakdown": constraint_breakdown,
     });
 
     // Keep problem_data alive until after we've read from it
