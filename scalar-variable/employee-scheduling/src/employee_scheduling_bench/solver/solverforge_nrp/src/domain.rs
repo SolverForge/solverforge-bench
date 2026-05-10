@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use solverforge::prelude::*;
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ContractData {
     pub id: String,
     pub min_assignments: i64,
@@ -14,14 +14,14 @@ pub struct ContractData {
     pub complete_weekends: bool,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ShiftTypeData {
     pub id: String,
     pub min_consecutive: i64,
     pub max_consecutive: i64,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct NurseHistoryData {
     pub nurse_idx: usize,
     pub num_assignments: i64,
@@ -32,6 +32,7 @@ pub struct NurseHistoryData {
     pub num_consecutive_off: i64,
 }
 
+#[derive(Clone, Debug)]
 pub struct ProblemData {
     pub nurses: Vec<NurseData>,
     pub contracts: Vec<ContractData>,
@@ -45,18 +46,9 @@ pub struct ProblemData {
     pub num_shift_types: usize,
 }
 
-unsafe impl Send for ProblemData {}
-unsafe impl Sync for ProblemData {}
-
 impl ProblemData {
     pub fn total_days(&self) -> usize {
         self.num_weeks * 7
-    }
-
-    pub(crate) fn nurse_has_skill(&self, nurse_idx: usize, skill_idx: usize) -> bool {
-        self.nurses
-            .get(nurse_idx)
-            .is_some_and(|nurse| nurse.skills.contains(&skill_idx))
     }
 
     pub(crate) fn successor_allowed(&self, previous: Option<usize>, current: usize) -> bool {
@@ -91,7 +83,7 @@ impl ProblemData {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NurseData {
     pub index: usize,
     pub id: String,
@@ -145,7 +137,6 @@ pub struct NrpShift {
     pub is_minimum: bool,
     pub forbidden_predecessors: Vec<usize>,
     pub shift_off_request_nurses: Vec<usize>,
-    pub data: *const ProblemData,
     #[planning_variable(
         value_range_provider = "nurse_indices",
         allows_unassigned = true,
@@ -158,16 +149,9 @@ pub struct NrpShift {
     pub nurse_idx: Option<usize>,
 }
 
-unsafe impl Send for NrpShift {}
-unsafe impl Sync for NrpShift {}
-
 impl NrpShift {
     pub(crate) fn global_day(&self) -> usize {
         self.week * 7 + self.day
-    }
-
-    pub(crate) fn problem_data(&self) -> &ProblemData {
-        unsafe { &*self.data }
     }
 }
 
@@ -187,111 +171,12 @@ pub struct NrpPlan {
     pub score: Option<HardSoftScore>,
     pub shift_nurse_candidates: Vec<Vec<usize>>,
     pub shift_indices: Vec<usize>,
-    pub data: *const ProblemData,
+    pub data: ProblemData,
 }
-
-unsafe impl Send for NrpPlan {}
-unsafe impl Sync for NrpPlan {}
 
 impl NrpPlan {
     pub fn problem_data(&self) -> &ProblemData {
-        unsafe { &*self.data }
-    }
-
-    pub(crate) fn assigned_shift_types_for_nurse_day_except(
-        &self,
-        nurse_idx: usize,
-        global_day: usize,
-        excluded_entity_index: Option<usize>,
-    ) -> Vec<usize> {
-        self.shifts
-            .iter()
-            .enumerate()
-            .filter(|(entity_index, shift)| {
-                Some(*entity_index) != excluded_entity_index
-                    && shift.nurse_idx == Some(nurse_idx)
-                    && shift.global_day() == global_day
-            })
-            .map(|(_, shift)| shift.shift_type_idx)
-            .collect()
-    }
-
-    pub(crate) fn has_assignment_for_nurse_day_except(
-        &self,
-        nurse_idx: usize,
-        global_day: usize,
-        excluded_entity_index: Option<usize>,
-    ) -> bool {
-        self.shifts.iter().enumerate().any(|(entity_index, shift)| {
-            Some(entity_index) != excluded_entity_index
-                && shift.nurse_idx == Some(nurse_idx)
-                && shift.global_day() == global_day
-        })
-    }
-
-    pub(crate) fn assignment_temporally_allowed(
-        &self,
-        entity_index: usize,
-        nurse_idx: usize,
-    ) -> bool {
-        let Some(shift) = self.shifts.get(entity_index) else {
-            return false;
-        };
-        let data = self.problem_data();
-        if !data.nurse_has_skill(nurse_idx, shift.skill_idx) {
-            return false;
-        }
-        let global_day = shift.global_day();
-        if self.has_assignment_for_nurse_day_except(nurse_idx, global_day, Some(entity_index)) {
-            return false;
-        }
-
-        if !self.predecessors_allow_assignment(nurse_idx, global_day, shift.shift_type_idx, Some(entity_index)) {
-            return false;
-        }
-        self.assignment_allows_successors(nurse_idx, global_day, shift.shift_type_idx, Some(entity_index))
-    }
-
-    pub(crate) fn predecessors_allow_assignment(
-        &self,
-        nurse_idx: usize,
-        global_day: usize,
-        shift_type_idx: usize,
-        excluded_entity_index: Option<usize>,
-    ) -> bool {
-        let data = self.problem_data();
-        if global_day == 0 {
-            return data.history_allows(nurse_idx, shift_type_idx);
-        }
-
-        self.assigned_shift_types_for_nurse_day_except(
-            nurse_idx,
-            global_day - 1,
-            excluded_entity_index,
-        )
-        .into_iter()
-        .all(|previous| data.successor_allowed(Some(previous), shift_type_idx))
-    }
-
-    pub(crate) fn assignment_allows_successors(
-        &self,
-        nurse_idx: usize,
-        global_day: usize,
-        shift_type_idx: usize,
-        excluded_entity_index: Option<usize>,
-    ) -> bool {
-        let data = self.problem_data();
-        if global_day + 1 >= data.total_days() {
-            return true;
-        }
-
-        self.assigned_shift_types_for_nurse_day_except(
-            nurse_idx,
-            global_day + 1,
-            excluded_entity_index,
-        )
-        .into_iter()
-        .all(|next| data.successor_allowed(Some(shift_type_idx), next))
+        &self.data
     }
 
 }
@@ -314,6 +199,7 @@ pub fn scalar_groups() -> Vec<ScalarGroup<NrpPlan>> {
         ScalarGroup::assignment("shift_nurse_assignment", shifts.scalar("nurse_idx"))
             .with_required_entity(shift_assignment_required)
             .with_capacity_key(shift_nurse_day_capacity_key)
+            .with_assignment_rule(shift_assignment_rule)
             .with_position_key(shift_position_key)
             .with_sequence_key(shift_nurse_sequence_key)
             .with_limits(ScalarGroupLimits {
@@ -339,6 +225,33 @@ fn shift_nurse_day_capacity_key(
     let shift = solution.shifts.get(entity_index)?;
     let global_day = shift.week * 7 + shift.day;
     Some(nurse_idx * solution.problem_data().total_days() + global_day)
+}
+
+fn shift_assignment_rule(
+    solution: &NrpPlan,
+    left_entity: usize,
+    left_nurse: usize,
+    right_entity: usize,
+    right_nurse: usize,
+) -> bool {
+    if left_nurse != right_nurse {
+        return true;
+    }
+    let Some(left) = solution.shifts.get(left_entity) else {
+        return false;
+    };
+    let Some(right) = solution.shifts.get(right_entity) else {
+        return false;
+    };
+    let left_day = left.global_day();
+    let right_day = right.global_day();
+    if left_day + 1 == right_day {
+        !right.forbidden_predecessors.contains(&left.shift_type_idx)
+    } else if right_day + 1 == left_day {
+        !left.forbidden_predecessors.contains(&right.shift_type_idx)
+    } else {
+        true
+    }
 }
 
 fn shift_position_key(solution: &NrpPlan, entity_index: usize) -> i64 {
@@ -410,10 +323,6 @@ pub(super) fn shift_to_nurse_distance(
     if data.shift_off_requested(nurse_index, global_day, shift.shift_type_idx) {
         distance += 100.0;
     }
-    if !solution.assignment_temporally_allowed(shift.id, nurse_index) {
-        distance += 5_000.0;
-    }
-
     distance + solution
         .shifts
         .iter()

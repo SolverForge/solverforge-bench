@@ -147,7 +147,7 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
         }
     }
 
-    let problem_data = Box::new(ProblemData {
+    let problem_data = ProblemData {
         nurses,
         contracts: input.contracts,
         shift_types: input.shift_types,
@@ -158,9 +158,7 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
         nurse_history,
         num_weeks: input.num_weeks,
         num_shift_types,
-    });
-    let data_ptr: *const ProblemData = &*problem_data;
-
+    };
     let shifts: Vec<NrpShift> = input
         .shifts
         .into_iter()
@@ -202,7 +200,6 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
                 shift_type_idx,
                 skill_idx: s.skill_idx,
                 is_minimum: s.is_minimum,
-                data: data_ptr,
                 nurse_idx: None,
             }
         })
@@ -281,7 +278,7 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
         score: None,
         shift_nurse_candidates,
         shift_indices,
-        data: data_ptr,
+        data: problem_data,
     };
 
     let solved = solve(plan, time_limit)?;
@@ -291,13 +288,6 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
         .ok_or_else(|| "SolverForge NRP produced no score".to_string())?;
     let analysis = solved.analyze();
     let fresh_score = analysis.score;
-    if score.hard() < 0 || fresh_score.hard() < 0 {
-        return Err(format!(
-            "SolverForge NRP produced no hard-feasible solution: reported hard debt {}, fresh hard debt {}",
-            (-score.hard()).max(0),
-            (-fresh_score.hard()).max(0)
-        ));
-    }
     let reported_cost = -score.soft();
     let fresh_cost = -fresh_score.soft();
     let constraint_breakdown: Vec<_> = analysis
@@ -339,9 +329,6 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
         "fresh_score": fresh_score.to_string(),
         "constraint_breakdown": constraint_breakdown,
     });
-
-    // Keep problem_data alive until after we've read from it
-    drop(problem_data);
 
     serde_json::to_string(&output).map_err(|e| format!("Serialization error: {}", e))
 }

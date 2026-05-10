@@ -32,47 +32,83 @@ struct ShiftTypeRunBoundsKey {
     history_consecutive_assignments: i64,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-struct AssignedShiftProjection {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct AssignedNurseShift {
+    nurse_key: NurseSoftKey,
     global_day: i64,
-    week: usize,
-    day: usize,
-    shift_type_idx: usize,
 }
 
-macro_rules! assigned_shift_groups {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct AssignedShiftType {
+    key: ShiftTypeRunBoundsKey,
+    global_day: i64,
+}
+
+macro_rules! assigned_nurse_shifts {
     () => {
         ConstraintFactory::<NrpPlan, HardSoftScore>::new()
             .for_each(NrpPlan::shifts())
-            .group_by(
-                nurse_soft_key_from_shift as fn(&NrpShift) -> NurseSoftKey,
-                collect_vec(assigned_shift_projection as fn(&NrpShift) -> AssignedShiftProjection),
-            )
-            .complement_with_key(
-                NrpPlan::nurse_indices(),
-                nurse_soft_key_from_assigned_shift as fn(&NrpShift) -> Option<NurseSoftKey>,
-                nurse_soft_key_from_nurse as fn(&NurseIndex) -> NurseSoftKey,
-                |_nurse: &NurseIndex| Vec::new(),
+            .filter(|shift: &NrpShift| shift.nurse_idx.is_some())
+            .join((
+                ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+                    .for_each(NrpPlan::nurse_indices()),
+                joiner::equal_bi(
+                    |shift: &NrpShift| shift.nurse_idx,
+                    |nurse: &NurseIndex| Some(nurse.id),
+                ),
+            ))
+            .project(assigned_nurse_shift as fn(&NrpShift, &NurseIndex) -> AssignedNurseShift)
+    };
+}
+
+macro_rules! assigned_shift_types {
+    () => {
+        ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+            .for_each(NrpPlan::shifts())
+            .filter(|shift: &NrpShift| shift.nurse_idx.is_some())
+            .join((
+                ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+                    .for_each(NrpPlan::nurse_shift_type_indices()),
+                joiner::equal_bi(
+                    |shift: &NrpShift| shift.nurse_idx.map(|nurse| (nurse, shift.shift_type_idx)),
+                    |fact: &NurseShiftTypeIndex| Some((fact.nurse_idx, fact.shift_type_idx)),
+                ),
+            ))
+            .project(
+                assigned_shift_type as fn(&NrpShift, &NurseShiftTypeIndex) -> AssignedShiftType,
             )
     };
 }
 
-macro_rules! assigned_shift_type_groups {
+macro_rules! nurses_without_assignments {
     () => {
         ConstraintFactory::<NrpPlan, HardSoftScore>::new()
-            .for_each(NrpPlan::shifts())
-            .group_by(
-                shift_type_run_bounds_key_from_shift as fn(&NrpShift) -> ShiftTypeRunBoundsKey,
-                collect_vec(assigned_shift_projection as fn(&NrpShift) -> AssignedShiftProjection),
-            )
-            .complement_with_key(
-                NrpPlan::nurse_shift_type_indices(),
-                shift_type_run_bounds_key_from_assigned_shift
-                    as fn(&NrpShift) -> Option<ShiftTypeRunBoundsKey>,
-                shift_type_run_bounds_key_from_fact
-                    as fn(&NurseShiftTypeIndex) -> ShiftTypeRunBoundsKey,
-                |_fact: &NurseShiftTypeIndex| Vec::new(),
-            )
+            .for_each(NrpPlan::nurse_indices())
+            .if_not_exists((
+                ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+                    .for_each(NrpPlan::shifts())
+                    .filter(|shift: &NrpShift| shift.nurse_idx.is_some()),
+                joiner::equal_bi(
+                    |nurse: &NurseIndex| Some(nurse.id),
+                    |shift: &NrpShift| shift.nurse_idx,
+                ),
+            ))
+    };
+}
+
+macro_rules! shift_types_without_assignments {
+    () => {
+        ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+            .for_each(NrpPlan::nurse_shift_type_indices())
+            .if_not_exists((
+                ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+                    .for_each(NrpPlan::shifts())
+                    .filter(|shift: &NrpShift| shift.nurse_idx.is_some()),
+                joiner::equal_bi(
+                    |fact: &NurseShiftTypeIndex| Some((fact.nurse_idx, fact.shift_type_idx)),
+                    |shift: &NrpShift| shift.nurse_idx.map(|nurse| (nurse, shift.shift_type_idx)),
+                ),
+            ))
     };
 }
 
@@ -173,52 +209,87 @@ pub fn define_constraints() -> impl ConstraintSet<NrpPlan, HardSoftScore> {
         .penalize(HardSoftScore::of_hard(1))
         .named("adjacentForbiddenSuccession");
 
-    let total_assignment_bounds = assigned_shift_groups!()
-        .penalize(
-            |key: &NurseSoftKey, assigned: &Vec<AssignedShiftProjection>| {
-                total_assignment_bounds_penalty(key, assigned)
-            },
+    let total_assignment_bounds = assigned_nurse_shifts!()
+        .group_by(
+            |row: &AssignedNurseShift| row.nurse_key,
+            indexed_presence(|row: &AssignedNurseShift| row.global_day),
         )
+        .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
+            total_assignment_bounds_penalty(key, presence)
+        })
         .named("totalAssignmentBounds");
 
-    let consecutive_work_bounds = assigned_shift_groups!()
-        .penalize(
-            |key: &NurseSoftKey, assigned: &Vec<AssignedShiftProjection>| {
-                consecutive_work_bounds_penalty(key, assigned)
-            },
+    let empty_total_assignment_bounds = nurses_without_assignments!()
+        .penalize(empty_total_assignment_bounds_penalty as fn(&NurseIndex) -> HardSoftScore)
+        .named("totalAssignmentBounds");
+
+    let consecutive_work_bounds = assigned_nurse_shifts!()
+        .group_by(
+            |row: &AssignedNurseShift| row.nurse_key,
+            indexed_presence(|row: &AssignedNurseShift| row.global_day),
         )
+        .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
+            consecutive_work_bounds_penalty(key, presence)
+        })
         .named("consecutiveWorkBounds");
 
-    let consecutive_off_bounds = assigned_shift_groups!()
-        .penalize(
-            |key: &NurseSoftKey, assigned: &Vec<AssignedShiftProjection>| {
-                consecutive_off_bounds_penalty(key, assigned)
-            },
+    let empty_consecutive_work_bounds = nurses_without_assignments!()
+        .penalize(empty_consecutive_work_bounds_penalty as fn(&NurseIndex) -> HardSoftScore)
+        .named("consecutiveWorkBounds");
+
+    let consecutive_off_bounds = assigned_nurse_shifts!()
+        .group_by(
+            |row: &AssignedNurseShift| row.nurse_key,
+            indexed_presence(|row: &AssignedNurseShift| row.global_day),
         )
+        .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
+            consecutive_off_bounds_penalty(key, presence)
+        })
         .named("consecutiveOffBounds");
 
-    let consecutive_shift_type_bounds = assigned_shift_type_groups!()
+    let empty_consecutive_off_bounds = nurses_without_assignments!()
+        .penalize(empty_consecutive_off_bounds_penalty as fn(&NurseIndex) -> HardSoftScore)
+        .named("consecutiveOffBounds");
+
+    let consecutive_shift_type_bounds = assigned_shift_types!()
+        .group_by(
+            |row: &AssignedShiftType| row.key,
+            indexed_presence(|row: &AssignedShiftType| row.global_day),
+        )
+        .penalize(|key: &ShiftTypeRunBoundsKey, presence: &IndexedPresence| {
+            consecutive_shift_type_bounds_penalty(key, presence)
+        })
+        .named("consecutiveShiftTypeBounds");
+
+    let empty_consecutive_shift_type_bounds = shift_types_without_assignments!()
         .penalize(
-            |key: &ShiftTypeRunBoundsKey, assigned: &Vec<AssignedShiftProjection>| {
-                consecutive_shift_type_bounds_penalty(key, assigned)
-            },
+            empty_consecutive_shift_type_bounds_penalty
+                as fn(&NurseShiftTypeIndex) -> HardSoftScore,
         )
         .named("consecutiveShiftTypeBounds");
 
-    let working_weekends = assigned_shift_groups!()
-        .penalize(
-            |key: &NurseSoftKey, assigned: &Vec<AssignedShiftProjection>| {
-                working_weekends_penalty(key, assigned)
-            },
+    let working_weekends = assigned_nurse_shifts!()
+        .group_by(
+            |row: &AssignedNurseShift| row.nurse_key,
+            indexed_presence(|row: &AssignedNurseShift| row.global_day),
         )
+        .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
+            working_weekends_penalty(key, presence)
+        })
         .named("workingWeekends");
 
-    let complete_weekends = assigned_shift_groups!()
-        .penalize(
-            |key: &NurseSoftKey, assigned: &Vec<AssignedShiftProjection>| {
-                complete_weekends_penalty(key, assigned)
-            },
+    let empty_working_weekends = nurses_without_assignments!()
+        .penalize(empty_working_weekends_penalty as fn(&NurseIndex) -> HardSoftScore)
+        .named("workingWeekends");
+
+    let complete_weekends = assigned_nurse_shifts!()
+        .group_by(
+            |row: &AssignedNurseShift| row.nurse_key,
+            indexed_presence(|row: &AssignedNurseShift| row.global_day),
         )
+        .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
+            complete_weekends_penalty(key, presence)
+        })
         .named("completeWeekends");
 
     (
@@ -230,12 +301,31 @@ pub fn define_constraints() -> impl ConstraintSet<NrpPlan, HardSoftScore> {
         initial_forbidden_succession,
         adjacent_forbidden_succession,
         total_assignment_bounds,
+        empty_total_assignment_bounds,
         consecutive_work_bounds,
+        empty_consecutive_work_bounds,
         consecutive_off_bounds,
+        empty_consecutive_off_bounds,
         consecutive_shift_type_bounds,
+        empty_consecutive_shift_type_bounds,
         working_weekends,
+        empty_working_weekends,
         complete_weekends,
     )
+}
+
+fn assigned_nurse_shift(shift: &NrpShift, nurse: &NurseIndex) -> AssignedNurseShift {
+    AssignedNurseShift {
+        nurse_key: nurse_soft_key_from_nurse(nurse),
+        global_day: shift.global_day() as i64,
+    }
+}
+
+fn assigned_shift_type(shift: &NrpShift, fact: &NurseShiftTypeIndex) -> AssignedShiftType {
+    AssignedShiftType {
+        key: shift_type_run_bounds_key_from_fact(fact),
+        global_day: shift.global_day() as i64,
+    }
 }
 
 fn shift_off_request_penalty(shift: &NrpShift) -> HardSoftScore {
@@ -248,44 +338,6 @@ fn shift_off_request_penalty(shift: &NrpShift) -> HardSoftScore {
         .filter(|request_nurse| **request_nurse == nurse_idx)
         .count() as i64;
     HardSoftScore::of_soft(request_count * 10)
-}
-
-fn assigned_shift_projection(shift: &NrpShift) -> AssignedShiftProjection {
-    AssignedShiftProjection {
-        global_day: shift.global_day() as i64,
-        week: shift.week,
-        day: shift.day,
-        shift_type_idx: shift.shift_type_idx,
-    }
-}
-
-fn nurse_soft_key_from_shift(shift: &NrpShift) -> NurseSoftKey {
-    let nurse_idx = shift.nurse_idx.unwrap_or(0);
-    let data = shift.problem_data();
-    let nurse = &data.nurses[nurse_idx];
-    let contract = &data.contracts[nurse.contract_idx];
-    let history = &data.nurse_history[nurse_idx];
-    NurseSoftKey {
-        nurse_idx,
-        total_days: data.total_days() as i64,
-        min_assignments: contract.min_assignments,
-        max_assignments: contract.max_assignments,
-        min_consecutive_working: contract.min_consecutive_working,
-        max_consecutive_working: contract.max_consecutive_working,
-        min_consecutive_off: contract.min_consecutive_off,
-        max_consecutive_off: contract.max_consecutive_off,
-        max_working_weekends: contract.max_working_weekends,
-        complete_weekends: contract.complete_weekends,
-        history_last_shift_type_idx: history.last_shift_type_idx,
-        history_assignments: history.num_assignments,
-        history_working_weekends: history.num_working_weekends,
-        history_consecutive_working: history.num_consecutive_working,
-        history_consecutive_off: history.num_consecutive_off,
-    }
-}
-
-fn nurse_soft_key_from_assigned_shift(shift: &NrpShift) -> Option<NurseSoftKey> {
-    shift.nurse_idx.map(|_| nurse_soft_key_from_shift(shift))
 }
 
 fn nurse_soft_key_from_nurse(nurse: &NurseIndex) -> NurseSoftKey {
@@ -308,30 +360,6 @@ fn nurse_soft_key_from_nurse(nurse: &NurseIndex) -> NurseSoftKey {
     }
 }
 
-fn shift_type_run_bounds_key_from_shift(shift: &NrpShift) -> ShiftTypeRunBoundsKey {
-    let nurse_idx = shift.nurse_idx.unwrap_or(0);
-    let data = shift.problem_data();
-    let shift_type = &data.shift_types[shift.shift_type_idx];
-    let history = &data.nurse_history[nurse_idx];
-    ShiftTypeRunBoundsKey {
-        nurse_idx,
-        shift_type_idx: shift.shift_type_idx,
-        total_days: data.total_days() as i64,
-        min_consecutive: shift_type.min_consecutive,
-        max_consecutive: shift_type.max_consecutive,
-        history_last_shift_type_idx: history.last_shift_type_idx,
-        history_consecutive_assignments: history.num_consecutive_assignments,
-    }
-}
-
-fn shift_type_run_bounds_key_from_assigned_shift(
-    shift: &NrpShift,
-) -> Option<ShiftTypeRunBoundsKey> {
-    shift
-        .nurse_idx
-        .map(|_| shift_type_run_bounds_key_from_shift(shift))
-}
-
 fn shift_type_run_bounds_key_from_fact(fact: &NurseShiftTypeIndex) -> ShiftTypeRunBoundsKey {
     ShiftTypeRunBoundsKey {
         nurse_idx: fact.nurse_idx,
@@ -346,9 +374,9 @@ fn shift_type_run_bounds_key_from_fact(fact: &NurseShiftTypeIndex) -> ShiftTypeR
 
 fn total_assignment_bounds_penalty(
     key: &NurseSoftKey,
-    assigned: &[AssignedShiftProjection],
+    presence: &IndexedPresence,
 ) -> HardSoftScore {
-    let total_assigned = assigned.len() as i64 + key.history_assignments;
+    let total_assigned = presence.item_count() as i64 + key.history_assignments;
     let cost = if total_assigned < key.min_assignments {
         20 * (key.min_assignments - total_assigned)
     } else if total_assigned > key.max_assignments {
@@ -359,18 +387,30 @@ fn total_assignment_bounds_penalty(
     HardSoftScore::of_soft(cost)
 }
 
+fn empty_total_assignment_bounds_penalty(nurse: &NurseIndex) -> HardSoftScore {
+    let total_assigned = nurse.history_assignments;
+    let cost = if total_assigned < nurse.min_assignments {
+        20 * (nurse.min_assignments - total_assigned)
+    } else if total_assigned > nurse.max_assignments {
+        20 * (total_assigned - nurse.max_assignments)
+    } else {
+        0
+    };
+    HardSoftScore::of_soft(cost)
+}
+
 fn consecutive_work_bounds_penalty(
     key: &NurseSoftKey,
-    assigned: &[AssignedShiftProjection],
+    presence: &IndexedPresence,
 ) -> HardSoftScore {
-    let works_by_day = works_by_day(key.total_days, assigned);
     let initial = if key.history_last_shift_type_idx.is_some() {
         key.history_consecutive_working
     } else {
         0
     };
     HardSoftScore::of_soft(run_bounds_cost(
-        &works_by_day,
+        &presence.runs(),
+        key.total_days,
         initial,
         key.min_consecutive_working,
         key.max_consecutive_working,
@@ -378,21 +418,29 @@ fn consecutive_work_bounds_penalty(
     ))
 }
 
-fn consecutive_off_bounds_penalty(
-    key: &NurseSoftKey,
-    assigned: &[AssignedShiftProjection],
-) -> HardSoftScore {
-    let off_by_day = works_by_day(key.total_days, assigned)
-        .into_iter()
-        .map(|works| !works)
-        .collect::<Vec<_>>();
+fn empty_consecutive_work_bounds_penalty(nurse: &NurseIndex) -> HardSoftScore {
+    let cost = if nurse.last_shift_type_idx.is_some() {
+        closed_bounds_cost(
+            nurse.history_consecutive_working,
+            nurse.min_consecutive_working,
+            nurse.max_consecutive_working,
+            30,
+        )
+    } else {
+        0
+    };
+    HardSoftScore::of_soft(cost)
+}
+
+fn consecutive_off_bounds_penalty(key: &NurseSoftKey, presence: &IndexedPresence) -> HardSoftScore {
     let initial = if key.history_last_shift_type_idx.is_none() {
         key.history_consecutive_off
     } else {
         0
     };
     HardSoftScore::of_soft(run_bounds_cost(
-        &off_by_day,
+        &presence.complement_runs(0..key.total_days),
+        key.total_days,
         initial,
         key.min_consecutive_off,
         key.max_consecutive_off,
@@ -400,22 +448,31 @@ fn consecutive_off_bounds_penalty(
     ))
 }
 
+fn empty_consecutive_off_bounds_penalty(nurse: &NurseIndex) -> HardSoftScore {
+    let initial = if nurse.last_shift_type_idx.is_none() {
+        nurse.history_consecutive_off
+    } else {
+        0
+    };
+    HardSoftScore::of_soft(max_bound_cost(
+        initial + nurse.total_days,
+        nurse.max_consecutive_off,
+        30,
+    ))
+}
+
 fn consecutive_shift_type_bounds_penalty(
     key: &ShiftTypeRunBoundsKey,
-    assigned: &[AssignedShiftProjection],
+    presence: &IndexedPresence,
 ) -> HardSoftScore {
-    let shift_type_by_day = shift_type_by_day(key.total_days, assigned);
-    let matches_by_day = shift_type_by_day
-        .into_iter()
-        .map(|shift_type| shift_type == Some(key.shift_type_idx))
-        .collect::<Vec<_>>();
     let initial = if key.history_last_shift_type_idx == Some(key.shift_type_idx) {
         key.history_consecutive_assignments
     } else {
         0
     };
     HardSoftScore::of_soft(run_bounds_cost(
-        &matches_by_day,
+        &presence.runs(),
+        key.total_days,
         initial,
         key.min_consecutive,
         key.max_consecutive,
@@ -423,11 +480,22 @@ fn consecutive_shift_type_bounds_penalty(
     ))
 }
 
-fn working_weekends_penalty(
-    key: &NurseSoftKey,
-    assigned: &[AssignedShiftProjection],
-) -> HardSoftScore {
-    let working_weekends = key.history_working_weekends + working_weekend_count(assigned);
+fn empty_consecutive_shift_type_bounds_penalty(fact: &NurseShiftTypeIndex) -> HardSoftScore {
+    let cost = if fact.history_last_shift_type_idx == Some(fact.shift_type_idx) {
+        closed_bounds_cost(
+            fact.history_consecutive_assignments,
+            fact.min_consecutive,
+            fact.max_consecutive,
+            15,
+        )
+    } else {
+        0
+    };
+    HardSoftScore::of_soft(cost)
+}
+
+fn working_weekends_penalty(key: &NurseSoftKey, presence: &IndexedPresence) -> HardSoftScore {
+    let working_weekends = key.history_working_weekends + working_weekend_count(key, presence);
     HardSoftScore::of_soft(max_bound_cost(
         working_weekends,
         key.max_working_weekends,
@@ -435,76 +503,70 @@ fn working_weekends_penalty(
     ))
 }
 
-fn complete_weekends_penalty(
-    key: &NurseSoftKey,
-    assigned: &[AssignedShiftProjection],
-) -> HardSoftScore {
+fn empty_working_weekends_penalty(nurse: &NurseIndex) -> HardSoftScore {
+    HardSoftScore::of_soft(max_bound_cost(
+        nurse.history_working_weekends,
+        nurse.max_working_weekends,
+        30,
+    ))
+}
+
+fn complete_weekends_penalty(key: &NurseSoftKey, presence: &IndexedPresence) -> HardSoftScore {
     if !key.complete_weekends {
         return HardSoftScore::ZERO;
     }
-    HardSoftScore::of_soft(complete_weekend_cost(key.total_days, assigned))
+    HardSoftScore::of_soft(complete_weekend_cost(key, presence))
 }
 
-fn sorted_assigned(assigned: &[AssignedShiftProjection]) -> Vec<AssignedShiftProjection> {
-    let mut sorted = assigned.to_vec();
-    sorted.sort_unstable();
-    sorted
-}
-
-fn works_by_day(total_days: i64, assigned: &[AssignedShiftProjection]) -> Vec<bool> {
-    let mut works = vec![false; total_days.max(0) as usize];
-    for shift in sorted_assigned(assigned) {
-        let day = shift.global_day as usize;
-        if day < works.len() {
-            works[day] = true;
-        }
-    }
-    works
-}
-
-fn shift_type_by_day(total_days: i64, assigned: &[AssignedShiftProjection]) -> Vec<Option<usize>> {
-    let mut shift_types = vec![None; total_days.max(0) as usize];
-    for shift in sorted_assigned(assigned) {
-        let day = shift.global_day as usize;
-        if day < shift_types.len() {
-            shift_types[day] = Some(shift.shift_type_idx);
-        }
-    }
-    shift_types
-}
-
-fn run_bounds_cost(days: &[bool], initial_run: i64, min: i64, max: i64, weight: i64) -> i64 {
+fn run_bounds_cost(
+    runs: &Runs,
+    total_days: i64,
+    initial_run: i64,
+    min: i64,
+    max: i64,
+    weight: i64,
+) -> i64 {
     let mut cost = 0;
-    let mut run = initial_run;
-    for active in days {
-        if *active {
-            run += 1;
-        } else {
-            if run > 0 {
-                cost += closed_bounds_cost(run, min, max, weight);
+    let mut initial_consumed = false;
+    for run in runs.runs() {
+        let mut length = run.point_count() as i64;
+        if !initial_consumed && initial_run > 0 {
+            if run.start() == 0 {
+                length += initial_run;
+            } else {
+                cost += closed_bounds_cost(initial_run, min, max, weight);
             }
-            run = 0;
+            initial_consumed = true;
+        }
+        if run.end().saturating_add(1) >= total_days {
+            cost += max_bound_cost(length, max, weight);
+        } else {
+            cost += closed_bounds_cost(length, min, max, weight);
         }
     }
-    cost + max_bound_cost(run, max, weight)
-}
-
-fn working_weekend_count(assigned: &[AssignedShiftProjection]) -> i64 {
-    let mut weeks = Vec::new();
-    for shift in sorted_assigned(assigned) {
-        if shift.day >= 5 && !weeks.contains(&shift.week) {
-            weeks.push(shift.week);
-        }
+    if !initial_consumed && initial_run > 0 {
+        cost += closed_bounds_cost(initial_run, min, max, weight);
     }
-    weeks.len() as i64
+    cost
 }
 
-fn complete_weekend_cost(total_days: i64, assigned: &[AssignedShiftProjection]) -> i64 {
-    let works = works_by_day(total_days, assigned);
+fn working_weekend_count(key: &NurseSoftKey, presence: &IndexedPresence) -> i64 {
+    let week_count = (key.total_days.max(0) as usize) / 7;
+    (0..week_count)
+        .filter(|week| {
+            let start = (*week as i64) * 7 + 5;
+            presence.any_in(start..start + 2)
+        })
+        .count() as i64
+}
+
+fn complete_weekend_cost(key: &NurseSoftKey, presence: &IndexedPresence) -> i64 {
+    let week_count = (key.total_days.max(0) as usize) / 7;
     let mut cost = 0;
-    for week in 0..(works.len() / 7) {
-        let sat_works = works[week * 7 + 5];
-        let sun_works = works[week * 7 + 6];
+    for week in 0..week_count {
+        let saturday = week as i64 * 7 + 5;
+        let sat_works = presence.contains(saturday);
+        let sun_works = presence.contains(saturday + 1);
         if sat_works != sun_works {
             cost += 30;
         }
