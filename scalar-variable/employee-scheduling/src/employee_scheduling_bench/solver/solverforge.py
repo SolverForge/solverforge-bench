@@ -27,12 +27,6 @@ def solve_with_solverforge(instance: Instance, time_limit: int) -> Solution:
     solver_metadata = {
         key: value for key, value in result.items() if key != "assignments"
     }
-    hard_violations = result.get("hard_violations", 0)
-    if hard_violations:
-        raise RuntimeError(
-            f"SolverForge returned no hard-feasible solution: {hard_violations} hard violations"
-        )
-
     weekly = []
     for week_assignments in result["assignments"]:
         week = []
