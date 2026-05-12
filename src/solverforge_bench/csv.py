@@ -1,0 +1,76 @@
+"""Stable global CSV writing for all benchmark specs."""
+
+from __future__ import annotations
+
+import csv
+from pathlib import Path
+from typing import Any, Iterable
+
+
+GLOBAL_COLUMNS = [
+    "benchmark_name",
+    "benchmark_category",
+    "dataset",
+    "dataset_set",
+    "instance",
+    "instance_size",
+    "solver",
+    "time_limit_seconds",
+    "actual_time_seconds",
+    "overshoot_seconds",
+    "overshoot_ratio",
+    "wall_time_over_limit",
+    "watchdog_limit_seconds",
+    "watchdog_killed",
+    "run_error",
+    "hard_feasible",
+    "cost",
+    "reported_cost",
+    "fresh_cost",
+    "reference_cost",
+    "quality_ratio",
+    "validation_error",
+    "solution_artifact",
+    "nurses",
+    "weeks",
+    "validator_model_delta",
+    "score_drift",
+]
+
+
+class IncrementalCsvWriter:
+    def __init__(self, path: Path, *, columns: Iterable[str] = GLOBAL_COLUMNS):
+        self.path = path
+        self.columns = list(columns)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._handle = self.path.open("w", newline="", encoding="utf-8")
+        self._writer = csv.DictWriter(
+            self._handle,
+            fieldnames=self.columns,
+            extrasaction="ignore",
+        )
+        self._writer.writeheader()
+        self._handle.flush()
+
+    def write_row(self, row: dict[str, Any]) -> None:
+        self._writer.writerow(
+            {column: _csv_value(row.get(column)) for column in self.columns}
+        )
+        self._handle.flush()
+
+    def close(self) -> None:
+        self._handle.close()
+
+    def __enter__(self) -> "IncrementalCsvWriter":
+        return self
+
+    def __exit__(self, *_exc) -> None:
+        self.close()
+
+
+def _csv_value(value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return value

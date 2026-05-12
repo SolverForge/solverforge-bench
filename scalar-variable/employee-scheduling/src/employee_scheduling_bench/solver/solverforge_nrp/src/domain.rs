@@ -158,6 +158,7 @@ impl NrpShift {
 #[planning_solution(
     constraints = "crate::constraints::define_constraints",
     scalar_groups = "crate::domain::scalar_groups",
+    config = "crate::domain::solver_config_for_plan",
     solver_toml = "../solver.toml"
 )]
 pub struct NrpPlan {
@@ -171,6 +172,7 @@ pub struct NrpPlan {
     pub score: Option<HardSoftScore>,
     pub shift_nurse_candidates: Vec<Vec<usize>>,
     pub shift_indices: Vec<usize>,
+    pub time_limit_secs: u64,
     pub data: ProblemData,
 }
 
@@ -178,7 +180,13 @@ impl NrpPlan {
     pub fn problem_data(&self) -> &ProblemData {
         &self.data
     }
+}
 
+pub fn solver_config_for_plan(
+    solution: &NrpPlan,
+    config: solverforge::SolverConfig,
+) -> solverforge::SolverConfig {
+    config.with_termination_seconds(solution.time_limit_secs.max(1))
 }
 
 pub(super) fn nurse_candidates_for_shift(

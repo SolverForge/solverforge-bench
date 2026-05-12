@@ -12,10 +12,12 @@ dependencies = [
     "pyvroom>=1.14.0",
     "vrplib>=1.5.1",
     "hygese>=0.0.0.10",
+    "psycopg[binary]>=3.2.0",
 ]
 
 [tool.setuptools.packages.find]
 where = [
+    "src",
     "list-variable/cvrp/src",
     "scalar-variable/employee-scheduling/src",
 ]

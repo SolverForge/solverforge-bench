@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from employee_scheduling_bench.domain.validation import validate
 from employee_scheduling_bench.loader import (
     enumerate_instances,
     load_instance,
     load_solution,
 )
+from employee_scheduling_bench.validation import validate
 
 
 def main() -> None:

@@ -1,14 +1,17 @@
 use std::sync::OnceLock;
 
-use solverforge::{SolverEvent, SolverManager};
+use solverforge::{SolverEvent, SolverManager, SolverTelemetry};
 
 use crate::domain::NrpPlan;
 
 static MANAGER: OnceLock<SolverManager<NrpPlan>> = OnceLock::new();
 
-pub fn solve(plan: NrpPlan, time_limit_secs: u64) -> Result<NrpPlan, String> {
+pub fn solve(
+    plan: NrpPlan,
+    _time_limit_secs: u64,
+) -> Result<(NrpPlan, Option<SolverTelemetry>), String> {
     if plan.shifts.is_empty() {
-        return Ok(plan);
+        return Ok((plan, None));
     }
 
     let manager = MANAGER.get_or_init(SolverManager::new);
@@ -17,53 +20,41 @@ pub fn solve(plan: NrpPlan, time_limit_secs: u64) -> Result<NrpPlan, String> {
         .map_err(|e| format!("SolverForge manager rejected NRP job: {e}"))?;
 
     let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_time()
+        .enable_all()
         .build()
-        .map_err(|e| format!("Failed to create tokio runtime: {e}"))?;
+        .map_err(|e| format!("Failed to create async runtime: {e}"))?;
 
-    let deadline =
-        std::time::Instant::now() + std::time::Duration::from_secs(time_limit_secs.max(1));
     let mut best = None;
+    let mut telemetry = None;
     let mut failure = None;
     rt.block_on(async {
-        let mut cancel_requested = false;
         loop {
-            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
-            if remaining.is_zero() && !cancel_requested {
-                let _ = manager.cancel(job_id);
-                cancel_requested = true;
-            }
-            let wait_for = if cancel_requested {
-                std::time::Duration::from_secs(10)
-            } else {
-                remaining.max(std::time::Duration::from_millis(100))
-            };
-
-            match tokio::time::timeout(wait_for, rx.recv()).await {
-                Ok(Some(SolverEvent::BestSolution { solution, .. })) => best = Some(solution),
-                Ok(Some(SolverEvent::Completed { solution, .. })) => {
+            match rx.recv().await {
+                Some(SolverEvent::BestSolution { metadata, solution }) => {
+                    telemetry = Some(metadata.telemetry);
+                    best = Some(solution);
+                }
+                Some(SolverEvent::Completed { metadata, solution }) => {
+                    telemetry = Some(metadata.telemetry);
                     best = Some(solution);
                     break;
                 }
-                Ok(Some(SolverEvent::Cancelled { .. })) => break,
-                Ok(Some(SolverEvent::Failed { error, .. })) => {
+                Some(SolverEvent::Cancelled { metadata }) => {
+                    telemetry = Some(metadata.telemetry);
+                    break;
+                }
+                Some(SolverEvent::Failed { metadata, error }) => {
+                    telemetry = Some(metadata.telemetry);
                     failure = Some(format!("SolverForge NRP job failed: {error}"));
                     break;
                 }
-                Ok(Some(SolverEvent::Progress { .. }))
-                | Ok(Some(SolverEvent::PauseRequested { .. }))
-                | Ok(Some(SolverEvent::Paused { .. }))
-                | Ok(Some(SolverEvent::Resumed { .. })) => {}
-                Ok(None) => break,
-                Err(_) => {
-                    if cancel_requested {
-                        failure =
-                            Some("SolverForge NRP job did not stop after cancellation".to_string());
-                        break;
-                    }
-                    let _ = manager.cancel(job_id);
-                    cancel_requested = true;
+                Some(SolverEvent::Progress { metadata })
+                | Some(SolverEvent::PauseRequested { metadata })
+                | Some(SolverEvent::Paused { metadata })
+                | Some(SolverEvent::Resumed { metadata }) => {
+                    telemetry = Some(metadata.telemetry);
                 }
+                None => break,
             }
         }
     });
@@ -71,5 +62,6 @@ pub fn solve(plan: NrpPlan, time_limit_secs: u64) -> Result<NrpPlan, String> {
     if let Some(error) = failure {
         return Err(error);
     }
-    best.ok_or_else(|| "SolverForge NRP job produced no solution".to_string())
+    best.map(|solution| (solution, telemetry))
+        .ok_or_else(|| "SolverForge NRP job produced no solution".to_string())
 }

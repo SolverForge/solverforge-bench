@@ -278,10 +278,11 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
         score: None,
         shift_nurse_candidates,
         shift_indices,
+        time_limit_secs: time_limit.max(1),
         data: problem_data,
     };
 
-    let solved = solve(plan, time_limit)?;
+    let (solved, telemetry) = solve(plan, time_limit)?;
 
     let score = solved
         .score
@@ -327,6 +328,32 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
         "hard_violations": -fresh_score.hard(),
         "reported_score": score.to_string(),
         "fresh_score": fresh_score.to_string(),
+        "solverforge_telemetry": telemetry.as_ref().map(|telemetry| serde_json::json!({
+            "step_count": telemetry.step_count,
+            "moves_generated": telemetry.moves_generated,
+            "moves_evaluated": telemetry.moves_evaluated,
+            "moves_accepted": telemetry.moves_accepted,
+            "moves_applied": telemetry.moves_applied,
+            "moves_not_doable": telemetry.moves_not_doable,
+            "moves_acceptor_rejected": telemetry.moves_acceptor_rejected,
+            "moves_forager_ignored": telemetry.moves_forager_ignored,
+            "moves_hard_improving": telemetry.moves_hard_improving,
+            "moves_hard_neutral": telemetry.moves_hard_neutral,
+            "moves_hard_worse": telemetry.moves_hard_worse,
+            "score_calculations": telemetry.score_calculations,
+            "scalar_assignment_required_remaining": telemetry.scalar_assignment_required_remaining,
+            "selector_telemetry": telemetry.selector_telemetry.iter().map(|selector| serde_json::json!({
+                "selector_index": selector.selector_index,
+                "selector_label": selector.selector_label,
+                "moves_generated": selector.moves_generated,
+                "moves_evaluated": selector.moves_evaluated,
+                "moves_accepted": selector.moves_accepted,
+                "moves_applied": selector.moves_applied,
+                "moves_not_doable": selector.moves_not_doable,
+                "moves_acceptor_rejected": selector.moves_acceptor_rejected,
+                "moves_forager_ignored": selector.moves_forager_ignored,
+            })).collect::<Vec<_>>(),
+        })),
         "constraint_breakdown": constraint_breakdown,
     });
 

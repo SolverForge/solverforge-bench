@@ -13,22 +13,33 @@ from typing import Iterable
 
 SCHEMA_COLUMNS = [
     "run_id",
-    "benchmark_category",
     "benchmark_name",
+    "benchmark_category",
     "dataset",
     "dataset_set",
     "instance",
     "instance_size",
-    "nurses",
-    "weeks",
     "solver",
     "time_limit_seconds",
     "actual_time_seconds",
+    "overshoot_seconds",
+    "overshoot_ratio",
+    "wall_time_over_limit",
+    "watchdog_limit_seconds",
+    "watchdog_killed",
+    "run_error",
     "hard_feasible",
     "cost",
+    "reported_cost",
+    "fresh_cost",
     "reference_cost",
     "quality_ratio",
     "validation_error",
+    "solution_artifact",
+    "nurses",
+    "weeks",
+    "validator_model_delta",
+    "score_drift",
     "source_file",
 ]
 
@@ -54,7 +65,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--category",
-        choices=["auto", "cvrp", "employee_scheduling"],
+        choices=["auto", "global", "cvrp", "employee-scheduling"],
         default="auto",
         help="Benchmark category. Defaults to inference from CSV headers.",
     )
@@ -89,6 +100,8 @@ def infer_category(rows: list[dict[str, str]], requested: str) -> str:
     if not rows:
         raise ValueError("Cannot infer benchmark category from an empty CSV.")
     headers = set(rows[0])
+    if {"benchmark_name", "benchmark_category", "time_limit_seconds"} <= headers:
+        return "global"
     if {
         "Dataset Set",
         "Nurses",
@@ -96,7 +109,7 @@ def infer_category(rows: list[dict[str, str]], requested: str) -> str:
         "Hard Feasible",
         "Validation Error",
     } <= headers:
-        return "employee_scheduling"
+        return "employee-scheduling"
     if {"Instance", "Size", "Solution Quality"} <= headers:
         return "cvrp"
     raise ValueError(f"Cannot infer benchmark category from headers: {sorted(headers)}")
@@ -109,8 +122,11 @@ def normalize_row(
     run_id: str,
     source_file: Path,
 ) -> dict[str, object | None]:
+    if category == "global":
+        return normalize_global_row(row, run_id=run_id, source_file=source_file)
     if category == "cvrp":
         quality_ratio = as_float(row.get("Solution Quality"))
+        validation_error = blank_to_none(row.get("Validation Error"))
         return {
             "run_id": run_id,
             "benchmark_category": "list_variable",
@@ -124,18 +140,30 @@ def normalize_row(
             "solver": blank_to_none(row.get("Solver")),
             "time_limit_seconds": as_int(row.get("Time Limit (s)")),
             "actual_time_seconds": as_float(row.get("Actual Time (s)")),
+            "overshoot_seconds": None,
+            "overshoot_ratio": None,
+            "wall_time_over_limit": as_bool(row.get("Wall Time Over Limit")),
+            "watchdog_limit_seconds": None,
+            "watchdog_killed": None,
+            "run_error": None,
             "hard_feasible": quality_ratio is not None and quality_ratio >= 0,
             "cost": None,
+            "reported_cost": None,
+            "fresh_cost": None,
             "reference_cost": None,
             "quality_ratio": None if quality_ratio == -1 else quality_ratio,
-            "validation_error": "validation_failed" if quality_ratio == -1 else "",
+            "validation_error": validation_error
+            or ("validation_failed" if quality_ratio == -1 else ""),
+            "solution_artifact": None,
+            "validator_model_delta": None,
+            "score_drift": None,
             "source_file": str(source_file),
         }
-    if category == "employee_scheduling":
+    if category == "employee-scheduling":
         return {
             "run_id": run_id,
             "benchmark_category": "scalar_variable",
-            "benchmark_name": "employee_scheduling",
+            "benchmark_name": "employee-scheduling",
             "dataset": "INRC-II",
             "dataset_set": blank_to_none(row.get("Dataset Set")),
             "instance": blank_to_none(row.get("Instance")),
@@ -145,14 +173,64 @@ def normalize_row(
             "solver": blank_to_none(row.get("Solver")),
             "time_limit_seconds": as_int(row.get("Time Limit (s)")),
             "actual_time_seconds": as_float(row.get("Actual Time (s)")),
+            "overshoot_seconds": None,
+            "overshoot_ratio": None,
+            "wall_time_over_limit": None,
+            "watchdog_limit_seconds": None,
+            "watchdog_killed": None,
+            "run_error": None,
             "hard_feasible": as_bool(row.get("Hard Feasible")),
             "cost": as_int(row.get("Cost")),
+            "reported_cost": as_int(row.get("Reported Cost")),
+            "fresh_cost": as_int(row.get("Fresh Cost")),
             "reference_cost": as_int(row.get("Reference Cost")),
             "quality_ratio": as_float(row.get("Quality Ratio")),
             "validation_error": blank_to_none(row.get("Validation Error")) or "",
+            "solution_artifact": blank_to_none(row.get("Solution Artifact")),
+            "validator_model_delta": as_int(row.get("Validator Model Delta")),
+            "score_drift": as_bool(row.get("Score Drift")),
             "source_file": str(source_file),
         }
     raise ValueError(f"Unsupported category: {category}")
+
+
+def normalize_global_row(
+    row: dict[str, str],
+    *,
+    run_id: str,
+    source_file: Path,
+) -> dict[str, object | None]:
+    return {
+        "run_id": run_id,
+        "benchmark_name": blank_to_none(row.get("benchmark_name")),
+        "benchmark_category": blank_to_none(row.get("benchmark_category")),
+        "dataset": blank_to_none(row.get("dataset")),
+        "dataset_set": blank_to_none(row.get("dataset_set")),
+        "instance": blank_to_none(row.get("instance")),
+        "instance_size": as_int(row.get("instance_size")),
+        "solver": blank_to_none(row.get("solver")),
+        "time_limit_seconds": as_int(row.get("time_limit_seconds")),
+        "actual_time_seconds": as_float(row.get("actual_time_seconds")),
+        "overshoot_seconds": as_float(row.get("overshoot_seconds")),
+        "overshoot_ratio": as_float(row.get("overshoot_ratio")),
+        "wall_time_over_limit": as_bool(row.get("wall_time_over_limit")),
+        "watchdog_limit_seconds": as_float(row.get("watchdog_limit_seconds")),
+        "watchdog_killed": as_bool(row.get("watchdog_killed")),
+        "run_error": blank_to_none(row.get("run_error")),
+        "hard_feasible": as_bool(row.get("hard_feasible")),
+        "cost": as_float(row.get("cost")),
+        "reported_cost": as_float(row.get("reported_cost")),
+        "fresh_cost": as_float(row.get("fresh_cost")),
+        "reference_cost": as_float(row.get("reference_cost")),
+        "quality_ratio": as_float(row.get("quality_ratio")),
+        "validation_error": blank_to_none(row.get("validation_error")) or "",
+        "solution_artifact": blank_to_none(row.get("solution_artifact")),
+        "nurses": as_int(row.get("nurses")),
+        "weeks": as_int(row.get("weeks")),
+        "validator_model_delta": as_float(row.get("validator_model_delta")),
+        "score_drift": as_bool(row.get("score_drift")),
+        "source_file": str(source_file),
+    }
 
 
 def write_rows(

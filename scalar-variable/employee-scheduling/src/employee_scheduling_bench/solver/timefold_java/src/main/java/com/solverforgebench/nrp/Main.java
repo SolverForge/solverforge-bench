@@ -197,7 +197,7 @@ public class Main {
                     shiftTypeMinConsecutive,
                     shiftTypeMaxConsecutive));
         }
-        nurses.add(new NurseFact(
+        NurseFact unassignedNurse = new NurseFact(
                 "__UNASSIGNED__",
                 -1,
                 new HashSet<>(),
@@ -217,7 +217,8 @@ public class Main {
                 0,
                 totalDays,
                 shiftTypeMinConsecutive,
-                shiftTypeMaxConsecutive));
+                shiftTypeMaxConsecutive);
+        nurses.add(unassignedNurse);
 
         List<ShiftAssignment> assignments = new ArrayList<>();
         for (int i = 0; i < input.shifts.size(); i++) {
@@ -228,6 +229,14 @@ public class Main {
                     input.shiftOffRequests,
                     globalDay,
                     shift.shiftTypeIdx);
+            List<NurseFact> nurseRange = nurseRangeForShift(
+                    nurses,
+                    unassignedNurse,
+                    input.forbidden,
+                    globalDay,
+                    shift.skillIdx,
+                    shift.shiftTypeIdx,
+                    shift.minimum);
             assignments.add(new ShiftAssignment(
                     i,
                     shift.week,
@@ -236,7 +245,8 @@ public class Main {
                     shift.skillIdx,
                     shift.minimum,
                     forbiddenPredecessors,
-                    shiftOffRequestNurses));
+                    shiftOffRequestNurses,
+                    nurseRange));
         }
 
         NurseRoster problem = new NurseRoster(nurses, assignments);
@@ -304,5 +314,52 @@ public class Main {
             }
         }
         return requestNurses;
+    }
+
+    private static List<NurseFact> nurseRangeForShift(
+            List<NurseFact> nurses,
+            NurseFact unassignedNurse,
+            List<ForbiddenInput> forbidden,
+            int globalDay,
+            int skillIdx,
+            int shiftTypeIdx,
+            boolean minimum) {
+        List<NurseFact> candidates = new ArrayList<>();
+        for (NurseFact nurse : nurses) {
+            if (!nurse.isRealNurse()) {
+                continue;
+            }
+            if (!nurse.getSkills().contains(skillIdx)) {
+                continue;
+            }
+            Integer previousShift = nurse.getHistoryLastShiftTypeIdx();
+            if (globalDay == 0
+                    && previousShift != null
+                    && forbiddenSuccessor(forbidden, previousShift, shiftTypeIdx)) {
+                continue;
+            }
+            candidates.add(nurse);
+        }
+        if (!minimum) {
+            candidates.add(unassignedNurse);
+        }
+        return candidates;
+    }
+
+    private static boolean forbiddenSuccessor(
+            List<ForbiddenInput> forbidden,
+            int precedingShiftTypeIdx,
+            int succeedingShiftTypeIdx) {
+        if (forbidden == null || forbidden.isEmpty()) {
+            return false;
+        }
+        for (ForbiddenInput entry : forbidden) {
+            if (entry.preceding == precedingShiftTypeIdx
+                    && entry.succeeding != null
+                    && entry.succeeding.contains(succeedingShiftTypeIdx)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

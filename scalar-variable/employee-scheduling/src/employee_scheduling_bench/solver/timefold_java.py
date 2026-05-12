@@ -8,16 +8,11 @@ from employee_scheduling_bench.solver.instance_json import serialize_instance
 _JAR_PATH = Path(__file__).parent / "timefold_java" / "target" / "timefold-nrp.jar"
 
 
-def _wall_timeout_seconds(time_limit: int) -> int:
-    return int(time_limit + 5)
-
-
 def solve_with_timefold_java(instance: Instance, time_limit: int) -> Solution:
     result = subprocess.run(
         ["java", "-jar", str(_JAR_PATH), str(time_limit)],
         input=serialize_instance(instance).encode(),
         capture_output=True,
-        timeout=_wall_timeout_seconds(time_limit),
     )
     if result.returncode != 0:
         raise RuntimeError(

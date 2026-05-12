@@ -3,6 +3,7 @@ package com.solverforgebench.nrp.domain;
 import ai.timefold.solver.core.api.domain.entity.PlanningEntity;
 import ai.timefold.solver.core.api.domain.lookup.PlanningId;
 import ai.timefold.solver.core.api.domain.variable.PlanningVariable;
+import ai.timefold.solver.core.api.domain.valuerange.ValueRangeProvider;
 
 import java.util.List;
 
@@ -18,6 +19,7 @@ public class ShiftAssignment {
     private boolean minimum;
     private List<Integer> forbiddenPredecessors;
     private List<Integer> shiftOffRequestNurses;
+    private List<NurseFact> nurseRange;
 
     @PlanningVariable(valueRangeProviderRefs = "nurseRange")
     private NurseFact nurse;
@@ -33,7 +35,8 @@ public class ShiftAssignment {
             int skillIdx,
             boolean minimum,
             List<Integer> forbiddenPredecessors,
-            List<Integer> shiftOffRequestNurses) {
+            List<Integer> shiftOffRequestNurses,
+            List<NurseFact> nurseRange) {
         this.id = id;
         this.week = week;
         this.day = day;
@@ -42,6 +45,7 @@ public class ShiftAssignment {
         this.minimum = minimum;
         this.forbiddenPredecessors = forbiddenPredecessors;
         this.shiftOffRequestNurses = shiftOffRequestNurses;
+        this.nurseRange = nurseRange;
     }
 
     public int getId() {
@@ -82,6 +86,11 @@ public class ShiftAssignment {
 
     public List<Integer> getShiftOffRequestNurses() {
         return shiftOffRequestNurses;
+    }
+
+    @ValueRangeProvider(id = "nurseRange")
+    public List<NurseFact> getNurseRange() {
+        return nurseRange;
     }
 
     public NurseFact getNurse() {

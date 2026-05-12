@@ -6,8 +6,8 @@ from typing import Any
 from ortools.sat.python import cp_model
 
 from employee_scheduling_bench.domain.models import Assignment, Instance, Solution
-from employee_scheduling_bench.domain.validation import validate
 from employee_scheduling_bench.solver.instance_json import serialize_instance
+from employee_scheduling_bench.validation import validate
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 ANY_SHIFT_TYPE = 2**64 - 1
@@ -265,8 +265,6 @@ def solve_with_ortools(instance: Instance, time_limit: int) -> Solution:
     solver.parameters.num_search_workers = 1
     solver.parameters.random_seed = 1
     solver.parameters.log_search_progress = False
-    solver.parameters.repair_hint = True
-    solver.parameters.hint_conflict_limit = 100_000
 
     status = solver.Solve(model)
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -421,8 +419,6 @@ def _solve_hard_seed(
     solver.parameters.num_search_workers = 1
     solver.parameters.random_seed = 1
     solver.parameters.log_search_progress = False
-    solver.parameters.repair_hint = True
-    solver.parameters.hint_conflict_limit = 100_000
     status = solver.Solve(model)
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return None
