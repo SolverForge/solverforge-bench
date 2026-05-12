@@ -47,8 +47,9 @@ class PostgresResultWriter:
         self._insert_run()
         return self
 
-    def __exit__(self, *_exc) -> None:
+    def __exit__(self, exc_type, exc, _tb) -> None:
         if self._conn is not None:
+            self._finish_run(exc_type=exc_type, exc=exc)
             self._conn.close()
 
     def write_row(self, row: BenchmarkRow) -> None:
@@ -213,6 +214,36 @@ class PostgresResultWriter:
                     "git_dirty": git_dirty,
                     "python_version": sys.version,
                     "metadata": self._jsonb(_json_safe(self.config.metadata)),
+                },
+            )
+
+    def _finish_run(self, *, exc_type, exc) -> None:
+        if self._conn is None:
+            raise RuntimeError("PostgresResultWriter is not open")
+
+        if exc_type is None:
+            status = "completed"
+            failure_error = None
+        else:
+            status = "failed"
+            failure_error = f"{exc_type.__name__}: {exc}"
+
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE benchmark_runs
+                SET
+                    status = %(status)s,
+                    completed_at = now(),
+                    failure_error = %(failure_error)s,
+                    result_count = %(result_count)s
+                WHERE id = %(id)s
+                """,
+                {
+                    "id": self.run_id,
+                    "status": status,
+                    "failure_error": failure_error,
+                    "result_count": self._row_index,
                 },
             )
 

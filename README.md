@@ -181,6 +181,8 @@ PostgreSQL stores run-level catalog data in `benchmark_runs` and one row per
 solver/case/time-limit result in `benchmark_results`. Core benchmark columns are
 typed columns. Benchmark-specific native fields are preserved in
 `native_fields`, and the complete emitted row is preserved in `row_payload`.
+Runs are catalogued as `running`, `completed`, or `failed`; interrupted runs keep
+their partial rows but are excluded from latest-run display views.
 Warehouse/display consumers can read `benchmark_result_facts`,
 `latest_benchmark_runs`, or `latest_benchmark_result_facts` instead of
 reconstructing the run/result join themselves.
