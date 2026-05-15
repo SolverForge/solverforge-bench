@@ -1,5 +1,10 @@
 # 🚚 Vehicle Routing Benchmark Results
 
+> Archived historical result artifact. This file does not describe the current
+> `solverforge-bench` execution surface. Use the root `README.md` and
+> `src/solverforge_bench/` for current CVRP and employee-scheduling benchmark
+> workflows.
+
 📅 **Generated:** 2025-07-21 11:16:13
 🚀 **Total Scenarios:** 60
 ✅ **Successful Runs:** 60

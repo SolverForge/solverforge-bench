@@ -1,5 +1,10 @@
 # Constraint Solver Performance Analysis: Python vs Java Implementation Comparison for the Meeting Scheduling and Vehicle Routing problems
 
+> Archived historical report. This file does not describe the current
+> `solverforge-bench` execution surface. Use the root `README.md` and
+> `src/solverforge_bench/` for current CVRP and employee-scheduling benchmark
+> workflows.
+
 ## Abstract
 
 This paper presents a comprehensive performance analysis of constraint solver implementations across Python and Java platforms, revealing a critical architectural issue that significantly impacts solution quality. Through systematic benchmarking of meeting scheduling problems, we discovered that Pydantic domain models in constraint solving contexts introduce validation complexity that interferes with constraint evaluation, leading to false positive constraint violations. Our analysis demonstrates that the architectural choice between Pydantic domain models and dataclass domain models has profound implications for constraint solver performance and solution quality.
