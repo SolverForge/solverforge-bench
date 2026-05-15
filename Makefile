@@ -1,90 +1,193 @@
-PYTHON ?= python3.12
-CVRP_PYTHON ?= $(CURDIR)/list-variable/cvrp/.venv/bin/python3
-CVRP_PIP ?= $(CURDIR)/list-variable/cvrp/.venv/bin/pip
-DATABASE_URL ?= postgresql://postgres@localhost/solverforge_bench
+HOST_PYTHON ?= python3.14
+VENV ?= $(CURDIR)/.venv
+PYTHON ?= $(VENV)/bin/python3
+PIP ?= $(VENV)/bin/pip
+DATABASE_URL ?= $(if $(BENCH_DATABASE_URL),$(BENCH_DATABASE_URL),postgresql://postgres@localhost/solverforge_bench)
 SQLX ?= sqlx
 BENCH_ARGS ?=
+BENCH_CONFIG ?=
+NIGHTLY_ARGS ?=
+BENCH_CONFIG_ARG = $(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",)
+NIGHTLY_CONFIG_ARG = $(if $(findstring --config,$(NIGHTLY_ARGS)),,$(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",--config "benchmark.nightly.example.toml"))
+BENCH_DB_ARGS := --postgres-url "$(DATABASE_URL)"
 BENCH_PYTHONPATH := src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src
 BENCH_ENV := OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$(BENCH_PYTHONPATH)
-PINNED_BENCH := taskset -c 0 env $(BENCH_ENV)
+BENCH_CPU ?= 0
+PINNED_BENCH := taskset -c $(BENCH_CPU) env $(BENCH_ENV)
 
 CVRP_ROOT := list-variable/cvrp
 CVRP_SOLVERFORGE_DIR := $(CVRP_ROOT)/src/cvrp_bench/solver/solverforge
-CVRP_TIMEFOLD_POM := $(CVRP_ROOT)/src/cvrp_bench/solver/timefold_java/pom.xml
+CVRP_TIMEFOLD_POM := $(CVRP_ROOT)/src/cvrp_bench/solver/timefold/pom.xml
+CVRP_ORTOOLS_DIR := $(CVRP_ROOT)/src/cvrp_bench/solver/ortools
+CVRP_RUSTVRP_DIR := $(CVRP_ROOT)/src/cvrp_bench/solver/rustvrp
+CVRP_VROOM_DIR := $(CVRP_ROOT)/src/cvrp_bench/solver/vroom
 
 EMPLOYEE_ROOT := scalar-variable/employee-scheduling
 EMPLOYEE_SOLVERFORGE_DIR := $(EMPLOYEE_ROOT)/src/employee_scheduling_bench/solver/solverforge_nrp
-EMPLOYEE_TIMEFOLD_POM := $(EMPLOYEE_ROOT)/src/employee_scheduling_bench/solver/timefold_java/pom.xml
+EMPLOYEE_TIMEFOLD_POM := $(EMPLOYEE_ROOT)/src/employee_scheduling_bench/solver/timefold/pom.xml
+EMPLOYEE_ORTOOLS_DIR := $(EMPLOYEE_ROOT)/src/employee_scheduling_bench/solver/ortools
+ORTOOLS_VERSION ?= 9.15.6755
+ORTOOLS_ARCHIVE ?= or-tools_amd64_opensuse-leap_cpp_v$(ORTOOLS_VERSION).tar.gz
+ORTOOLS_URL ?= https://github.com/google/or-tools/releases/download/v9.15/$(ORTOOLS_ARCHIVE)
+ORTOOLS_ROOT ?= $(CURDIR)/build/ortools/or-tools_x86_64_openSUSE-15.6_cpp_v$(ORTOOLS_VERSION)
+VROOM_VERSION ?= 1.15.0
+VROOM_REPO ?= https://github.com/VROOM-Project/vroom.git
+VROOM_SOURCE_DIR := $(CURDIR)/build/vroom/vroom-$(VROOM_VERSION)
+VROOM_BINARY := $(VROOM_SOURCE_DIR)/bin/vroom
+JAVA_HOME_FOR_MAVEN ?= $(shell dirname "$$(dirname "$$(readlink -f "$$(command -v java)")")")
+MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin:$(PATH)"
 
 .PHONY: \
-	build-cvrp build-cvrp-solverforge build-cvrp-timefold-java \
-	build-employee-scheduling build-employee-scheduling-solverforge build-employee-scheduling-timefold-java \
-	bench-cvrp bench-cvrp-quick bench-cvrp-solverforge bench-cvrp-solverforge-quick \
-	bench-employee-scheduling bench-employee-scheduling-quick \
-	bench-employee-scheduling-solverforge bench-employee-scheduling-solverforge-quick \
+	venv install-python-deps build-cvrp build-cvrp-python-deps build-cvrp-solverforge build-cvrp-timefold build-cvrp-ortools build-cvrp-rustvrp build-cvrp-vroom \
+	build-employee-scheduling build-employee-scheduling-solverforge build-employee-scheduling-timefold build-employee-scheduling-ortools \
+	bench-cvrp bench-cvrp-db bench-cvrp-quick bench-cvrp-quick-db \
+	bench-cvrp-solverforge bench-cvrp-solverforge-db \
+	bench-cvrp-solverforge-quick bench-cvrp-solverforge-quick-db \
+	bench-employee-scheduling bench-employee-scheduling-db \
+	bench-employee-scheduling-quick bench-employee-scheduling-quick-db \
+	bench-employee-scheduling-solverforge bench-employee-scheduling-solverforge-db \
+	bench-employee-scheduling-solverforge-quick bench-employee-scheduling-solverforge-quick-db \
+	bench-nightly-db \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity \
 	db-check db-create db-migrate normalize-results
 
+venv:
+	@if [ -x "$(PYTHON)" ]; then \
+		current="$$("$(PYTHON)" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"; \
+		expected="$$("$(HOST_PYTHON)" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"; \
+		if [ "$$current" != "$$expected" ]; then \
+			rm -rf "$(VENV)"; \
+		fi; \
+	fi
+	@if [ ! -x "$(PYTHON)" ]; then \
+		"$(HOST_PYTHON)" -m venv "$(VENV)"; \
+	fi
+
+install-python-deps: venv
+	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install -e .
+
 db-check:
-	psql -h localhost -U postgres -d postgres -c "select current_user, current_database(), version();"
+	psql "$(DATABASE_URL)" -c "select current_user, current_database(), version();"
 
 db-create:
-	psql -h localhost -U postgres -d postgres -tc "select 1 from pg_database where datname = 'solverforge_bench'" | grep -q 1 || createdb -h localhost -U postgres solverforge_bench
+	$(SQLX) database create --database-url "$(DATABASE_URL)"
 
 db-migrate: db-create
 	$(SQLX) migrate run --source migrations --database-url "$(DATABASE_URL)"
 
-build-cvrp: build-cvrp-timefold-java build-cvrp-solverforge
+$(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake:
+	mkdir -p build/ortools
+	curl -L --fail --retry 3 -o build/ortools/$(ORTOOLS_ARCHIVE) "$(ORTOOLS_URL)"
+	tar -xzf build/ortools/$(ORTOOLS_ARCHIVE) -C build/ortools
 
-build-cvrp-timefold-java:
-	mvn -f $(CVRP_TIMEFOLD_POM) package -q
+$(VROOM_SOURCE_DIR)/src/makefile:
+	mkdir -p build/vroom
+	git clone --depth 1 --branch v$(VROOM_VERSION) --recurse-submodules --shallow-submodules "$(VROOM_REPO)" "$(VROOM_SOURCE_DIR)"
 
-build-cvrp-solverforge:
-	cd $(CVRP_SOLVERFORGE_DIR) && PIP_DISABLE_PIP_VERSION_CHECK=1 maturin develop --release --locked --pip-path $(CVRP_PIP)
+$(VROOM_BINARY): $(VROOM_SOURCE_DIR)/src/makefile
+	$(MAKE) -C "$(VROOM_SOURCE_DIR)/src" USE_ROUTING=false ../bin/vroom
+
+build-cvrp: install-python-deps build-cvrp-timefold build-cvrp-solverforge build-cvrp-ortools build-cvrp-rustvrp build-cvrp-vroom
+
+build-cvrp-python-deps: install-python-deps
+
+build-cvrp-timefold:
+	$(MAVEN_ENV) mvn -f $(CVRP_TIMEFOLD_POM) package -q
+
+build-cvrp-ortools: $(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake
+	cmake -S $(CVRP_ORTOOLS_DIR) -B build/cvrp-ortools -DCMAKE_PREFIX_PATH="$(ORTOOLS_ROOT)" -DORTOOLS_ROOT="$(ORTOOLS_ROOT)"
+	cmake --build build/cvrp-ortools --parallel
+	mkdir -p $(CVRP_ORTOOLS_DIR)/target
+	cp build/cvrp-ortools/cvrp_ortools $(CVRP_ORTOOLS_DIR)/target/
+
+build-cvrp-rustvrp:
+	cd $(CVRP_RUSTVRP_DIR) && cargo build --release --locked
+	cp $(CVRP_RUSTVRP_DIR)/target/release/cvrp_rustvrp $(CVRP_RUSTVRP_DIR)/target/
+
+build-cvrp-vroom: $(VROOM_BINARY)
+	mkdir -p $(CVRP_VROOM_DIR)/target
+	cp $(VROOM_BINARY) $(CVRP_VROOM_DIR)/target/cvrp_vroom
+
+build-cvrp-solverforge: install-python-deps
+	cd $(CVRP_SOLVERFORGE_DIR) && PIP_DISABLE_PIP_VERSION_CHECK=1 maturin develop --release --locked --pip-path "$(PIP)"
 
 bench-cvrp: build-cvrp
-	$(PINNED_BENCH) $(CVRP_PYTHON) scripts/run_benchmark.py cvrp $(BENCH_ARGS)
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) $(BENCH_ARGS)
+
+bench-cvrp-db: build-cvrp db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-cvrp-quick: build-cvrp
-	$(PINNED_BENCH) $(CVRP_PYTHON) scripts/run_benchmark.py cvrp --run-kind quick --num-instances 3 --time-limits 1 10 $(BENCH_ARGS)
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --num-instances 3 --time-limits 1 10 $(BENCH_ARGS)
+
+bench-cvrp-quick-db: build-cvrp db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --num-instances 3 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-cvrp-solverforge: build-cvrp-solverforge
-	$(PINNED_BENCH) $(CVRP_PYTHON) scripts/run_benchmark.py cvrp --solver solverforge $(BENCH_ARGS)
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --solver solverforge $(BENCH_ARGS)
+
+bench-cvrp-solverforge-db: build-cvrp-solverforge db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --solver solverforge $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-cvrp-solverforge-quick: build-cvrp-solverforge
-	$(PINNED_BENCH) $(CVRP_PYTHON) scripts/run_benchmark.py cvrp --run-kind quick --solver solverforge --num-instances 3 --time-limits 1 10 $(BENCH_ARGS)
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --num-instances 3 --time-limits 1 10 $(BENCH_ARGS)
+
+bench-cvrp-solverforge-quick-db: build-cvrp-solverforge db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --num-instances 3 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 validate-cvrp:
-	cd $(CVRP_ROOT) && PYTHONPATH=src $(CVRP_PYTHON) scripts/validate_all.py
+	cd $(CVRP_ROOT) && PYTHONPATH=src "$(PYTHON)" scripts/validate_all.py
 
-build-employee-scheduling: build-employee-scheduling-timefold-java build-employee-scheduling-solverforge
+build-employee-scheduling: install-python-deps build-employee-scheduling-timefold build-employee-scheduling-solverforge build-employee-scheduling-ortools
 
-build-employee-scheduling-timefold-java:
-	mvn -f $(EMPLOYEE_TIMEFOLD_POM) package -q
+build-employee-scheduling-timefold:
+	$(MAVEN_ENV) mvn -f $(EMPLOYEE_TIMEFOLD_POM) package -q
 
-build-employee-scheduling-solverforge:
-	cd $(EMPLOYEE_SOLVERFORGE_DIR) && maturin build --release --locked -i $(PYTHON)
-	PIP_DISABLE_PIP_VERSION_CHECK=1 $(PYTHON) -m pip install --user --force-reinstall $$(ls -t $(EMPLOYEE_SOLVERFORGE_DIR)/target/wheels/*.whl | head -1)
+build-employee-scheduling-ortools: $(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake
+	cmake -S $(EMPLOYEE_ORTOOLS_DIR) -B build/employee-scheduling-ortools -DCMAKE_PREFIX_PATH="$(ORTOOLS_ROOT)" -DORTOOLS_ROOT="$(ORTOOLS_ROOT)"
+	cmake --build build/employee-scheduling-ortools --parallel
+	mkdir -p $(EMPLOYEE_ORTOOLS_DIR)/target
+	cp build/employee-scheduling-ortools/employee_scheduling_ortools $(EMPLOYEE_ORTOOLS_DIR)/target/
+
+build-employee-scheduling-solverforge: install-python-deps
+	cd $(EMPLOYEE_SOLVERFORGE_DIR) && maturin build --release --locked -i "$(PYTHON)"
+	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install --force-reinstall $$(ls -t $(EMPLOYEE_SOLVERFORGE_DIR)/target/wheels/*.whl | head -1)
 
 bench-employee-scheduling: build-employee-scheduling
-	$(PINNED_BENCH) $(PYTHON) scripts/run_benchmark.py employee-scheduling --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
+
+bench-employee-scheduling-db: build-employee-scheduling db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-employee-scheduling-quick: build-employee-scheduling
-	$(PINNED_BENCH) $(PYTHON) scripts/run_benchmark.py employee-scheduling --run-kind quick --datasets n005w4 --time-limits 1 10 $(BENCH_ARGS)
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --datasets n005w4 --time-limits 1 10 $(BENCH_ARGS)
+
+bench-employee-scheduling-quick-db: build-employee-scheduling db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --datasets n005w4 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-employee-scheduling-solverforge: build-employee-scheduling-solverforge
-	$(PINNED_BENCH) $(PYTHON) scripts/run_benchmark.py employee-scheduling --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
+
+bench-employee-scheduling-solverforge-db: build-employee-scheduling-solverforge db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-employee-scheduling-solverforge-quick: build-employee-scheduling-solverforge
-	$(PINNED_BENCH) $(PYTHON) scripts/run_benchmark.py employee-scheduling --run-kind quick --solver solverforge --datasets n005w4 --time-limits 1 10 $(BENCH_ARGS)
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --datasets n005w4 --time-limits 1 10 $(BENCH_ARGS)
+
+bench-employee-scheduling-solverforge-quick-db: build-employee-scheduling-solverforge db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --datasets n005w4 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+
+bench-nightly-db: build-cvrp build-employee-scheduling db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS)
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS)
 
 validate-employee-scheduling:
-	cd $(EMPLOYEE_ROOT) && PYTHONPATH=../../src:../../list-variable/cvrp/src:src $(PYTHON) scripts/validate_all.py
+	cd $(EMPLOYEE_ROOT) && PYTHONPATH=../../src:../../list-variable/cvrp/src:src "$(PYTHON)" scripts/validate_all.py
 
 validate-employee-model-parity:
-	cd $(EMPLOYEE_ROOT) && PYTHONPATH=../../src:../../list-variable/cvrp/src:src $(PYTHON) scripts/verify_model_parity.py
+	cd $(EMPLOYEE_ROOT) && PYTHONPATH=../../src:../../list-variable/cvrp/src:src "$(PYTHON)" scripts/verify_model_parity.py
 
 normalize-results:
 	test -n "$(INPUT)"
 	test -n "$(OUTPUT)"
-	python3 scripts/normalize_results.py --input "$(INPUT)" --output "$(OUTPUT)" $(ARGS)
+	"$(PYTHON)" scripts/normalize_results.py --input "$(INPUT)" --output "$(OUTPUT)" $(ARGS)

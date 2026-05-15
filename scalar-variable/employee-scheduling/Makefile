@@ -1,13 +1,16 @@
-PYTHON ?= python3.12
 ROOT := ../..
+PYTHON ?= $(abspath $(ROOT))/.venv/bin/python3
 
-.PHONY: build build-solverforge build-timefold-java bench bench-quick bench-solverforge bench-solverforge-quick validate validate-model-parity
+.PHONY: build build-solverforge build-timefold build-ortools bench bench-quick bench-solverforge bench-solverforge-quick validate validate-model-parity
 
 build:
 	$(MAKE) -C $(ROOT) build-employee-scheduling PYTHON=$(PYTHON)
 
-build-timefold-java:
-	$(MAKE) -C $(ROOT) build-employee-scheduling-timefold-java
+build-timefold:
+	$(MAKE) -C $(ROOT) build-employee-scheduling-timefold
+
+build-ortools:
+	$(MAKE) -C $(ROOT) build-employee-scheduling-ortools
 
 build-solverforge:
 	$(MAKE) -C $(ROOT) build-employee-scheduling-solverforge PYTHON=$(PYTHON)
