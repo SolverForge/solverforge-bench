@@ -19,7 +19,7 @@ def solve_with_solverforge(instance: Instance, time_limit: int) -> Solution:
     """
     # 1 transform: build input matching the Rust InstanceInput struct.
     # distance_matrix is pre-rounded to match round(instance.edge_weight[i][j])
-    # as used by every other solver (pyvrp, ortools, vroom, pyhygese, timefold_java).
+    # as used by every other solver (pyvrp, ortools, vroom, pyhygese, timefold).
     instance_json = json.dumps(
         {
             "dimension": instance.dimension,

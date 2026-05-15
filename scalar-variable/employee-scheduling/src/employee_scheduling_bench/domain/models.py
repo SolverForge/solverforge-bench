@@ -102,7 +102,7 @@ class Assignment(BaseModel):
 
 class Solution(BaseModel):
     assignments: list[list[Assignment]]
-    cost: int = 0
+    cost: int | None = None
     reported_cost: int | None = None
     fresh_cost: int | None = None
     score_delta: int | None = None

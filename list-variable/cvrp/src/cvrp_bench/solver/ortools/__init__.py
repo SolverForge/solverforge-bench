@@ -5,13 +5,13 @@ from pathlib import Path
 
 from cvrp_bench.domain.models import Instance, Solution
 
-_BINARY_PATH = Path(__file__).parent / "target" / "cvrp_rustvrp"
+_BINARY_PATH = Path(__file__).parent / "target" / "cvrp_ortools"
 
 
-def solve_with_rustvrp(instance: Instance, time_limit: int) -> Solution:
+def solve_with_ortools(instance: Instance, time_limit: int) -> Solution:
     if not _BINARY_PATH.exists():
         raise RuntimeError(
-            "native rustvrp solver is not built; run `make build-cvrp-rustvrp`"
+            "native OR-Tools solver is not built; run `make build-cvrp-ortools`"
         )
 
     payload = {
@@ -30,7 +30,7 @@ def solve_with_rustvrp(instance: Instance, time_limit: int) -> Solution:
     stderr = result.stderr.decode()
     if result.returncode != 0:
         raise RuntimeError(
-            f"native rustvrp solver failed (exit {result.returncode}):\n{stderr}"
+            f"native OR-Tools solver failed (exit {result.returncode}):\n{stderr}"
         )
     if stderr:
         print(stderr, file=sys.stderr, end="")

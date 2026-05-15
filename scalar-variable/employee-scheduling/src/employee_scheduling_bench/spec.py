@@ -15,17 +15,24 @@ from employee_scheduling_bench.loader import (
     load_instance,
     load_solution,
 )
-from employee_scheduling_bench.solver.solver import create_solver
-from employee_scheduling_bench.validation import validate_breakdown
-from solverforge_bench.model import BenchmarkCase, Evaluation, SolverRun
+from employee_scheduling_bench.solver.solver import (
+    AVAILABLE_METHODS,
+    create_solver,
+    solver_versions,
+)
+from employee_scheduling_bench.validation import (
+    HardConstraintViolation,
+    validate_breakdown,
+)
+from solverforge_bench.model import BenchmarkCase, Evaluation, SolverRun, SolverVersion
 
 
 class EmployeeSchedulingSpec:
     name = "employee-scheduling"
     category = "scalar_variable"
-    default_solvers = ["solverforge", "timefold_java", "ortools"]
     default_time_limits = [1, 10, 60]
-    available_solvers = ["solverforge", "timefold_java", "ortools"]
+    available_solvers = AVAILABLE_METHODS
+    default_solvers = available_solvers
     native_columns = ["nurses", "weeks", "validator_model_delta", "score_drift"]
     solution_model = Solution
 
@@ -72,6 +79,9 @@ class EmployeeSchedulingSpec:
     def create_solver(self, method: str, *, time_limit: int = 60):
         return create_solver(method=method, time_limit=time_limit)
 
+    def solver_versions(self, solvers: Iterable[str]) -> dict[str, SolverVersion]:
+        return solver_versions(list(solvers))
+
     def evaluate(
         self,
         *,
@@ -84,7 +94,7 @@ class EmployeeSchedulingSpec:
         reference_cost = reference.cost if reference else None
         try:
             breakdown = validate_breakdown(solution=solution, instance=case.payload)
-        except Exception as exc:
+        except HardConstraintViolation as exc:
             return Evaluation(
                 hard_feasible=False,
                 cost=None,
@@ -104,8 +114,11 @@ class EmployeeSchedulingSpec:
         solution.validator_breakdown = breakdown
         reported_cost = solution.reported_cost
         fresh_cost = solution.fresh_cost
-        model_cost = fresh_cost if fresh_cost is not None else solution.cost
-        model_delta = validator_cost - model_cost
+        model_delta = validator_cost - fresh_cost if fresh_cost is not None else None
+        score_drift = solution.score_drift
+        if score_drift is None and reported_cost is not None and fresh_cost is not None:
+            score_drift = reported_cost != fresh_cost
+        solution.score_drift = score_drift
         solution.validator_model_delta = model_delta
         artifact_path = _write_solution_artifact(
             solution,
@@ -129,7 +142,7 @@ class EmployeeSchedulingSpec:
             solution_artifact=artifact_path,
             native_fields={
                 "validator_model_delta": model_delta,
-                "score_drift": solution.score_drift,
+                "score_drift": score_drift,
             },
         )
 

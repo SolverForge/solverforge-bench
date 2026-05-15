@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """Verify that employee-scheduling adapters encode the same model contract."""
 
 from __future__ import annotations
@@ -10,6 +10,11 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from _venv_bootstrap import ensure_repo_venv  # noqa: E402
+
+ensure_repo_venv(REPO_ROOT)
 sys.path[:0] = [
     str(REPO_ROOT / "src"),
     str(REPO_ROOT / "scalar-variable" / "employee-scheduling" / "src"),
@@ -35,7 +40,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Check employee-scheduling model parity across validator, OR-Tools, "
-            "Timefold Java, and SolverForge."
+            "Timefold, and SolverForge."
         )
     )
     parser.add_argument(
@@ -71,11 +76,11 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
     )
     serializer = employee_src / "solver" / "instance_json.py"
     validator = employee_src / "validation.py"
-    ortools = employee_src / "solver" / "ortools.py"
+    ortools = employee_src / "solver" / "ortools" / "main.cc"
     timefold = (
         employee_src
         / "solver"
-        / "timefold_java"
+        / "timefold"
         / "src"
         / "main"
         / "java"
@@ -132,8 +137,8 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             "candidate domain excludes missing skills and initial forbidden successors",
             ortools,
             (
-                'if shift["skill_idx"] not in nurse["skills"]',
-                'and shift["shift_type_idx"] in forbidden_successors[history_last_shift]',
+                "nurse.skills.find(shift.skill_idx) == nurse.skills.end()",
+                "IsForbiddenSuccessor(payload, history_last_shift,",
             ),
         ),
         SourceCheck(
@@ -141,10 +146,10 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             "minimum slots must be assigned and optional slots may be unassigned with optimal coverage penalty",
             ortools,
             (
-                'if shift["is_minimum"]:',
-                "model.Add(sum(candidates) == 1)",
-                "model.Add(sum(candidates) <= 1)",
-                "objective_terms.append(30 * unassigned)",
+                "if (shift.is_minimum)",
+                "model.AddEquality(BoolSum(candidates), 1)",
+                "model.AddLessOrEqual(BoolSum(candidates), 1)",
+                "AddObjectiveTerm(&objective, unassigned, 30)",
             ),
         ),
         SourceCheck(
@@ -152,8 +157,8 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             "hard constraints include one shift per nurse/day and adjacent forbidden succession",
             ortools,
             (
-                "model.Add(sum(vars_by_nurse_day[(nurse_idx, day)]) <= 1)",
-                "model.Add(left + right <= 1)",
+                "model.AddLessOrEqual(BoolSum(vars_by_nurse_day[nurse_idx][day]), 1)",
+                "model.AddLessOrEqual(left + right, 1)",
             ),
         ),
         SourceCheck(
@@ -161,17 +166,17 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             "soft objective weights match the shared validator",
             ortools,
             (
-                "objective_terms.append(request_count * 10 * var)",
-                "objective_terms.append(20 * under_assignments)",
-                "objective_terms.append(20 * over_assignments)",
-                "weight=30",
-                "weight=15",
-                "objective_terms.append(30 * incomplete)",
-                "objective_terms.append(30 * over_weekends)",
+                "AddObjectiveTerm(&objective, var, request_count * 10)",
+                "AddObjectiveTerm(&objective, under_assignments, 20)",
+                "AddObjectiveTerm(&objective, over_assignments, 20)",
+                "contract.max_consecutive_working, 30",
+                "shift_type.max_consecutive, 15",
+                "AddObjectiveTerm(&objective, incomplete, 30)",
+                "AddObjectiveTerm(&objective, over_weekends, 30)",
             ),
         ),
         SourceCheck(
-            "timefold_java",
+            "timefold",
             "entity value range is per shift, not a global all-nurses range",
             timefold_assignment,
             (
@@ -181,7 +186,7 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             ),
         ),
         SourceCheck(
-            "timefold_java",
+            "timefold",
             "candidate domain excludes missing skills and initial forbidden successors",
             timefold_main,
             (
@@ -191,7 +196,7 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             ),
         ),
         SourceCheck(
-            "timefold_java",
+            "timefold",
             "minimum slots cannot use the unassigned sentinel while optional slots can",
             timefold_main,
             (
@@ -200,7 +205,7 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             ),
         ),
         SourceCheck(
-            "timefold_java",
+            "timefold",
             "hard constraints include minimum coverage, one shift per day, required skill, and forbidden succession",
             timefold_constraints,
             (
@@ -212,7 +217,7 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             ),
         ),
         SourceCheck(
-            "timefold_java",
+            "timefold",
             "soft objective weights match the shared validator",
             timefold_constraints,
             (
@@ -224,7 +229,7 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             ),
         ),
         SourceCheck(
-            "timefold_java",
+            "timefold",
             "shift-off request penalty uses the shared weight",
             timefold_assignment,
             ("return requestCount * 10",),

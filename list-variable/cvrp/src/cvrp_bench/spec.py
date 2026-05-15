@@ -9,15 +9,15 @@ from typing import Iterable
 import vrplib
 
 from cvrp_bench.domain.models import Instance, Solution
-from cvrp_bench.domain.utils import validate
-from cvrp_bench.solver.solver import AVAILABLE_METHODS, create_solver
-from solverforge_bench.model import BenchmarkCase, Evaluation, SolverRun
+from cvrp_bench.domain.utils import CvrpValidationError, validate
+from cvrp_bench.solver.solver import AVAILABLE_METHODS, create_solver, solver_versions
+from solverforge_bench.model import BenchmarkCase, Evaluation, SolverRun, SolverVersion
 
 
 class CvrpSpec:
     name = "cvrp"
     category = "list_variable"
-    default_solvers = ["timefold_java", "pyvrp", "solverforge"]
+    default_solvers = AVAILABLE_METHODS
     default_time_limits = [1, 10, 60]
     available_solvers = AVAILABLE_METHODS
     native_columns: list[str] = []
@@ -64,6 +64,9 @@ class CvrpSpec:
     def create_solver(self, method: str, *, time_limit: int = 60):
         return create_solver(method=method, time_limit=time_limit)
 
+    def solver_versions(self, solvers: Iterable[str]) -> dict[str, SolverVersion]:
+        return solver_versions(list(solvers))
+
     def evaluate(
         self,
         *,
@@ -75,7 +78,7 @@ class CvrpSpec:
         reference = case.reference_solution
         try:
             validate(solution=solution, instance=case.payload)
-        except Exception as exc:
+        except CvrpValidationError as exc:
             return Evaluation(
                 hard_feasible=False,
                 cost=getattr(solution, "cost", None),

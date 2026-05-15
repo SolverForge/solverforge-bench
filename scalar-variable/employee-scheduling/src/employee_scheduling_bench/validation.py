@@ -23,6 +23,10 @@ class MissingSkillViolation(HardConstraintViolation):
     pass
 
 
+class InvalidAssignmentViolation(HardConstraintViolation):
+    pass
+
+
 def validate(solution: Solution, instance: Instance) -> int:
     """Validate a solution against an INRC-II instance.
 
@@ -48,8 +52,24 @@ def validate_breakdown(solution: Solution, instance: Instance) -> dict[str, int]
         n.id: [None] * total_days for n in scenario.nurses
     }
 
+    if len(solution.assignments) != len(instance.weeks):
+        raise InvalidAssignmentViolation(
+            f"Solution has {len(solution.assignments)} weeks, expected "
+            f"{len(instance.weeks)}"
+        )
+
     for week_idx, week_assignments in enumerate(solution.assignments):
         for assignment in week_assignments:
+            if assignment.nurse not in nurse_schedule:
+                raise InvalidAssignmentViolation(
+                    f"Unknown nurse {assignment.nurse} on week {week_idx} "
+                    f"{assignment.day}"
+                )
+            if assignment.day not in DAYS:
+                raise InvalidAssignmentViolation(
+                    f"Unknown day {assignment.day} for nurse {assignment.nurse} "
+                    f"on week {week_idx}"
+                )
             day_offset = DAYS.index(assignment.day)
             global_day = week_idx * 7 + day_offset
 

@@ -1,15 +1,28 @@
+import logging
+from numbers import Integral
+
 from cvrp_bench.domain.models import Instance, Solution
 
+LOGGER = logging.getLogger(__name__)
 
-class OverloadError(Exception):
+
+class CvrpValidationError(Exception):
     pass
 
 
-class OrderMissingError(Exception):
+class OverloadError(CvrpValidationError):
     pass
 
 
-class WrongCostError(Exception):
+class OrderMissingError(CvrpValidationError):
+    pass
+
+
+class RouteVisitError(CvrpValidationError):
+    pass
+
+
+class WrongCostError(CvrpValidationError):
     pass
 
 
@@ -25,6 +38,24 @@ def validate(solution: Solution, instance: Instance) -> bool:
     :rtype: bool
     """
 
+    orders = set(i for i in range(1, len(instance.demand)))
+    visited = set()
+    for i, route in enumerate(solution.routes):
+        for stop in route:
+            if not isinstance(stop, Integral) or stop not in orders or stop in visited:
+                raise RouteVisitError(
+                    f"Route {i} for instance {instance.name} contains invalid "
+                    f"or duplicate customer: {stop}"
+                )
+            visited.add(stop)
+
+    missing_orders = orders - visited
+    if missing_orders:
+        raise OrderMissingError(
+            f"For instance {instance.name}, the following orders were not served: "
+            f"{missing_orders}"
+        )
+
     for i, route in enumerate(solution.routes):
         load = get_load(route, instance)
 
@@ -37,15 +68,7 @@ def validate(solution: Solution, instance: Instance) -> bool:
         raise WrongCostError(
             f"Scores for instance {instance.name} do not match: Calculated vs in-data: {total_cost} vs {solution.cost}"
         )
-    orders = set(i for i in range(1, len(instance.demand)))
-    for route in solution.routes:
-        for stop in route:
-            orders.remove(stop)
-    if len(orders) > 0:
-        raise OrderMissingError(
-            f"For instance {instance.name}, the following orders were not served: {orders}"
-        )
-    print(f"Instance and solution file for instance {instance.name} match.")
+    LOGGER.info("Instance and solution file for instance %s match.", instance.name)
     return True
 
 

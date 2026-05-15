@@ -3,13 +3,11 @@ name = "solverforge-bench"
 version = "0.1.0"
 description = "Multi-problem benchmark suite for solver comparison"
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.14,<3.15"
 dependencies = [
-    "ortools>=9.15.6755",
     "polars>=1.37.1",
     "pydantic>=2.12.5",
-    "pyvrp>=0.11.3",
-    "pyvroom>=1.14.0",
+    "pyvrp>=0.13.3",
     "vrplib>=1.5.1",
     "hygese>=0.0.0.10",
     "psycopg[binary]>=3.2.0",
