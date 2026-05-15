@@ -1,3 +1,24 @@
+# SolverForge Bench Makefile
+# Benchmark build and validation workflow.
+
+# ============== Colors & Symbols ==============
+GREEN := \033[92m
+EMERALD := \033[38;2;16;185;129m
+CYAN := \033[96m
+YELLOW := \033[93m
+RED := \033[91m
+GRAY := \033[90m
+BOLD := \033[1m
+RESET := \033[0m
+
+CHECK := OK
+CROSS := FAIL
+ARROW := =>
+PROGRESS := ..
+
+# ============== Project Metadata ==============
+VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml | head -1)
+
 HOST_PYTHON ?= python3.14
 VENV ?= $(CURDIR)/.venv
 PYTHON ?= $(VENV)/bin/python3
@@ -38,7 +59,7 @@ JAVA_HOME_FOR_MAVEN ?= $(shell dirname "$$(dirname "$$(readlink -f "$$(command -
 MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin:$(PATH)"
 
 .PHONY: \
-	venv install-python-deps build-cvrp build-cvrp-python-deps build-cvrp-solverforge build-cvrp-timefold build-cvrp-ortools build-cvrp-rustvrp build-cvrp-vroom \
+	banner venv install-python-deps build-cvrp build-cvrp-python-deps build-cvrp-solverforge build-cvrp-timefold build-cvrp-ortools build-cvrp-rustvrp build-cvrp-vroom \
 	build-employee-scheduling build-employee-scheduling-solverforge build-employee-scheduling-timefold build-employee-scheduling-ortools \
 	bench-cvrp bench-cvrp-db bench-cvrp-quick bench-cvrp-quick-db \
 	bench-cvrp-solverforge bench-cvrp-solverforge-db \
@@ -50,6 +71,19 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-nightly-db \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity \
 	db-check db-create db-migrate normalize-results
+
+# ============== Default Target ==============
+.DEFAULT_GOAL := venv
+
+# ============== Banner ==============
+banner:
+	@printf -- "$(EMERALD)$(BOLD)  ____        _                _____\n"
+	@printf -- " / ___|  ___ | |_   _____ _ __|  ___|__  _ __ __ _  ___\n"
+	@printf -- " \\___ \\\\ / _ \\\\| \\\\ \\\\ / / _ \\\\ '__| |_ / _ \\\\| '__/ _\` |/ _ \\\\\n"
+	@printf -- "  ___) | (_) | |\\\\ V /  __/ |  |  _| (_) | | | (_| |  __/\n"
+	@printf -- " |____/ \\\\___/|_| \\_/ \\___|_|  |_|  \\___/|_|  \\__, |\\___|\n"
+	@printf -- "                                             |___/$(RESET)\n"
+	@printf -- "  $(GRAY)v$(VERSION)$(RESET) $(EMERALD)Benchmark Build System$(RESET)\n\n"
 
 venv:
 	@if [ -x "$(PYTHON)" ]; then \
@@ -63,13 +97,13 @@ venv:
 		"$(HOST_PYTHON)" -m venv "$(VENV)"; \
 	fi
 
-install-python-deps: venv
+install-python-deps: banner venv
 	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install -e .
 
-db-check:
+db-check: banner
 	psql "$(DATABASE_URL)" -c "select current_user, current_database(), version();"
 
-db-create:
+db-create: banner
 	$(SQLX) database create --database-url "$(DATABASE_URL)"
 
 db-migrate: db-create
@@ -87,28 +121,28 @@ $(VROOM_SOURCE_DIR)/src/makefile:
 $(VROOM_BINARY): $(VROOM_SOURCE_DIR)/src/makefile
 	$(MAKE) -C "$(VROOM_SOURCE_DIR)/src" USE_ROUTING=false ../bin/vroom
 
-build-cvrp: install-python-deps build-cvrp-timefold build-cvrp-solverforge build-cvrp-ortools build-cvrp-rustvrp build-cvrp-vroom
+build-cvrp: banner install-python-deps build-cvrp-timefold build-cvrp-solverforge build-cvrp-ortools build-cvrp-rustvrp build-cvrp-vroom
 
 build-cvrp-python-deps: install-python-deps
 
-build-cvrp-timefold:
+build-cvrp-timefold: banner
 	$(MAVEN_ENV) mvn -f $(CVRP_TIMEFOLD_POM) package -q
 
-build-cvrp-ortools: $(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake
+build-cvrp-ortools: banner $(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake
 	cmake -S $(CVRP_ORTOOLS_DIR) -B build/cvrp-ortools -DCMAKE_PREFIX_PATH="$(ORTOOLS_ROOT)" -DORTOOLS_ROOT="$(ORTOOLS_ROOT)"
 	cmake --build build/cvrp-ortools --parallel
 	mkdir -p $(CVRP_ORTOOLS_DIR)/target
 	cp build/cvrp-ortools/cvrp_ortools $(CVRP_ORTOOLS_DIR)/target/
 
-build-cvrp-rustvrp:
+build-cvrp-rustvrp: banner
 	cd $(CVRP_RUSTVRP_DIR) && cargo build --release --locked
 	cp $(CVRP_RUSTVRP_DIR)/target/release/cvrp_rustvrp $(CVRP_RUSTVRP_DIR)/target/
 
-build-cvrp-vroom: $(VROOM_BINARY)
+build-cvrp-vroom: banner $(VROOM_BINARY)
 	mkdir -p $(CVRP_VROOM_DIR)/target
 	cp $(VROOM_BINARY) $(CVRP_VROOM_DIR)/target/cvrp_vroom
 
-build-cvrp-solverforge: install-python-deps
+build-cvrp-solverforge: banner install-python-deps
 	cd $(CVRP_SOLVERFORGE_DIR) && PIP_DISABLE_PIP_VERSION_CHECK=1 maturin develop --release --locked --pip-path "$(PIP)"
 
 bench-cvrp: build-cvrp
@@ -135,21 +169,21 @@ bench-cvrp-solverforge-quick: build-cvrp-solverforge
 bench-cvrp-solverforge-quick-db: build-cvrp-solverforge db-migrate
 	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --num-instances 3 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
-validate-cvrp:
+validate-cvrp: banner
 	cd $(CVRP_ROOT) && PYTHONPATH=src "$(PYTHON)" scripts/validate_all.py
 
-build-employee-scheduling: install-python-deps build-employee-scheduling-timefold build-employee-scheduling-solverforge build-employee-scheduling-ortools
+build-employee-scheduling: banner install-python-deps build-employee-scheduling-timefold build-employee-scheduling-solverforge build-employee-scheduling-ortools
 
-build-employee-scheduling-timefold:
+build-employee-scheduling-timefold: banner
 	$(MAVEN_ENV) mvn -f $(EMPLOYEE_TIMEFOLD_POM) package -q
 
-build-employee-scheduling-ortools: $(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake
+build-employee-scheduling-ortools: banner $(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake
 	cmake -S $(EMPLOYEE_ORTOOLS_DIR) -B build/employee-scheduling-ortools -DCMAKE_PREFIX_PATH="$(ORTOOLS_ROOT)" -DORTOOLS_ROOT="$(ORTOOLS_ROOT)"
 	cmake --build build/employee-scheduling-ortools --parallel
 	mkdir -p $(EMPLOYEE_ORTOOLS_DIR)/target
 	cp build/employee-scheduling-ortools/employee_scheduling_ortools $(EMPLOYEE_ORTOOLS_DIR)/target/
 
-build-employee-scheduling-solverforge: install-python-deps
+build-employee-scheduling-solverforge: banner install-python-deps
 	cd $(EMPLOYEE_SOLVERFORGE_DIR) && maturin build --release --locked -i "$(PYTHON)"
 	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install --force-reinstall $$(ls -t $(EMPLOYEE_SOLVERFORGE_DIR)/target/wheels/*.whl | head -1)
 
@@ -181,13 +215,13 @@ bench-nightly-db: build-cvrp build-employee-scheduling db-migrate
 	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS)
 	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS)
 
-validate-employee-scheduling:
+validate-employee-scheduling: banner
 	cd $(EMPLOYEE_ROOT) && PYTHONPATH=../../src:../../list-variable/cvrp/src:src "$(PYTHON)" scripts/validate_all.py
 
-validate-employee-model-parity:
+validate-employee-model-parity: banner
 	cd $(EMPLOYEE_ROOT) && PYTHONPATH=../../src:../../list-variable/cvrp/src:src "$(PYTHON)" scripts/verify_model_parity.py
 
-normalize-results:
+normalize-results: banner
 	test -n "$(INPUT)"
 	test -n "$(OUTPUT)"
 	"$(PYTHON)" scripts/normalize_results.py --input "$(INPUT)" --output "$(OUTPUT)" $(ARGS)
