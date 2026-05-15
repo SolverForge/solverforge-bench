@@ -1,47 +1,25 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.14
 """Normalize benchmark CSV output into a database-ready row schema."""
 
 from __future__ import annotations
 
 import argparse
-import csv
-import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
 
+from _venv_bootstrap import ensure_repo_venv
 
-SCHEMA_COLUMNS = [
-    "run_id",
-    "benchmark_name",
-    "benchmark_category",
-    "dataset",
-    "dataset_set",
-    "instance",
-    "instance_size",
-    "solver",
-    "time_limit_seconds",
-    "actual_time_seconds",
-    "overshoot_seconds",
-    "overshoot_ratio",
-    "wall_time_over_limit",
-    "watchdog_limit_seconds",
-    "watchdog_killed",
-    "run_error",
-    "hard_feasible",
-    "cost",
-    "reported_cost",
-    "fresh_cost",
-    "reference_cost",
-    "quality_ratio",
-    "validation_error",
-    "solution_artifact",
-    "nurses",
-    "weeks",
-    "validator_model_delta",
-    "score_drift",
-    "source_file",
-]
+REPO_ROOT = Path(__file__).resolve().parents[1]
+ensure_repo_venv(REPO_ROOT)
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from solverforge_bench.csv import GLOBAL_COLUMNS, NORMALIZED_COLUMNS  # noqa: E402
+from solverforge_bench.etl import (  # noqa: E402
+    frame_from_records,
+    read_csv_frame,
+    write_csv_frame,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,7 +27,7 @@ def parse_args() -> argparse.Namespace:
         description="Normalize SolverForge benchmark CSV files for database loading."
     )
     parser.add_argument(
-        "--input", required=True, type=Path, help="Native benchmark CSV file."
+        "--input", required=True, type=Path, help="Global benchmark CSV file."
     )
     parser.add_argument(
         "--output",
@@ -64,12 +42,6 @@ def parse_args() -> argparse.Namespace:
         help="Normalized output format.",
     )
     parser.add_argument(
-        "--category",
-        choices=["auto", "global", "cvrp", "employee-scheduling"],
-        default="auto",
-        help="Benchmark category. Defaults to inference from CSV headers.",
-    )
-    parser.add_argument(
         "--run-id",
         default=None,
         help="Stable run identifier to attach to every row. Defaults to UTC timestamp.",
@@ -80,118 +52,25 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    rows = read_csv(args.input)
-    category = infer_category(rows, args.category)
-    normalized = [
-        normalize_row(row, category=category, run_id=run_id, source_file=args.input)
-        for row in rows
-    ]
+    source = read_csv_frame(args.input)
+    validate_global_schema(source.columns)
+    normalized = frame_from_records(
+        [
+            normalize_global_row(row, run_id=run_id, source_file=args.input)
+            for row in source.iter_rows(named=True)
+        ],
+        columns=NORMALIZED_COLUMNS,
+    )
     write_rows(args.output, normalized, args.format)
 
 
-def read_csv(path: Path) -> list[dict[str, str]]:
-    with path.open(newline="") as handle:
-        return list(csv.DictReader(handle))
-
-
-def infer_category(rows: list[dict[str, str]], requested: str) -> str:
-    if requested != "auto":
-        return requested
-    if not rows:
-        raise ValueError("Cannot infer benchmark category from an empty CSV.")
-    headers = set(rows[0])
-    if {"benchmark_name", "benchmark_category", "time_limit_seconds"} <= headers:
-        return "global"
-    if {
-        "Dataset Set",
-        "Nurses",
-        "Weeks",
-        "Hard Feasible",
-        "Validation Error",
-    } <= headers:
-        return "employee-scheduling"
-    if {"Instance", "Size", "Solution Quality"} <= headers:
-        return "cvrp"
-    raise ValueError(f"Cannot infer benchmark category from headers: {sorted(headers)}")
-
-
-def normalize_row(
-    row: dict[str, str],
-    *,
-    category: str,
-    run_id: str,
-    source_file: Path,
-) -> dict[str, object | None]:
-    if category == "global":
-        return normalize_global_row(row, run_id=run_id, source_file=source_file)
-    if category == "cvrp":
-        quality_ratio = as_float(row.get("Solution Quality"))
-        validation_error = blank_to_none(row.get("Validation Error"))
-        return {
-            "run_id": run_id,
-            "benchmark_category": "list_variable",
-            "benchmark_name": "cvrp",
-            "dataset": "CVRPLIB-X",
-            "dataset_set": "canonical",
-            "instance": blank_to_none(row.get("Instance")),
-            "instance_size": as_int(row.get("Size")),
-            "nurses": None,
-            "weeks": None,
-            "solver": blank_to_none(row.get("Solver")),
-            "time_limit_seconds": as_int(row.get("Time Limit (s)")),
-            "actual_time_seconds": as_float(row.get("Actual Time (s)")),
-            "overshoot_seconds": None,
-            "overshoot_ratio": None,
-            "wall_time_over_limit": as_bool(row.get("Wall Time Over Limit")),
-            "watchdog_limit_seconds": None,
-            "watchdog_killed": None,
-            "run_error": None,
-            "hard_feasible": quality_ratio is not None and quality_ratio >= 0,
-            "cost": None,
-            "reported_cost": None,
-            "fresh_cost": None,
-            "reference_cost": None,
-            "quality_ratio": None if quality_ratio == -1 else quality_ratio,
-            "validation_error": validation_error
-            or ("validation_failed" if quality_ratio == -1 else ""),
-            "solution_artifact": None,
-            "validator_model_delta": None,
-            "score_drift": None,
-            "source_file": str(source_file),
-        }
-    if category == "employee-scheduling":
-        return {
-            "run_id": run_id,
-            "benchmark_category": "scalar_variable",
-            "benchmark_name": "employee-scheduling",
-            "dataset": "INRC-II",
-            "dataset_set": blank_to_none(row.get("Dataset Set")),
-            "instance": blank_to_none(row.get("Instance")),
-            "instance_size": as_int(row.get("Nurses")),
-            "nurses": as_int(row.get("Nurses")),
-            "weeks": as_int(row.get("Weeks")),
-            "solver": blank_to_none(row.get("Solver")),
-            "time_limit_seconds": as_int(row.get("Time Limit (s)")),
-            "actual_time_seconds": as_float(row.get("Actual Time (s)")),
-            "overshoot_seconds": None,
-            "overshoot_ratio": None,
-            "wall_time_over_limit": None,
-            "watchdog_limit_seconds": None,
-            "watchdog_killed": None,
-            "run_error": None,
-            "hard_feasible": as_bool(row.get("Hard Feasible")),
-            "cost": as_int(row.get("Cost")),
-            "reported_cost": as_int(row.get("Reported Cost")),
-            "fresh_cost": as_int(row.get("Fresh Cost")),
-            "reference_cost": as_int(row.get("Reference Cost")),
-            "quality_ratio": as_float(row.get("Quality Ratio")),
-            "validation_error": blank_to_none(row.get("Validation Error")) or "",
-            "solution_artifact": blank_to_none(row.get("Solution Artifact")),
-            "validator_model_delta": as_int(row.get("Validator Model Delta")),
-            "score_drift": as_bool(row.get("Score Drift")),
-            "source_file": str(source_file),
-        }
-    raise ValueError(f"Unsupported category: {category}")
+def validate_global_schema(columns: list[str]) -> None:
+    missing = [column for column in GLOBAL_COLUMNS if column not in columns]
+    if missing:
+        raise ValueError(
+            "Input is not a SolverForge global benchmark CSV; missing column(s): "
+            + ", ".join(missing)
+        )
 
 
 def normalize_global_row(
@@ -209,6 +88,7 @@ def normalize_global_row(
         "instance": blank_to_none(row.get("instance")),
         "instance_size": as_int(row.get("instance_size")),
         "solver": blank_to_none(row.get("solver")),
+        "solver_version": blank_to_none(row.get("solver_version")),
         "time_limit_seconds": as_int(row.get("time_limit_seconds")),
         "actual_time_seconds": as_float(row.get("actual_time_seconds")),
         "overshoot_seconds": as_float(row.get("overshoot_seconds")),
@@ -217,6 +97,8 @@ def normalize_global_row(
         "watchdog_limit_seconds": as_float(row.get("watchdog_limit_seconds")),
         "watchdog_killed": as_bool(row.get("watchdog_killed")),
         "run_error": blank_to_none(row.get("run_error")),
+        "solver_stdout_path": blank_to_none(row.get("solver_stdout_path")),
+        "solver_stderr_path": blank_to_none(row.get("solver_stderr_path")),
         "hard_feasible": as_bool(row.get("hard_feasible")),
         "cost": as_float(row.get("cost")),
         "reported_cost": as_float(row.get("reported_cost")),
@@ -233,22 +115,12 @@ def normalize_global_row(
     }
 
 
-def write_rows(
-    path: Path, rows: Iterable[dict[str, object | None]], output_format: str
-) -> None:
+def write_rows(path: Path, rows, output_format: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    materialized = list(rows)
     if output_format == "csv":
-        with path.open("w", newline="") as handle:
-            writer = csv.DictWriter(
-                handle, fieldnames=SCHEMA_COLUMNS, extrasaction="raise"
-            )
-            writer.writeheader()
-            writer.writerows(serialize_csv_row(row) for row in materialized)
+        write_csv_frame(path, rows, columns=NORMALIZED_COLUMNS)
         return
-    with path.open("w") as handle:
-        for row in materialized:
-            handle.write(json.dumps(row, sort_keys=True) + "\n")
+    rows.select(NORMALIZED_COLUMNS).write_ndjson(path)
 
 
 def blank_to_none(value: str | None) -> str | None:
@@ -279,16 +151,6 @@ def as_bool(value: str | None) -> bool | None:
     if value is None:
         return None
     return value.lower() in {"1", "true", "yes"}
-
-
-def serialize_csv_row(row: dict[str, object | None]) -> dict[str, object | None]:
-    serialized = {}
-    for key, value in row.items():
-        if isinstance(value, bool):
-            serialized[key] = "true" if value else "false"
-        else:
-            serialized[key] = value
-    return serialized
 
 
 if __name__ == "__main__":

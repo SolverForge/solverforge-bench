@@ -7,9 +7,12 @@ import os
 import queue as queue_module
 import signal
 import time
+import traceback
+from pathlib import Path
 from typing import Any, Callable
 
-from solverforge_bench.model import SolverRun
+from solverforge_bench.logging import capture_output
+from solverforge_bench.model import NoSolutionFoundError, SolverRun
 
 
 def watchdog_limit_seconds(
@@ -35,6 +38,10 @@ def run_solver(
     instance: Any,
     time_limit_seconds: int,
     watchdog_seconds: float,
+    stdout_path: Path | None = None,
+    stderr_path: Path | None = None,
+    capture_solver_output: bool = True,
+    show_solver_output: bool = True,
 ) -> SolverRun:
     """Pass the benchmark budget to the solver and wait up to watchdog_seconds."""
 
@@ -48,6 +55,10 @@ def run_solver(
             instance,
             time_limit_seconds,
             output_queue,
+            str(stdout_path) if stdout_path else None,
+            str(stderr_path) if stderr_path else None,
+            capture_solver_output,
+            show_solver_output,
         ),
     )
     started = time.monotonic()
@@ -70,6 +81,8 @@ def run_solver(
                 f"({elapsed:.6f}s > {watchdog_seconds:.6f}s)"
             ),
             exit_code=process.exitcode,
+            solver_stdout_path=str(stdout_path) if stdout_path else None,
+            solver_stderr_path=str(stderr_path) if stderr_path else None,
         )
 
     try:
@@ -87,6 +100,8 @@ def run_solver(
                 f"(exit {process.exitcode})"
             ),
             exit_code=process.exitcode,
+            solver_stdout_path=str(stdout_path) if stdout_path else None,
+            solver_stderr_path=str(stderr_path) if stderr_path else None,
         )
 
     if message["ok"]:
@@ -99,6 +114,8 @@ def run_solver(
             solution=solution_model(**message["solution"]),
             run_error=None,
             exit_code=process.exitcode,
+            solver_stdout_path=str(stdout_path) if stdout_path else None,
+            solver_stderr_path=str(stderr_path) if stderr_path else None,
         )
 
     return SolverRun(
@@ -110,6 +127,8 @@ def run_solver(
         solution=None,
         run_error=message["error"],
         exit_code=process.exitcode,
+        solver_stdout_path=str(stdout_path) if stdout_path else None,
+        solver_stderr_path=str(stderr_path) if stderr_path else None,
     )
 
 
@@ -125,20 +144,34 @@ def _run_solver_child(
     instance: Any,
     time_limit_seconds: int,
     output_queue,
+    stdout_path: str | None,
+    stderr_path: str | None,
+    capture_solver_output: bool,
+    show_solver_output: bool,
 ) -> None:
     if hasattr(os, "setsid"):
         os.setsid()
-    try:
-        solver = solver_factory(method=solver_name, time_limit=time_limit_seconds)
-        solution = solver(instance, time_limit_seconds)
-        output_queue.put({"ok": True, "solution": _solution_payload(solution)})
-    except Exception as exc:
-        output_queue.put(
-            {
-                "ok": False,
-                "error": f"{exc.__class__.__name__}: {exc}",
-            }
-        )
+    stdout = Path(stdout_path) if stdout_path and capture_solver_output else None
+    stderr = Path(stderr_path) if stderr_path and capture_solver_output else None
+    with capture_output(
+        stdout_path=stdout,
+        stderr_path=stderr,
+        show_output=show_solver_output,
+    ):
+        try:
+            solver = solver_factory(method=solver_name, time_limit=time_limit_seconds)
+            solution = solver(instance, time_limit_seconds)
+            if solution is None:
+                raise NoSolutionFoundError(f"{solver_name} returned no solution")
+            output_queue.put({"ok": True, "solution": _solution_payload(solution)})
+        except Exception as exc:
+            traceback.print_exc()
+            output_queue.put(
+                {
+                    "ok": False,
+                    "error": f"{exc.__class__.__name__}: {exc}",
+                }
+            )
 
 
 def _solution_payload(solution: Any) -> dict[str, Any]:

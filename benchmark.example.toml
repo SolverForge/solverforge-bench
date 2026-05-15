@@ -1,0 +1,26 @@
+# Select one benchmark when running without a positional CLI benchmark.
+benchmark = "cvrp"
+
+solver = ["pyvrp"]
+time_limits = [1]
+run_kind = "quick"
+nightly = false
+wall_time_tolerance = 1.1
+watchdog_multiplier = 1.25
+watchdog_grace_seconds = 5.0
+
+[postgres]
+save = false
+url = "postgresql://postgres@localhost/solverforge_bench"
+
+[logging]
+level = "INFO"
+show_solver_output = true
+capture_solver_output = true
+
+[benchmarks.cvrp]
+num_instances = 3
+
+[benchmarks.employee-scheduling]
+dataset_set = "quick"
+datasets = ["n005w4"]

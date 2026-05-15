@@ -10,6 +10,18 @@ from typing import Any, Callable, Iterable, Protocol
 SolverFactory = Callable[..., Callable[[Any, int], Any]]
 
 
+class NoSolutionFoundError(RuntimeError):
+    """Raised when a solver finishes without a usable solution."""
+
+
+@dataclass(frozen=True)
+class SolverVersion:
+    solver: str
+    version: str
+    source: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
 @dataclass(frozen=True)
 class BenchmarkCase:
     dataset: str
@@ -32,6 +44,8 @@ class SolverRun:
     solution: Any | None
     run_error: str | None
     exit_code: int | None
+    solver_stdout_path: str | None = None
+    solver_stderr_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -56,6 +70,7 @@ class BenchmarkRow:
     instance: str
     instance_size: int | None
     solver: str
+    solver_version: str
     time_limit_seconds: int
     actual_time_seconds: float
     overshoot_seconds: float
@@ -64,6 +79,8 @@ class BenchmarkRow:
     watchdog_limit_seconds: float
     watchdog_killed: bool
     run_error: str | None
+    solver_stdout_path: str | None
+    solver_stderr_path: str | None
     hard_feasible: bool | None
     cost: float | int | None
     reported_cost: float | int | None
@@ -83,6 +100,7 @@ class BenchmarkRow:
             "instance": self.instance,
             "instance_size": self.instance_size,
             "solver": self.solver,
+            "solver_version": self.solver_version,
             "time_limit_seconds": self.time_limit_seconds,
             "actual_time_seconds": self.actual_time_seconds,
             "overshoot_seconds": self.overshoot_seconds,
@@ -91,6 +109,8 @@ class BenchmarkRow:
             "watchdog_limit_seconds": self.watchdog_limit_seconds,
             "watchdog_killed": self.watchdog_killed,
             "run_error": self.run_error,
+            "solver_stdout_path": self.solver_stdout_path,
+            "solver_stderr_path": self.solver_stderr_path,
             "hard_feasible": self.hard_feasible,
             "cost": self.cost,
             "reported_cost": self.reported_cost,
@@ -120,6 +140,8 @@ class BenchmarkSpec(Protocol):
     def create_solver(
         self, method: str, time_limit: int
     ) -> Callable[[Any, int], Any]: ...
+
+    def solver_versions(self, solvers: Iterable[str]) -> dict[str, SolverVersion]: ...
 
     def evaluate(
         self,

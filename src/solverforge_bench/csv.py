@@ -15,6 +15,7 @@ GLOBAL_COLUMNS = [
     "instance",
     "instance_size",
     "solver",
+    "solver_version",
     "time_limit_seconds",
     "actual_time_seconds",
     "overshoot_seconds",
@@ -23,6 +24,8 @@ GLOBAL_COLUMNS = [
     "watchdog_limit_seconds",
     "watchdog_killed",
     "run_error",
+    "solver_stdout_path",
+    "solver_stderr_path",
     "hard_feasible",
     "cost",
     "reported_cost",
@@ -36,6 +39,13 @@ GLOBAL_COLUMNS = [
     "validator_model_delta",
     "score_drift",
 ]
+
+NORMALIZED_COLUMNS = ["run_id", *GLOBAL_COLUMNS, "source_file"]
+
+
+def benchmark_columns(native_columns: Iterable[str]) -> list[str]:
+    columns = [*GLOBAL_COLUMNS, *native_columns]
+    return list(dict.fromkeys(columns))
 
 
 class IncrementalCsvWriter:
