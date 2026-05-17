@@ -134,9 +134,7 @@ class EmployeeSchedulingSpec:
             fresh_cost=fresh_cost,
             reference_cost=reference_cost,
             quality_ratio=(
-                float(validator_cost / reference_cost)
-                if reference_cost and reference_cost > 0
-                else None
+                float(validator_cost / reference_cost) if reference_cost else None
             ),
             validation_error="",
             solution_artifact=artifact_path,

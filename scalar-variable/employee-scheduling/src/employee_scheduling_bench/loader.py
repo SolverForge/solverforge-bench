@@ -306,7 +306,7 @@ def load_solution(sol_dir: str) -> Solution:
                     )
         weekly_assignments.append(assignments)
 
-    cost = 0
+    cost: int | None = None
     validator_file = sol_path / "validator.txt"
     if validator_file.exists():
         for line in validator_file.read_text().splitlines():
@@ -314,7 +314,12 @@ def load_solution(sol_dir: str) -> Solution:
                 cost = int(line.split(":")[-1].strip())
                 break
 
-    return Solution(assignments=weekly_assignments, cost=cost)
+    return Solution(
+        assignments=weekly_assignments,
+        cost=cost,
+        reported_cost=cost,
+        fresh_cost=cost,
+    )
 
 
 def _solution_stage_index(path: Path) -> tuple[int, str]:
