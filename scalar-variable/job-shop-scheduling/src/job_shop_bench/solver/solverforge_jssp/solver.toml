@@ -1,0 +1,8 @@
+[[phases]]
+type = "construction_heuristic"
+construction_heuristic_type = "first_fit"
+entity_class = "JsspOperation"
+variable_name = "start"
+
+[[phases]]
+type = "local_search"

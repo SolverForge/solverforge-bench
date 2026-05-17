@@ -1,0 +1,20 @@
+[package]
+name = "solverforge-jssp"
+version = "0.1.0"
+edition = "2021"
+description = "SolverForge JSPLIB job-shop scheduling solver for benchmark comparison"
+publish = false
+
+[lib]
+name = "solverforge_jssp"
+crate-type = ["cdylib"]
+
+[dependencies]
+solverforge = { version = "0.14.1", path = "../../../../../../../solverforge/crates/solverforge" }
+pyo3 = { version = "0.28", features = ["extension-module"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = true

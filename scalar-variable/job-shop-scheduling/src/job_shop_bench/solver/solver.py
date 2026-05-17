@@ -1,34 +1,53 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Callable
 
-from job_shop_bench.domain.models import JobShopInstance, ScheduledOperation, Solution
+from job_shop_bench.domain.models import JobShopInstance, Solution
+from job_shop_bench.solver.ortools import solve_with_ortools
 from solverforge_bench.model import SolverVersion
+from solverforge_bench.solver_versions import (
+    cargo_dependency_version,
+    executable_version,
+    maven_property_version,
+    versions_for_solvers,
+)
 
-AVAILABLE_METHODS = ["solverforge"]
+AVAILABLE_METHODS = ["solverforge", "timefold", "ortools"]
+_SOLVER_DIR = Path(__file__).resolve().parent
 
 
-def create_solver(method: str, time_limit: int) -> Callable[[JobShopInstance, int], Solution]:
-    if method != "solverforge":
-        raise ValueError(f"Unknown solver: {method}")
+def create_solver(
+    method: str, time_limit: int
+) -> Callable[[JobShopInstance, int], Solution]:
+    if method not in AVAILABLE_METHODS:
+        raise ValueError(
+            f"Unknown method '{method}'. Available: {', '.join(AVAILABLE_METHODS)}"
+        )
 
-    def solve(instance: JobShopInstance, _time_limit: int) -> Solution:
-        # Deterministic earliest-start dispatch baseline.
-        machine_ready = [0] * instance.num_machines
-        job_ready = [0] * instance.num_jobs
-        out: list[ScheduledOperation] = []
-        for job in instance.operations_by_job:
-            for op in job:
-                start = max(job_ready[op.job_id], machine_ready[op.machine_id])
-                out.append(ScheduledOperation(job_id=op.job_id, op_index=op.op_index, machine_id=op.machine_id, start=start, duration=op.duration))
-                finish = start + op.duration
-                job_ready[op.job_id] = finish
-                machine_ready[op.machine_id] = finish
-        makespan = max(job_ready) if job_ready else 0
-        return Solution(operations=tuple(out), reported_makespan=makespan)
+    if method == "solverforge":
+        from job_shop_bench.solver.solverforge import solve_with_solverforge
 
-    return solve
+        return solve_with_solverforge
+
+    if method == "timefold":
+        from job_shop_bench.solver.timefold import solve_with_timefold
+
+        return solve_with_timefold
+
+    return solve_with_ortools
 
 
 def solver_versions(solvers: list[str]) -> dict[str, SolverVersion]:
-    return {s: SolverVersion(solver=s, version="baseline-dispatch", source="benchmark") for s in solvers}
+    resolvers = {
+        "solverforge": cargo_dependency_version(
+            _SOLVER_DIR / "solverforge_jssp" / "Cargo.toml", "solverforge"
+        ),
+        "timefold": maven_property_version(
+            _SOLVER_DIR / "timefold" / "pom.xml", "timefold.version"
+        ),
+        "ortools": executable_version(
+            _SOLVER_DIR / "ortools" / "target" / "job_shop_scheduling_ortools"
+        ),
+    }
+    return versions_for_solvers(solvers, resolvers)
