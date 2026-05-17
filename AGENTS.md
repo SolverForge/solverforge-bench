@@ -26,6 +26,11 @@
   configuration.
 - `list-variable/cvrp/` contains the canonical CVRP benchmark imported from `~/hack/cvrp_solver_comparison`, with source in `src/cvrp_bench/` and instances under `data/X/`.
 - `scalar-variable/employee-scheduling/` contains the nurse rostering benchmark, with source in `src/employee_scheduling_bench/` and INRC2 datasets under `data/inrc2/`.
+- `scalar-variable/job-shop-scheduling/` contains the JSPLIB job-shop
+  scheduling benchmark, with source in `src/job_shop_bench/`, instances under
+  `data/jsplib/`, a SolverForge Rust/PyO3 adapter under
+  `solver/solverforge_jssp/`, a Timefold Java adapter under `solver/timefold/`,
+  and an OR-Tools C++ CP-SAT adapter under `solver/ortools/`.
 - `archive/` holds previous reports and older standalone scripts; do not treat it as active source.
 
 ## Build, Test, and Development Commands
@@ -61,16 +66,27 @@
   the same quick employee-scheduling sample.
 - `make bench-employee-scheduling-solverforge-quick-db` persists that same
   SolverForge-only employee-scheduling smoke path after applying migrations.
-- `make bench-nightly-db` is the cronable nightly entrypoint: it builds both
+- `make validate-job-shop-scheduling` validates the bundled JSPLIB manifest and
+  parser output.
+- `make build-job-shop-scheduling` builds the SolverForge JSSP Python extension,
+  the Timefold JSSP fat JAR, and the native OR-Tools JSSP executable.
+- `make bench-job-shop-scheduling-quick` runs the JSPLIB quick group for
+  `solverforge`, `timefold`, and `ortools` at 1s and 10s limits.
+- `make bench-job-shop-scheduling-quick-db` does the same quick
+  job-shop-scheduling run, applies database migrations first, and persists the
+  run to PostgreSQL.
+- `make bench-nightly-db` is the cronable nightly entrypoint: it builds all
   benchmark stacks, applies migrations once, then invokes the canonical root
-  harness directly for CVRP and employee scheduling. It uses
-  `benchmark.nightly.example.toml` by default and persists both runs to
+  harness directly for CVRP, employee scheduling, and job-shop scheduling. It
+  uses `benchmark.nightly.example.toml` by default and persists all runs to
   PostgreSQL.
 - `make validate-employee-model-parity` verifies that the employee-scheduling
   validator, OR-Tools model, Timefold model, and SolverForge model encode
   the same hard-feasibility clauses, candidate domains, and soft objective
   weights.
-- `make bench-cvrp` and `make bench-employee-scheduling` run the broader benchmark suites and may take longer.
+- `make bench-cvrp`, `make bench-employee-scheduling`, and
+  `make bench-job-shop-scheduling` run the broader benchmark suites and may
+  take longer.
 - `make db-check`, `make db-create`, `make db-migrate`, and `make db-reset`
   check, create, migrate, and reset the PostgreSQL benchmark warehouse
   configured by `DATABASE_URL`, or `BENCH_DATABASE_URL` when `DATABASE_URL` is
@@ -78,7 +94,7 @@
   `make db-reset` passes `DB_RESET_FLAGS ?= -y -f` to SQLx by default.
 - `make normalize-results INPUT=... OUTPUT=...` normalizes generated global CSV
   artifacts through Polars. Pass `ARGS="--format ndjson"` for NDJSON output.
-- `PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src .venv/bin/python3 scripts/run_benchmark.py <benchmark>` runs the unified root harness directly.
+- `PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src .venv/bin/python3 scripts/run_benchmark.py <benchmark>` runs the unified root harness directly.
 - Add `--config benchmark.example.toml` or `BENCH_CONFIG=benchmark.example.toml`
   to load TOML configuration. Command-line options override TOML values.
 - Use `--run-kind quick|candidate|tag` for benchmark classification. `tag`
@@ -94,17 +110,29 @@
 
 ## Coding Style & Naming Conventions
 
-Use 4-space indentation, `snake_case` functions and modules, and type hints where they clarify benchmark contracts. In CVRP, keep domain models in `domain/models.py`, validation in `domain/utils.py`, and solver adapters in `solver/<name>.py`. In employee scheduling, keep loaders in `loader.py`, validation in `validation.py`, and solver adapters in `solver/<name>.py`. Adapter names should match CLI arguments such as `solverforge`, `pyvrp`, `timefold`, or `ortools`.
+Use 4-space indentation, `snake_case` functions and modules, and type hints
+where they clarify benchmark contracts. In CVRP, keep domain models in
+`domain/models.py`, validation in `domain/utils.py`, and solver adapters in
+`solver/<name>.py`. In employee scheduling, keep loaders in `loader.py`,
+validation in `validation.py`, and solver adapters in `solver/<name>.py`. In
+job-shop scheduling, keep the JSPLIB loader in `loader.py`, strict schedule
+validation in `validation.py`, Pydantic-serializable returned schedule models in
+`domain/models.py`, the solver registry in `solver/solver.py`, and native
+solver implementations under their adapter directories. Adapter names should
+match CLI arguments such as `solverforge`, `pyvrp`, `timefold`, or `ortools`.
 
 ## Testing Guidelines
 
 There is no dedicated pytest suite. Treat quick benchmark targets and validation
 scripts as smoke tests. For CVRP, run `make validate-cvrp` plus one quick
 benchmark target. For employee scheduling, run
-`make bench-employee-scheduling-quick`. For PostgreSQL or run-catalog changes,
-also run `make db-migrate` and at least one `*-db` dry run or smoke run. When
-adding a dataset or solver, include a small deterministic run and confirm
-failures are solution failures, not loader or adapter errors.
+`make bench-employee-scheduling-quick`. For job-shop scheduling, run
+`make validate-job-shop-scheduling` plus `make bench-job-shop-scheduling-quick`
+or a focused root harness run with `--solver` when only one adapter changed. For
+PostgreSQL or run-catalog changes, also run `make db-migrate` and at least one
+`*-db` dry run or smoke run. When adding a dataset or solver, include a small
+deterministic run and confirm failures are solution failures, not loader or
+adapter errors.
 
 For CI or documentation contract changes, also verify Python syntax with
 `python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scripts`

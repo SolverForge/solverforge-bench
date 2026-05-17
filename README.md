@@ -20,8 +20,11 @@ See `WIREFRAME.md` for the current as-built repository map.
   uses the bundled INRC-II TXT corpus and compares `solverforge`,
   `timefold`, and `ortools` on nurse-to-shift assignments.
 - `scalar-variable/job-shop-scheduling/` is the job-shop scheduling benchmark. It
-  uses bundled JSPLIB-style instances and currently exposes the `solverforge`
-  adapter through the shared harness.
+  uses bundled JSPLIB instances for machine scheduling with job precedence
+  and disjunctive machine capacity constraints. It compares `solverforge`,
+  `timefold`, and `ortools` on fixed-machine operation start times. The
+  SolverForge adapter is a Rust/PyO3 planning model, the Timefold adapter is a
+  Java fat JAR, and the OR-Tools adapter is a native C++ CP-SAT executable.
 
 ## Documentation Map
 
@@ -146,16 +149,47 @@ the run.
 The canonical target uses the `canonical` group in
 `scalar-variable/employee-scheduling/data/inrc2/manifest.json`.
 
+## Job-Shop Scheduling Commands
+
+Run local JSPLIB parser and manifest validation:
+
+```sh
+make validate-job-shop-scheduling
+```
+
+Build all job-shop scheduling integrations without running a benchmark:
+
+```sh
+make build-job-shop-scheduling
+```
+
+Run the quick and canonical job-shop scheduling benchmarks:
+
+```sh
+make bench-job-shop-scheduling-quick
+make bench-job-shop-scheduling
+```
+
+The quick target runs the JSPLIB `quick` group for `solverforge`, `timefold`,
+and `ortools` at `1` and `10` seconds. The canonical target uses the
+`canonical` group in
+`scalar-variable/job-shop-scheduling/data/jsplib/manifest.json`.
+In the current bundled manifest, `quick` contains `ft06` and `la01`, while
+`canonical` contains `ft06`, `la01`, and `la02`.
+
 ## Unified Harness
 
 The root entrypoint runs the shared framework with problem-specific specs:
 
 ```sh
-PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src \
+PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src \
   .venv/bin/python3 scripts/run_benchmark.py cvrp --run-kind quick --num-instances 3 --time-limits 1 10
 
-PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src \
+PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src \
   .venv/bin/python3 scripts/run_benchmark.py employee-scheduling --run-kind quick --datasets n005w4 --time-limits 1 10
+
+PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src \
+  .venv/bin/python3 scripts/run_benchmark.py job-shop-scheduling --run-kind quick --dataset-set quick --time-limits 1 10
 ```
 
 Shared CLI options include:
@@ -180,8 +214,8 @@ Shared CLI options include:
 --capture-solver-output | --no-capture-solver-output
 ```
 
-`cvrp` adds `--num-instances`. `employee-scheduling` adds `--dataset-set` and
-`--datasets`.
+`cvrp` adds `--num-instances`. `employee-scheduling` and
+`job-shop-scheduling` add `--dataset-set` and `--datasets`.
 
 The benchmark budget and watchdog are separate. The requested time limit is
 passed to the solver and measured with wall-clock timing around
@@ -230,7 +264,7 @@ integrity errors, such as CSV or PostgreSQL write failures, still fail the run.
 The unified harness can read benchmark settings from a TOML file:
 
 ```sh
-PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src \
+PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src \
   .venv/bin/python3 scripts/run_benchmark.py --config benchmark.example.toml
 ```
 
@@ -260,6 +294,10 @@ num_instances = 3
 [benchmarks.employee-scheduling]
 dataset_set = "quick"
 datasets = ["n005w4"]
+
+[benchmarks.job-shop-scheduling]
+dataset_set = "quick"
+datasets = ["ft06"]
 ```
 
 Command-line options override TOML values. `release_tag` qualifies only the
@@ -326,7 +364,7 @@ cargo install sqlx-cli --no-default-features --features postgres
 Save a benchmark run to PostgreSQL while still writing the normal CSV:
 
 ```sh
-PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src \
+PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src \
   .venv/bin/python3 scripts/run_benchmark.py cvrp \
     --run-kind quick \
     --num-instances 3 \
@@ -353,14 +391,16 @@ make bench-cvrp-quick
 make bench-cvrp-quick-db
 make bench-employee-scheduling-quick
 make bench-employee-scheduling-quick-db
+make bench-job-shop-scheduling-quick
+make bench-job-shop-scheduling-quick-db
 make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.14.1"
 make bench-cvrp-db BENCH_ARGS="--run-kind quick --nightly"
 make bench-nightly-db
 ```
 
-`make bench-nightly-db` is the cron entrypoint. It builds both benchmark stacks,
+`make bench-nightly-db` is the cron entrypoint. It builds all benchmark stacks,
 applies migrations once, then calls `scripts/run_benchmark.py` directly for
-CVRP and employee scheduling. By default it uses
+CVRP, employee scheduling, and job-shop scheduling. By default it uses
 `benchmark.nightly.example.toml`; set `BENCH_CONFIG` for a different nightly
 config, or append explicit child harness overrides with `NIGHTLY_ARGS`. It does
 not pass `--solver`, so each benchmark uses its full default solver set.
@@ -369,7 +409,9 @@ not pass `--solver`, so each benchmark uses its full default solver set.
 
 Benchmark runs now write one global snake_case CSV schema directly. Native
 problem fields are stable optional columns, for example `nurses`, `weeks`,
-`validator_model_delta`, and `score_drift`.
+`validator_model_delta`, `score_drift`, `num_jobs`, `num_machines`,
+`num_operations`, `source_family`, `known_best_makespan`, and
+`makespan_gap_to_best`.
 
 PostgreSQL stores run-level catalog data in `benchmark_runs`, one solver-version
 row per solver involved in the run in `benchmark_solver_versions`, and one row
@@ -413,5 +455,7 @@ overshoot_seconds, overshoot_ratio, wall_time_over_limit,
 watchdog_limit_seconds, watchdog_killed, run_error, solver_stdout_path,
 solver_stderr_path, hard_feasible, cost, reported_cost, fresh_cost,
 reference_cost, quality_ratio, validation_error, solution_artifact, nurses,
-weeks, validator_model_delta, score_drift, source_file
+weeks, validator_model_delta, score_drift, num_jobs, num_machines,
+num_operations, source_family, known_best_makespan, makespan_gap_to_best,
+source_file
 ```
