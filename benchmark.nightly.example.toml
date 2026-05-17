@@ -16,3 +16,6 @@ capture_solver_output = true
 
 [benchmarks.employee-scheduling]
 dataset_set = "canonical"
+
+[benchmarks.job-shop-scheduling]
+dataset_set = "canonical"
