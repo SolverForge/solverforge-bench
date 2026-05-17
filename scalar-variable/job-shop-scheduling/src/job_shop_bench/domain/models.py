@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from pydantic import BaseModel
+
 
 @dataclass(frozen=True)
 class Operation:
@@ -20,8 +22,7 @@ class JobShopInstance:
     operations_by_job: tuple[tuple[Operation, ...], ...]
 
 
-@dataclass(frozen=True)
-class ScheduledOperation:
+class ScheduledOperation(BaseModel):
     job_id: int
     op_index: int
     machine_id: int
@@ -29,7 +30,6 @@ class ScheduledOperation:
     duration: int
 
 
-@dataclass(frozen=True)
-class Solution:
+class Solution(BaseModel):
     operations: tuple[ScheduledOperation, ...]
     reported_makespan: int | None = None
