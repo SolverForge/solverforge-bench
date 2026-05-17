@@ -76,6 +76,8 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-employee-scheduling-solverforge-quick bench-employee-scheduling-solverforge-quick-db \
 	bench-job-shop-scheduling bench-job-shop-scheduling-db \
 	bench-job-shop-scheduling-quick bench-job-shop-scheduling-quick-db \
+	bench-job-shop-scheduling-solverforge bench-job-shop-scheduling-solverforge-db \
+	bench-job-shop-scheduling-solverforge-quick bench-job-shop-scheduling-solverforge-quick-db \
 	bench-nightly-db \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
 	db-check db-create db-migrate db-reset normalize-results
@@ -265,6 +267,18 @@ bench-job-shop-scheduling-quick: build-job-shop-scheduling
 
 bench-job-shop-scheduling-quick-db: build-job-shop-scheduling db-migrate
 	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --dataset-set quick --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+
+bench-job-shop-scheduling-solverforge: build-job-shop-scheduling-solverforge
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
+
+bench-job-shop-scheduling-solverforge-db: build-job-shop-scheduling-solverforge db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+
+bench-job-shop-scheduling-solverforge-quick: build-job-shop-scheduling-solverforge
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --dataset-set quick --time-limits 1 10 $(BENCH_ARGS)
+
+bench-job-shop-scheduling-solverforge-quick-db: build-job-shop-scheduling-solverforge db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --dataset-set quick --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 validate-job-shop-scheduling: banner
 	cd $(JOBSHOP_ROOT) && PYTHONPATH=../../src:src "$(PYTHON)" scripts/validate_all.py
