@@ -38,6 +38,12 @@ GLOBAL_COLUMNS = [
     "weeks",
     "validator_model_delta",
     "score_drift",
+    "num_jobs",
+    "num_machines",
+    "num_operations",
+    "source_family",
+    "known_best_makespan",
+    "makespan_gap_to_best",
 ]
 
 NORMALIZED_COLUMNS = ["run_id", *GLOBAL_COLUMNS, "source_file"]

@@ -111,6 +111,12 @@ def normalize_global_row(
         "weeks": as_int(row.get("weeks")),
         "validator_model_delta": as_float(row.get("validator_model_delta")),
         "score_drift": as_bool(row.get("score_drift")),
+        "num_jobs": as_int(row.get("num_jobs")),
+        "num_machines": as_int(row.get("num_machines")),
+        "num_operations": as_int(row.get("num_operations")),
+        "source_family": blank_to_none(row.get("source_family")),
+        "known_best_makespan": as_int(row.get("known_best_makespan")),
+        "makespan_gap_to_best": as_float(row.get("makespan_gap_to_best")),
         "source_file": str(source_file),
     }
 
