@@ -49,6 +49,9 @@ EMPLOYEE_SOLVERFORGE_DIR := $(EMPLOYEE_ROOT)/src/employee_scheduling_bench/solve
 EMPLOYEE_TIMEFOLD_POM := $(EMPLOYEE_ROOT)/src/employee_scheduling_bench/solver/timefold/pom.xml
 EMPLOYEE_ORTOOLS_DIR := $(EMPLOYEE_ROOT)/src/employee_scheduling_bench/solver/ortools
 JOBSHOP_ROOT := scalar-variable/job-shop-scheduling
+JOBSHOP_SOLVERFORGE_DIR := $(JOBSHOP_ROOT)/src/job_shop_bench/solver/solverforge_jssp
+JOBSHOP_TIMEFOLD_POM := $(JOBSHOP_ROOT)/src/job_shop_bench/solver/timefold/pom.xml
+JOBSHOP_ORTOOLS_DIR := $(JOBSHOP_ROOT)/src/job_shop_bench/solver/ortools
 ORTOOLS_VERSION ?= 9.15.6755
 ORTOOLS_ARCHIVE ?= or-tools_amd64_opensuse-leap_cpp_v$(ORTOOLS_VERSION).tar.gz
 ORTOOLS_URL ?= https://github.com/google/or-tools/releases/download/v9.15/$(ORTOOLS_ARCHIVE)
@@ -63,6 +66,7 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 .PHONY: \
 	banner venv install-python-deps build-cvrp build-cvrp-python-deps build-cvrp-solverforge build-cvrp-timefold build-cvrp-ortools build-cvrp-rustvrp build-cvrp-vroom \
 	build-employee-scheduling build-employee-scheduling-solverforge build-employee-scheduling-timefold build-employee-scheduling-ortools \
+	build-job-shop-scheduling build-job-shop-scheduling-solverforge build-job-shop-scheduling-timefold build-job-shop-scheduling-ortools \
 	bench-cvrp bench-cvrp-db bench-cvrp-quick bench-cvrp-quick-db \
 	bench-cvrp-solverforge bench-cvrp-solverforge-db \
 	bench-cvrp-solverforge-quick bench-cvrp-solverforge-quick-db \
@@ -70,8 +74,10 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-employee-scheduling-quick bench-employee-scheduling-quick-db \
 	bench-employee-scheduling-solverforge bench-employee-scheduling-solverforge-db \
 	bench-employee-scheduling-solverforge-quick bench-employee-scheduling-solverforge-quick-db \
+	bench-job-shop-scheduling bench-job-shop-scheduling-db \
+	bench-job-shop-scheduling-quick bench-job-shop-scheduling-quick-db \
 	bench-nightly-db \
-	validate-cvrp validate-employee-scheduling validate-employee-model-parity \
+	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
 	db-check db-create db-migrate db-reset normalize-results
 
 # ============== Default Target ==============
@@ -216,9 +222,10 @@ bench-employee-scheduling-solverforge-quick: build-employee-scheduling-solverfor
 bench-employee-scheduling-solverforge-quick-db: build-employee-scheduling-solverforge db-migrate
 	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --datasets n005w4 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
-bench-nightly-db: build-cvrp build-employee-scheduling db-migrate
+bench-nightly-db: build-cvrp build-employee-scheduling build-job-shop-scheduling db-migrate
 	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS)
 	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS)
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS)
 
 validate-employee-scheduling: banner
 	cd $(EMPLOYEE_ROOT) && PYTHONPATH=../../src:../../list-variable/cvrp/src:src "$(PYTHON)" scripts/validate_all.py
@@ -232,11 +239,32 @@ normalize-results: banner
 	"$(PYTHON)" scripts/normalize_results.py --input "$(INPUT)" --output "$(OUTPUT)" $(ARGS)
 
 
-bench-job-shop-scheduling:
+build-job-shop-scheduling: banner install-python-deps build-job-shop-scheduling-solverforge build-job-shop-scheduling-timefold build-job-shop-scheduling-ortools
+
+build-job-shop-scheduling-solverforge: banner install-python-deps
+	cd $(JOBSHOP_SOLVERFORGE_DIR) && maturin build --release --locked -i "$(PYTHON)"
+	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install --force-reinstall $$(ls -t $(JOBSHOP_SOLVERFORGE_DIR)/target/wheels/*.whl | head -1)
+
+build-job-shop-scheduling-timefold: banner
+	$(MAVEN_ENV) mvn -f $(JOBSHOP_TIMEFOLD_POM) package -q
+
+build-job-shop-scheduling-ortools: banner $(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake
+	cmake -S $(JOBSHOP_ORTOOLS_DIR) -B build/job-shop-scheduling-ortools -DCMAKE_PREFIX_PATH="$(ORTOOLS_ROOT)" -DORTOOLS_ROOT="$(ORTOOLS_ROOT)"
+	cmake --build build/job-shop-scheduling-ortools --parallel
+	mkdir -p $(JOBSHOP_ORTOOLS_DIR)/target
+	cp build/job-shop-scheduling-ortools/job_shop_scheduling_ortools $(JOBSHOP_ORTOOLS_DIR)/target/
+
+bench-job-shop-scheduling: build-job-shop-scheduling
 	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
 
-bench-job-shop-scheduling-quick:
+bench-job-shop-scheduling-db: build-job-shop-scheduling db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+
+bench-job-shop-scheduling-quick: build-job-shop-scheduling
 	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --dataset-set quick --time-limits 1 10 $(BENCH_ARGS)
+
+bench-job-shop-scheduling-quick-db: build-job-shop-scheduling db-migrate
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --dataset-set quick --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 validate-job-shop-scheduling: banner
 	cd $(JOBSHOP_ROOT) && PYTHONPATH=../../src:src "$(PYTHON)" scripts/validate_all.py
