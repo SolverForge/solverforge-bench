@@ -8,13 +8,15 @@ from solverforge_bench.model import BenchmarkSpec
 def get_specs() -> dict[str, BenchmarkSpec]:
     from cvrp_bench.spec import SPEC as cvrp
     from employee_scheduling_bench.spec import SPEC as employee_scheduling
+    from job_shop_bench.spec import SPEC as job_shop
 
     return {
         "cvrp": cvrp,
         "employee-scheduling": employee_scheduling,
+        "job-shop-scheduling": job_shop,
     }
 
 
 def canonical_specs() -> list[BenchmarkSpec]:
     specs = get_specs()
-    return [specs["cvrp"], specs["employee-scheduling"]]
+    return [specs["cvrp"], specs["employee-scheduling"], specs["job-shop-scheduling"]]

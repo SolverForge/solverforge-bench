@@ -24,3 +24,8 @@ num_instances = 3
 [benchmarks.employee-scheduling]
 dataset_set = "quick"
 datasets = ["n005w4"]
+
+[benchmarks.job-shop-scheduling]
+dataset_set = "quick"
+datasets = ["ft06"]
+

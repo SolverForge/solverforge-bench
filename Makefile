@@ -32,7 +32,7 @@ NIGHTLY_ARGS ?=
 BENCH_CONFIG_ARG = $(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",)
 NIGHTLY_CONFIG_ARG = $(if $(findstring --config,$(NIGHTLY_ARGS)),,$(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",--config "benchmark.nightly.example.toml"))
 BENCH_DB_ARGS := --postgres-url "$(DATABASE_URL)"
-BENCH_PYTHONPATH := src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src
+BENCH_PYTHONPATH := src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src
 BENCH_ENV := OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$(BENCH_PYTHONPATH)
 BENCH_CPU ?= 0
 PINNED_BENCH := taskset -c $(BENCH_CPU) env $(BENCH_ENV)
@@ -48,6 +48,7 @@ EMPLOYEE_ROOT := scalar-variable/employee-scheduling
 EMPLOYEE_SOLVERFORGE_DIR := $(EMPLOYEE_ROOT)/src/employee_scheduling_bench/solver/solverforge_nrp
 EMPLOYEE_TIMEFOLD_POM := $(EMPLOYEE_ROOT)/src/employee_scheduling_bench/solver/timefold/pom.xml
 EMPLOYEE_ORTOOLS_DIR := $(EMPLOYEE_ROOT)/src/employee_scheduling_bench/solver/ortools
+JOBSHOP_ROOT := scalar-variable/job-shop-scheduling
 ORTOOLS_VERSION ?= 9.15.6755
 ORTOOLS_ARCHIVE ?= or-tools_amd64_opensuse-leap_cpp_v$(ORTOOLS_VERSION).tar.gz
 ORTOOLS_URL ?= https://github.com/google/or-tools/releases/download/v9.15/$(ORTOOLS_ARCHIVE)
@@ -229,3 +230,13 @@ normalize-results: banner
 	test -n "$(INPUT)"
 	test -n "$(OUTPUT)"
 	"$(PYTHON)" scripts/normalize_results.py --input "$(INPUT)" --output "$(OUTPUT)" $(ARGS)
+
+
+bench-job-shop-scheduling:
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
+
+bench-job-shop-scheduling-quick:
+	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --dataset-set quick --time-limits 1 10 $(BENCH_ARGS)
+
+validate-job-shop-scheduling: banner
+	cd $(JOBSHOP_ROOT) && PYTHONPATH=../../src:src "$(PYTHON)" scripts/validate_all.py
