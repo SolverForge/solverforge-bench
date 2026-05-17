@@ -1,0 +1,11 @@
+{
+  "groups": {
+    "quick": ["ft06", "la01"],
+    "canonical": ["ft06", "la01", "la02"]
+  },
+  "instances": [
+    {"name": "ft06", "family": "ft", "path": "ft06.txt", "known_best_makespan": 55},
+    {"name": "la01", "family": "la", "path": "la01.txt", "known_best_makespan": 666},
+    {"name": "la02", "family": "la", "path": "la02.txt", "known_best_makespan": 655}
+  ]
+}

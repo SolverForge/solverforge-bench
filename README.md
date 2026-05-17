@@ -19,6 +19,9 @@ See `WIREFRAME.md` for the current as-built repository map.
 - `scalar-variable/employee-scheduling/` is the nurse rostering benchmark. It
   uses the bundled INRC-II TXT corpus and compares `solverforge`,
   `timefold`, and `ortools` on nurse-to-shift assignments.
+- `scalar-variable/job-shop-scheduling/` is the job-shop scheduling benchmark. It
+  uses bundled JSPLIB-style instances and currently exposes the `solverforge`
+  adapter through the shared harness.
 
 ## Documentation Map
 

@@ -18,4 +18,5 @@ where = [
     "src",
     "list-variable/cvrp/src",
     "scalar-variable/employee-scheduling/src",
+    "scalar-variable/job-shop-scheduling/src",
 ]

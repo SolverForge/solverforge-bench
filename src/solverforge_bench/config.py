@@ -44,6 +44,7 @@ LOGGING_KEYS = {
 BENCHMARK_KEYS = {
     "cvrp": {"num_instances"},
     "employee-scheduling": {"dataset_set", "datasets"},
+    "job-shop-scheduling": {"dataset_set", "datasets"},
 }
 RUN_KIND_CHOICES = ("quick", "candidate", "tag")
 
