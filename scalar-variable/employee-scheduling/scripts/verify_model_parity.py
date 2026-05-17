@@ -322,7 +322,11 @@ def _check_reference_solution_costs(repo_root: Path) -> list[str]:
             validate_breakdown(solution=solution, instance=instance).values()
         )
         checked += 1
-        if solution.cost > 0 and validator_cost != solution.cost:
+        if (
+            solution.cost is not None
+            and solution.cost > 0
+            and validator_cost != solution.cost
+        ):
             failures.append(
                 f"{info['name']}: reference cost mismatch, "
                 f"validator={validator_cost}, reference={solution.cost}"
