@@ -25,6 +25,7 @@ PYTHON ?= $(VENV)/bin/python3
 PIP ?= $(VENV)/bin/pip
 DATABASE_URL ?= $(if $(BENCH_DATABASE_URL),$(BENCH_DATABASE_URL),postgresql://postgres@localhost/solverforge_bench)
 SQLX ?= sqlx
+DB_RESET_FLAGS ?= -y -f
 BENCH_ARGS ?=
 BENCH_CONFIG ?=
 NIGHTLY_ARGS ?=
@@ -70,7 +71,7 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-employee-scheduling-solverforge-quick bench-employee-scheduling-solverforge-quick-db \
 	bench-nightly-db \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity \
-	db-check db-create db-migrate normalize-results
+	db-check db-create db-migrate db-reset normalize-results
 
 # ============== Default Target ==============
 .DEFAULT_GOAL := venv
@@ -108,6 +109,9 @@ db-create: banner
 
 db-migrate: db-create
 	$(SQLX) migrate run --source migrations --database-url "$(DATABASE_URL)"
+
+db-reset: banner
+	$(SQLX) database reset --source migrations --database-url "$(DATABASE_URL)" $(DB_RESET_FLAGS)
 
 $(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake:
 	mkdir -p build/ortools
