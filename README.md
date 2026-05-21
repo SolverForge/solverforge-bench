@@ -8,6 +8,7 @@ result rows, CSV writing, production logging, solver stdout/stderr capture, and
 optional PostgreSQL persistence. Problem packages are adapters: they load/select
 cases, create solver callables, validate/evaluate returned solutions, and expose
 native fields.
+See `WIREFRAME.md` for the current as-built repository map.
 
 ## Benchmarks
 
@@ -18,6 +19,15 @@ native fields.
 - `scalar-variable/employee-scheduling/` is the nurse rostering benchmark. It
   uses the bundled INRC-II TXT corpus and compares `solverforge`,
   `timefold`, and `ortools` on nurse-to-shift assignments.
+
+## Documentation Map
+
+- `README.md` is the operator guide for setup, benchmark commands, configuration,
+  persistence, and result schema.
+- `AGENTS.md` is the maintainer and agent contract for scoped changes.
+- `WIREFRAME.md` is the current as-built structure and data-flow map.
+- `archive/README.md` marks archived reports and standalone scripts as
+  historical material only.
 
 ## Setup
 
@@ -31,7 +41,37 @@ pip install -e .
 
 The root Makefile uses this same `.venv` for CVRP, employee scheduling,
 normalization, and nightly runs. `make install-python-deps` creates or refreshes
-it before benchmark builds.
+it before benchmark builds and is the CI-safe entrypoint for scripts that
+bootstrap themselves through the repository virtualenv.
+
+The CVRP SolverForge benchmark adapter is pinned to SolverForge `0.14.1` and
+uses the sibling local checkout at `../solverforge/crates/solverforge`. The
+employee-scheduling SolverForge adapter uses the `0.15.0` node-sharing compiler
+branch at `../solverforge-node-sharing/crates/solverforge`. Keep CI or local
+bootstrap checkouts aligned to those Cargo paths.
+
+Benchmark run targets execute the shared harness through `taskset` on
+`BENCH_CPU`, which defaults to CPU `0`, and set `OMP_NUM_THREADS=1` plus
+`MKL_NUM_THREADS=1`. Override `BENCH_CPU` for a different pinned core.
+
+## CI
+
+`.github/workflows/ci.yml` defines separate jobs for GitHub-hosted Actions and
+local Forgejo runners. The Python jobs set up Python 3.14, create the root
+`.venv` with `make install-python-deps HOST_PYTHON=...`, compile the source
+trees, parse `benchmark*.toml`, run `make validate-cvrp`, and run
+`make validate-employee-model-parity`. The parity script requires that root
+`.venv`, so CI must use the Makefile bootstrap instead of a detached
+`python -m pip install -e .`.
+
+The Rust jobs clone SolverForge tag `v0.14.1` into
+`$GITHUB_WORKSPACE/../solverforge` and clone `feat/node-sharing-compiler` into
+`$GITHUB_WORKSPACE/../solverforge-node-sharing`, matching the active adapter
+`Cargo.toml` path dependencies. They set the PyO3 Python environment from
+`actions/setup-python`, then run formatting,
+`cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
+for the CVRP SolverForge adapter, CVRP rustvrp adapter, and employee scheduling
+SolverForge adapter.
 
 ## CVRP Commands
 
@@ -41,11 +81,13 @@ Run CVRP validation and smoke benchmarks from the repository root:
 make validate-cvrp
 make bench-cvrp-quick
 make bench-cvrp-solverforge-quick
+make bench-cvrp-solverforge-quick-db
 ```
 
 `bench-cvrp-quick` uses all registered CVRP solvers on three instances at `1`
-and `10` seconds. `bench-cvrp-solverforge-quick` keeps the SolverForge-only
-development smoke path.
+and `10` seconds. The `bench-cvrp-solverforge-*` targets keep the
+SolverForge-only development smoke path, with the `-db` variant applying
+migrations and persisting the same run to PostgreSQL.
 
 Run the full CVRP benchmark:
 
@@ -89,11 +131,15 @@ Run the quick and canonical employee-scheduling benchmarks:
 
 ```sh
 make bench-employee-scheduling-quick
+make bench-employee-scheduling-solverforge-quick
+make bench-employee-scheduling-solverforge-quick-db
 make bench-employee-scheduling
 ```
 
 The quick target runs `n005w4` for `solverforge`, `timefold`, and `ortools`
-at `1` and `10` seconds.
+at `1` and `10` seconds. The SolverForge-only quick target runs the same slice
+with only `solverforge`, and the `-db` variant applies migrations and persists
+the run.
 The canonical target uses the `canonical` group in
 `scalar-variable/employee-scheduling/data/inrc2/manifest.json`.
 
@@ -224,6 +270,11 @@ non-tag run kind is rejected. Make targets accept the same file through
 make bench-cvrp-quick BENCH_CONFIG=benchmark.example.toml
 ```
 
+Append child harness options with `BENCH_ARGS`, or for the two-benchmark
+nightly target with `NIGHTLY_ARGS`. `NIGHTLY_ARGS` may supply its own
+`--config`; otherwise `make bench-nightly-db` uses `BENCH_CONFIG` when set and
+falls back to `benchmark.nightly.example.toml`.
+
 Set `nightly = true` for cron-driven runs that should be kept distinct from
 normal runs with the same `run_kind`. Set `[postgres].save = true` or pass
 `--save-postgres` to persist with the configured URL. A TOML PostgreSQL URL by
@@ -255,9 +306,15 @@ Prepare the database and apply migrations:
 make db-check
 make db-create
 make db-migrate
+make db-reset
 ```
 
-`db-migrate` requires `sqlx-cli` on `PATH`:
+`db-reset` drops the configured database, recreates it, and runs migrations.
+It passes `-y -f` by default so the helper works from non-interactive shells
+and terminates existing PostgreSQL sessions on the benchmark database.
+Override SQLx flags with `DB_RESET_FLAGS` when needed.
+
+The database targets require `sqlx-cli` on `PATH`:
 
 ```sh
 cargo install sqlx-cli --no-default-features --features postgres
@@ -293,7 +350,7 @@ make bench-cvrp-quick
 make bench-cvrp-quick-db
 make bench-employee-scheduling-quick
 make bench-employee-scheduling-quick-db
-make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.11.1"
+make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.14.1"
 make bench-cvrp-db BENCH_ARGS="--run-kind quick --nightly"
 make bench-nightly-db
 ```

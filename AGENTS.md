@@ -3,6 +3,16 @@
 ## Project Structure & Module Organization
 
 - `pyproject.toml` declares shared Python dependencies and package discovery.
+- `README.md` is the operator guide. `WIREFRAME.md` is the as-built
+  repository/data-flow map. Keep both aligned with this file when public
+  behavior or structure changes.
+- `.github/workflows/ci.yml` contains the split GitHub/Forgejo CI workflow.
+  Keep its sibling SolverForge checkout paths aligned with the active adapter
+  `Cargo.toml` path dependencies. The Rust jobs must clone SolverForge
+  `v0.14.1` into `../solverforge`, clone `feat/node-sharing-compiler` into
+  `../solverforge-node-sharing`, and run Cargo checks with `--locked`; the
+  Python jobs must create the root `.venv` with `make install-python-deps`
+  before parity validation.
 - `src/solverforge_bench/` contains the shared benchmark framework. CLI,
   TOML configuration, registry, run matrix, timing, overshoot calculation,
   watchdog containment, result rows, CSV writing, production logging, solver
@@ -24,16 +34,33 @@
   creates the single repository virtualenv used by all benchmark commands.
 - `make install-python-deps` creates or refreshes that root `.venv` from the
   Makefile.
+- The CVRP SolverForge adapter is pinned to SolverForge `0.14.1` and currently
+  uses the sibling checkout at `../solverforge/crates/solverforge`. The
+  employee-scheduling SolverForge adapter uses the `0.15.0` node-sharing
+  compiler branch at `../solverforge-node-sharing/crates/solverforge`.
+- Benchmark run targets pin the shared harness with `taskset -c $(BENCH_CPU)`;
+  `BENCH_CPU` defaults to `0`. They also set `OMP_NUM_THREADS=1` and
+  `MKL_NUM_THREADS=1`.
 - `make validate-cvrp` validates all bundled CVRP `.vrp`/`.sol` pairs.
+- `make build-cvrp` builds Python dependencies plus CVRP Timefold, SolverForge,
+  OR-Tools, rustvrp, and VROOM integrations.
 - `make bench-cvrp-quick` builds CVRP native integrations and runs a small sample.
   It uses all registered CVRP solvers.
 - `make bench-cvrp-quick-db` does the same quick CVRP run, applies database
   migrations first, and persists the run to PostgreSQL.
 - `make bench-cvrp-solverforge-quick` runs only SolverForge CVRP on three instances with 1s and 10s limits.
+- `make bench-cvrp-solverforge-quick-db` persists that same SolverForge-only
+  CVRP smoke path after applying migrations.
+- `make build-employee-scheduling` builds Python dependencies plus employee
+  Timefold, SolverForge, and OR-Tools integrations.
 - `make bench-employee-scheduling-quick` runs a small INRC2 sample.
 - `make bench-employee-scheduling-quick-db` does the same quick
   employee-scheduling run, applies database migrations first, and persists the
   run to PostgreSQL.
+- `make bench-employee-scheduling-solverforge-quick` runs only SolverForge on
+  the same quick employee-scheduling sample.
+- `make bench-employee-scheduling-solverforge-quick-db` persists that same
+  SolverForge-only employee-scheduling smoke path after applying migrations.
 - `make bench-nightly-db` is the cronable nightly entrypoint: it builds both
   benchmark stacks, applies migrations once, then invokes the canonical root
   harness directly for CVRP and employee scheduling. It uses
@@ -44,10 +71,13 @@
   the same hard-feasibility clauses, candidate domains, and soft objective
   weights.
 - `make bench-cvrp` and `make bench-employee-scheduling` run the broader benchmark suites and may take longer.
-- `make db-check`, `make db-create`, and `make db-migrate` check, create, and
-  migrate the PostgreSQL benchmark warehouse configured by `DATABASE_URL`, or
-  `BENCH_DATABASE_URL` when `DATABASE_URL` is unset. The default URL is
-  `postgresql://postgres@localhost/solverforge_bench`.
+- `make db-check`, `make db-create`, `make db-migrate`, and `make db-reset`
+  check, create, migrate, and reset the PostgreSQL benchmark warehouse
+  configured by `DATABASE_URL`, or `BENCH_DATABASE_URL` when `DATABASE_URL` is
+  unset. The default URL is `postgresql://postgres@localhost/solverforge_bench`.
+  `make db-reset` passes `DB_RESET_FLAGS ?= -y -f` to SQLx by default.
+- `make normalize-results INPUT=... OUTPUT=...` normalizes generated global CSV
+  artifacts through Polars. Pass `ARGS="--format ndjson"` for NDJSON output.
 - `PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src .venv/bin/python3 scripts/run_benchmark.py <benchmark>` runs the unified root harness directly.
 - Add `--config benchmark.example.toml` or `BENCH_CONFIG=benchmark.example.toml`
   to load TOML configuration. Command-line options override TOML values.
@@ -58,6 +88,9 @@
   `--show-solver-output|--no-show-solver-output`, and
   `--capture-solver-output|--no-capture-solver-output` for logging behavior.
   Logging policy belongs to `src/solverforge_bench/`, not to benchmark adapters.
+- Use `BENCH_ARGS` to append child harness options to normal benchmark Make
+  targets. Use `NIGHTLY_ARGS` for `make bench-nightly-db`; if `NIGHTLY_ARGS`
+  includes `--config`, it overrides the Makefile's nightly config selection.
 
 ## Coding Style & Naming Conventions
 
@@ -73,6 +106,10 @@ also run `make db-migrate` and at least one `*-db` dry run or smoke run. When
 adding a dataset or solver, include a small deterministic run and confirm
 failures are solution failures, not loader or adapter errors.
 
+For CI or documentation contract changes, also verify Python syntax with
+`python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scripts`
+and parse `benchmark*.toml` with `tomllib` or an equivalent TOML parser.
+
 ## Commit & Pull Request Guidelines
 
 Use concise Conventional Commit subjects, for example `docs: add contributor guide` or `fix: correct cvrp validation`, with a body when behavior or interpretation changes. Pull requests should describe the scenario, commands run, generated files, and solver/runtime assumptions. Avoid committing generated CSVs unless they are intentional evidence artifacts.
@@ -81,11 +118,19 @@ Use concise Conventional Commit subjects, for example `docs: add contributor gui
 
 Keep changes tightly scoped. For documentation-only requests, update
 documentation only; do not modify solver adapters, benchmark runner behavior,
-generated result handling, or build flow. For benchmark execution changes,
-preserve one shared framework: problem adapters may load data, create solvers,
+generated result handling, CI, or build flow. When the request names
+`README.md`, `AGENTS.md`, or wireframes, include root `README.md`, root
+`AGENTS.md`, root `WIREFRAME.md`, and any additional tracked `WIREFRAME.md` or
+`wireframe.md` files in the audit. For benchmark execution changes, preserve one
+shared framework: problem adapters may load data, create solvers,
 validate/evaluate solutions, and expose native fields, but must not own
 orchestration loops, timing policy, watchdog policy, CSV policy, TOML
 configuration policy, logging policy, solver-output capture policy, or
 PostgreSQL persistence policy. The nominal benchmark budget is not a hard kill
 deadline; preserve late returned solutions and record overshoot. Only the
 separate watchdog may terminate runaway processes.
+
+Do not reintroduce `standard-variable`, `CoverageGroup`, `coverage_first_fit`,
+or benchmark-local scoring internals for employee scheduling. The active
+terminology is `scalar-variable/employee-scheduling`, and the active SolverForge
+adapter uses public SolverForge scalar/list APIs.
