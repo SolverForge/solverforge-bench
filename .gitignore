@@ -25,3 +25,5 @@ list-variable/cvrp/data/benchmark*.csv
 list-variable/cvrp/data/artifacts/
 scalar-variable/employee-scheduling/data/benchmark*.csv
 scalar-variable/employee-scheduling/data/artifacts/
+scalar-variable/job-shop-scheduling/data/benchmark*.csv
+scalar-variable/job-shop-scheduling/data/artifacts/
