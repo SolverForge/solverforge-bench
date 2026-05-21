@@ -558,7 +558,7 @@ dependencies = [
 
 [[package]]
 name = "solverforge"
-version = "0.13.1"
+version = "0.15.0"
 dependencies = [
  "solverforge-config",
  "solverforge-core",
@@ -571,7 +571,7 @@ dependencies = [
 
 [[package]]
 name = "solverforge-config"
-version = "0.13.1"
+version = "0.15.0"
 dependencies = [
  "serde",
  "serde_yaml",
@@ -582,7 +582,7 @@ dependencies = [
 
 [[package]]
 name = "solverforge-core"
-version = "0.13.1"
+version = "0.15.0"
 dependencies = [
  "serde",
  "thiserror",
@@ -590,14 +590,14 @@ dependencies = [
 
 [[package]]
 name = "solverforge-cvrp"
-version = "0.13.1"
+version = "0.15.0"
 dependencies = [
  "solverforge-solver",
 ]
 
 [[package]]
 name = "solverforge-macros"
-version = "0.13.1"
+version = "0.15.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -618,7 +618,7 @@ dependencies = [
 
 [[package]]
 name = "solverforge-scoring"
-version = "0.13.1"
+version = "0.15.0"
 dependencies = [
  "solverforge-core",
  "thiserror",
@@ -626,7 +626,7 @@ dependencies = [
 
 [[package]]
 name = "solverforge-solver"
-version = "0.13.1"
+version = "0.15.0"
 dependencies = [
  "rand 0.10.1",
  "rand_chacha 0.10.0",

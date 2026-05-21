@@ -44,74 +44,7 @@ struct AssignedShiftType {
     global_day: i64,
 }
 
-macro_rules! assigned_nurse_shifts {
-    () => {
-        ConstraintFactory::<NrpPlan, HardSoftScore>::new()
-            .for_each(NrpPlan::shifts())
-            .filter(|shift: &NrpShift| shift.nurse_idx.is_some())
-            .join((
-                ConstraintFactory::<NrpPlan, HardSoftScore>::new()
-                    .for_each(NrpPlan::nurse_indices()),
-                joiner::equal_bi(
-                    |shift: &NrpShift| shift.nurse_idx,
-                    |nurse: &NurseIndex| Some(nurse.id),
-                ),
-            ))
-            .project(assigned_nurse_shift as fn(&NrpShift, &NurseIndex) -> AssignedNurseShift)
-    };
-}
-
-macro_rules! assigned_shift_types {
-    () => {
-        ConstraintFactory::<NrpPlan, HardSoftScore>::new()
-            .for_each(NrpPlan::shifts())
-            .filter(|shift: &NrpShift| shift.nurse_idx.is_some())
-            .join((
-                ConstraintFactory::<NrpPlan, HardSoftScore>::new()
-                    .for_each(NrpPlan::nurse_shift_type_indices()),
-                joiner::equal_bi(
-                    |shift: &NrpShift| shift.nurse_idx.map(|nurse| (nurse, shift.shift_type_idx)),
-                    |fact: &NurseShiftTypeIndex| Some((fact.nurse_idx, fact.shift_type_idx)),
-                ),
-            ))
-            .project(
-                assigned_shift_type as fn(&NrpShift, &NurseShiftTypeIndex) -> AssignedShiftType,
-            )
-    };
-}
-
-macro_rules! nurses_without_assignments {
-    () => {
-        ConstraintFactory::<NrpPlan, HardSoftScore>::new()
-            .for_each(NrpPlan::nurse_indices())
-            .if_not_exists((
-                ConstraintFactory::<NrpPlan, HardSoftScore>::new()
-                    .for_each(NrpPlan::shifts())
-                    .filter(|shift: &NrpShift| shift.nurse_idx.is_some()),
-                joiner::equal_bi(
-                    |nurse: &NurseIndex| Some(nurse.id),
-                    |shift: &NrpShift| shift.nurse_idx,
-                ),
-            ))
-    };
-}
-
-macro_rules! shift_types_without_assignments {
-    () => {
-        ConstraintFactory::<NrpPlan, HardSoftScore>::new()
-            .for_each(NrpPlan::nurse_shift_type_indices())
-            .if_not_exists((
-                ConstraintFactory::<NrpPlan, HardSoftScore>::new()
-                    .for_each(NrpPlan::shifts())
-                    .filter(|shift: &NrpShift| shift.nurse_idx.is_some()),
-                joiner::equal_bi(
-                    |fact: &NurseShiftTypeIndex| Some((fact.nurse_idx, fact.shift_type_idx)),
-                    |shift: &NrpShift| shift.nurse_idx.map(|nurse| (nurse, shift.shift_type_idx)),
-                ),
-            ))
-    };
-}
-
+#[solverforge_constraints]
 pub fn define_constraints() -> impl ConstraintSet<NrpPlan, HardSoftScore> {
     let minimum_coverage = ConstraintFactory::<NrpPlan, HardSoftScore>::new()
         .for_each(NrpPlan::shifts())
@@ -209,88 +142,111 @@ pub fn define_constraints() -> impl ConstraintSet<NrpPlan, HardSoftScore> {
         .penalize(HardSoftScore::of_hard(1))
         .named("adjacentForbiddenSuccession");
 
-    let total_assignment_bounds = assigned_nurse_shifts!()
+    let nurse_presence = ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+        .for_each(NrpPlan::shifts())
+        .filter(|shift: &NrpShift| shift.nurse_idx.is_some())
+        .join((
+            ConstraintFactory::<NrpPlan, HardSoftScore>::new().for_each(NrpPlan::nurse_indices()),
+            joiner::equal_bi(
+                |shift: &NrpShift| shift.nurse_idx,
+                |nurse: &NurseIndex| Some(nurse.id),
+            ),
+        ))
+        .project(assigned_nurse_shift as fn(&NrpShift, &NurseIndex) -> AssignedNurseShift)
         .group_by(
             |row: &AssignedNurseShift| row.nurse_key,
             indexed_presence(|row: &AssignedNurseShift| row.global_day),
-        )
-        .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
-            total_assignment_bounds_penalty(key, presence)
-        })
-        .named("totalAssignmentBounds");
+        );
 
-    let empty_total_assignment_bounds = nurses_without_assignments!()
+    let empty_total_assignment_bounds = ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+        .for_each(NrpPlan::nurse_indices())
+        .if_not_exists((
+            ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+                .for_each(NrpPlan::shifts())
+                .filter(|shift: &NrpShift| shift.nurse_idx.is_some()),
+            joiner::equal_bi(
+                |nurse: &NurseIndex| Some(nurse.id),
+                |shift: &NrpShift| shift.nurse_idx,
+            ),
+        ))
         .penalize(empty_total_assignment_bounds_penalty as fn(&NurseIndex) -> HardSoftScore)
         .named("totalAssignmentBounds");
 
-    let consecutive_work_bounds = assigned_nurse_shifts!()
-        .group_by(
-            |row: &AssignedNurseShift| row.nurse_key,
-            indexed_presence(|row: &AssignedNurseShift| row.global_day),
-        )
-        .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
-            consecutive_work_bounds_penalty(key, presence)
-        })
-        .named("consecutiveWorkBounds");
-
-    let empty_consecutive_work_bounds = nurses_without_assignments!()
+    let empty_consecutive_work_bounds = ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+        .for_each(NrpPlan::nurse_indices())
+        .if_not_exists((
+            ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+                .for_each(NrpPlan::shifts())
+                .filter(|shift: &NrpShift| shift.nurse_idx.is_some()),
+            joiner::equal_bi(
+                |nurse: &NurseIndex| Some(nurse.id),
+                |shift: &NrpShift| shift.nurse_idx,
+            ),
+        ))
         .penalize(empty_consecutive_work_bounds_penalty as fn(&NurseIndex) -> HardSoftScore)
         .named("consecutiveWorkBounds");
 
-    let consecutive_off_bounds = assigned_nurse_shifts!()
-        .group_by(
-            |row: &AssignedNurseShift| row.nurse_key,
-            indexed_presence(|row: &AssignedNurseShift| row.global_day),
-        )
-        .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
-            consecutive_off_bounds_penalty(key, presence)
-        })
-        .named("consecutiveOffBounds");
-
-    let empty_consecutive_off_bounds = nurses_without_assignments!()
+    let empty_consecutive_off_bounds = ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+        .for_each(NrpPlan::nurse_indices())
+        .if_not_exists((
+            ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+                .for_each(NrpPlan::shifts())
+                .filter(|shift: &NrpShift| shift.nurse_idx.is_some()),
+            joiner::equal_bi(
+                |nurse: &NurseIndex| Some(nurse.id),
+                |shift: &NrpShift| shift.nurse_idx,
+            ),
+        ))
         .penalize(empty_consecutive_off_bounds_penalty as fn(&NurseIndex) -> HardSoftScore)
         .named("consecutiveOffBounds");
 
-    let consecutive_shift_type_bounds = assigned_shift_types!()
+    let shift_type_presence = ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+        .for_each(NrpPlan::shifts())
+        .filter(|shift: &NrpShift| shift.nurse_idx.is_some())
+        .join((
+            ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+                .for_each(NrpPlan::nurse_shift_type_indices()),
+            joiner::equal_bi(
+                |shift: &NrpShift| shift.nurse_idx.map(|nurse| (nurse, shift.shift_type_idx)),
+                |fact: &NurseShiftTypeIndex| Some((fact.nurse_idx, fact.shift_type_idx)),
+            ),
+        ))
+        .project(assigned_shift_type as fn(&NrpShift, &NurseShiftTypeIndex) -> AssignedShiftType)
         .group_by(
             |row: &AssignedShiftType| row.key,
             indexed_presence(|row: &AssignedShiftType| row.global_day),
-        )
-        .penalize(|key: &ShiftTypeRunBoundsKey, presence: &IndexedPresence| {
-            consecutive_shift_type_bounds_penalty(key, presence)
-        })
-        .named("consecutiveShiftTypeBounds");
+        );
 
-    let empty_consecutive_shift_type_bounds = shift_types_without_assignments!()
+    let empty_consecutive_shift_type_bounds = ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+        .for_each(NrpPlan::nurse_shift_type_indices())
+        .if_not_exists((
+            ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+                .for_each(NrpPlan::shifts())
+                .filter(|shift: &NrpShift| shift.nurse_idx.is_some()),
+            joiner::equal_bi(
+                |fact: &NurseShiftTypeIndex| Some((fact.nurse_idx, fact.shift_type_idx)),
+                |shift: &NrpShift| shift.nurse_idx.map(|nurse| (nurse, shift.shift_type_idx)),
+            ),
+        ))
         .penalize(
             empty_consecutive_shift_type_bounds_penalty
                 as fn(&NurseShiftTypeIndex) -> HardSoftScore,
         )
         .named("consecutiveShiftTypeBounds");
 
-    let working_weekends = assigned_nurse_shifts!()
-        .group_by(
-            |row: &AssignedNurseShift| row.nurse_key,
-            indexed_presence(|row: &AssignedNurseShift| row.global_day),
-        )
-        .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
-            working_weekends_penalty(key, presence)
-        })
-        .named("workingWeekends");
-
-    let empty_working_weekends = nurses_without_assignments!()
+    let empty_working_weekends = ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+        .for_each(NrpPlan::nurse_indices())
+        .if_not_exists((
+            ConstraintFactory::<NrpPlan, HardSoftScore>::new()
+                .for_each(NrpPlan::shifts())
+                .filter(|shift: &NrpShift| shift.nurse_idx.is_some()),
+            joiner::equal_bi(
+                |nurse: &NurseIndex| Some(nurse.id),
+                |shift: &NrpShift| shift.nurse_idx,
+            ),
+        ))
         .penalize(empty_working_weekends_penalty as fn(&NurseIndex) -> HardSoftScore)
         .named("workingWeekends");
-
-    let complete_weekends = assigned_nurse_shifts!()
-        .group_by(
-            |row: &AssignedNurseShift| row.nurse_key,
-            indexed_presence(|row: &AssignedNurseShift| row.global_day),
-        )
-        .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
-            complete_weekends_penalty(key, presence)
-        })
-        .named("completeWeekends");
 
     (
         minimum_coverage,
@@ -300,17 +256,41 @@ pub fn define_constraints() -> impl ConstraintSet<NrpPlan, HardSoftScore> {
         required_skill,
         initial_forbidden_succession,
         adjacent_forbidden_succession,
-        total_assignment_bounds,
+        nurse_presence
+            .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
+                total_assignment_bounds_penalty(key, presence)
+            })
+            .named("totalAssignmentBounds"),
         empty_total_assignment_bounds,
-        consecutive_work_bounds,
+        nurse_presence
+            .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
+                consecutive_work_bounds_penalty(key, presence)
+            })
+            .named("consecutiveWorkBounds"),
         empty_consecutive_work_bounds,
-        consecutive_off_bounds,
+        nurse_presence
+            .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
+                consecutive_off_bounds_penalty(key, presence)
+            })
+            .named("consecutiveOffBounds"),
         empty_consecutive_off_bounds,
-        consecutive_shift_type_bounds,
+        shift_type_presence
+            .penalize(|key: &ShiftTypeRunBoundsKey, presence: &IndexedPresence| {
+                consecutive_shift_type_bounds_penalty(key, presence)
+            })
+            .named("consecutiveShiftTypeBounds"),
         empty_consecutive_shift_type_bounds,
-        working_weekends,
+        nurse_presence
+            .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
+                working_weekends_penalty(key, presence)
+            })
+            .named("workingWeekends"),
         empty_working_weekends,
-        complete_weekends,
+        nurse_presence
+            .penalize(|key: &NurseSoftKey, presence: &IndexedPresence| {
+                complete_weekends_penalty(key, presence)
+            })
+            .named("completeWeekends"),
     )
 }
 
