@@ -4,8 +4,10 @@ import sys
 from pathlib import Path
 
 from cvrp_bench.domain.models import Instance, Solution
+from solverforge_bench.model import NoSolutionFoundError
 
 _BINARY_PATH = Path(__file__).parent / "target" / "cvrp_ortools"
+_NO_SOLUTION_MESSAGE = "OR-Tools found no CVRP solution"
 
 
 def solve_with_ortools(instance: Instance, time_limit: int) -> Solution:
@@ -29,6 +31,8 @@ def solve_with_ortools(instance: Instance, time_limit: int) -> Solution:
     )
     stderr = result.stderr.decode()
     if result.returncode != 0:
+        if stderr.strip() == _NO_SOLUTION_MESSAGE:
+            raise NoSolutionFoundError(_NO_SOLUTION_MESSAGE)
         raise RuntimeError(
             f"native OR-Tools solver failed (exit {result.returncode}):\n{stderr}"
         )
