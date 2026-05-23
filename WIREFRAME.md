@@ -8,7 +8,8 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 
 - `pyproject.toml` declares the Python 3.14 package, shared dependencies, and
   package discovery across `src/`, `list-variable/cvrp/src/`, and
-  `scalar-variable/employee-scheduling/src/`.
+  `scalar-variable/employee-scheduling/src/`, and
+  `scalar-variable/job-shop-scheduling/src/`.
 - `Makefile` is the root build and execution surface. It owns virtualenv setup,
   native adapter builds, benchmark smoke/full runs, database helpers,
   normalization, the SolverForge banner, and CPU-pinned harness execution.
@@ -22,21 +23,23 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - `list-variable/cvrp/` is the list-variable benchmark package for CVRP.
 - `scalar-variable/employee-scheduling/` is the scalar-variable benchmark
   package for INRC-II nurse scheduling.
+- `scalar-variable/job-shop-scheduling/` is the scalar-variable benchmark
+  package for classic JSPLIB job-shop scheduling.
 - `migrations/` holds SQLx-compatible PostgreSQL warehouse migrations.
 - `.github/workflows/ci.yml` holds the split GitHub/Forgejo CI workflow.
 - `archive/` holds historical reports and older standalone scripts only.
 
 ## Shared Harness Flow
 
-1. `scripts/run_benchmark.py` bootstraps into the root `.venv`, adds the three
+1. `scripts/run_benchmark.py` bootstraps into the root `.venv`, adds the four
    source roots to `sys.path`, and delegates to `solverforge_bench.cli.main`.
    `scripts/verify_model_parity.py` uses the same virtualenv bootstrap before
    importing the employee-scheduling package.
 2. `cli.py` loads optional TOML configuration, selects the benchmark spec,
    applies CLI overrides, finalizes run catalog fields, validates solver names,
    and passes the selected spec to `runner.py`.
-3. `registry.py` exposes the canonical benchmark specs: `cvrp` and
-   `employee-scheduling`.
+3. `registry.py` exposes the canonical benchmark specs: `cvrp`,
+   `employee-scheduling`, and `job-shop-scheduling`.
 4. `runner.py` resolves cases, time limits, solvers, solver versions, output
    paths, artifact paths, run logs, and solver output paths. It then iterates
    `case -> time_limit -> solver`.
@@ -57,6 +60,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 | --- | --- | --- | --- | --- |
 | `cvrp` | `list_variable` | `pyvrp`, `ortools`, `vroom`, `timefold`, `rustvrp`, `pyhygese`, `solverforge` | `1`, `10`, `60` | none |
 | `employee-scheduling` | `scalar_variable` | `solverforge`, `timefold`, `ortools` | `1`, `10`, `60` | `nurses`, `weeks`, `validator_model_delta`, `score_drift` |
+| `job-shop-scheduling` | `scalar_variable` | `solverforge`, `timefold`, `ortools` | `1`, `10`, `60` | `num_jobs`, `num_machines`, `num_operations`, `source_family`, `known_best_makespan`, `lower_bound_makespan`, `upper_bound_makespan`, `makespan_gap_to_best` |
 
 ## CVRP Adapter Shape
 
@@ -113,12 +117,32 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   and `random_seed = 1`. It intentionally does not impose an independent
   termination cap; the shared harness passes the requested benchmark budget.
 
+## Job-Shop Scheduling Adapter Shape
+
+- Data lives under `scalar-variable/job-shop-scheduling/data/jsplib/` as bundled
+  classic JSPLIB instance files sourced from `tamy0612/JSPLIB`.
+- `manifest.json` defines dataset groups: `quick` has `ft06` and `la01`, and
+  `canonical` has all 162 bundled JSPLIB instances across `abz`, `ft`, `la`,
+  `orb`, `swv`, `ta`, and `yn`.
+- `loader.py` parses standard JSPLIB text files with optional comments.
+- `validation.py` is the shared Python referee. It checks operation coverage,
+  job precedence, machine non-overlap, and returned makespan.
+- `spec.py` exposes `--dataset-set` and `--datasets`, reports JSPLIB family,
+  size, known optimum, lower/upper bounds, and makespan gap through native
+  columns.
+- `solver/solver.py` registers `solverforge`, `timefold`, and `ortools`.
+- The SolverForge JSSP adapter is pinned to SolverForge `0.14.1` and resolves
+  the sibling checkout at `../solverforge/crates/solverforge` from the
+  repository root.
+
 ## Makefile Contract
 
 - `make install-python-deps` creates or refreshes the root `.venv`.
 - `make build-cvrp` builds Python dependencies plus CVRP Timefold, SolverForge,
   OR-Tools, rustvrp, and VROOM integrations.
 - `make build-employee-scheduling` builds Python dependencies plus employee
+  Timefold, SolverForge, and OR-Tools integrations.
+- `make build-job-shop-scheduling` builds Python dependencies plus job-shop
   Timefold, SolverForge, and OR-Tools integrations.
 - `make bench-cvrp-quick` runs three CVRP instances at 1 and 10 seconds with
   all registered CVRP solvers.
@@ -136,17 +160,31 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   employee slice with only SolverForge.
 - `make bench-employee-scheduling-solverforge-quick-db` persists that same
   SolverForge-only employee smoke path after applying migrations.
-- `make bench-cvrp` and `make bench-employee-scheduling` run canonical
-  benchmark paths at 1, 10, and 60 seconds.
-- `make bench-nightly-db` builds both benchmark stacks, applies migrations once,
-  and invokes the root harness once for CVRP and once for employee scheduling.
+- `make bench-job-shop-scheduling-quick` runs `ft06` and `la01` at 1 and 10
+  seconds with all registered job-shop solvers.
+- `make bench-job-shop-scheduling-quick-db` runs the same job-shop smoke path
+  after applying migrations and persists it to PostgreSQL.
+- `make bench-job-shop-scheduling-solverforge-quick` runs the same quick
+  job-shop slice with only SolverForge.
+- `make bench-job-shop-scheduling-solverforge-quick-db` persists that same
+  SolverForge-only job-shop smoke path after applying migrations.
+- `make bench-cvrp`, `make bench-employee-scheduling`, and
+  `make bench-job-shop-scheduling` run canonical benchmark paths at 1, 10, and
+  60 seconds.
+- `make bench-nightly-db` builds all benchmark stacks, applies migrations once,
+  and invokes the root harness for CVRP, employee scheduling, and job-shop
+  scheduling in parallel on their per-suite pinned cores.
 - `make db-check`, `make db-create`, `make db-migrate`, and `make db-reset`
   operate on `DATABASE_URL`, then `BENCH_DATABASE_URL`, then
   `postgresql://postgres@localhost/solverforge_bench`.
 - `make normalize-results` converts generated global CSV artifacts to normalized
   CSV or NDJSON through `scripts/normalize_results.py`.
-- Benchmark run targets use `taskset -c $(BENCH_CPU)` with `BENCH_CPU ?= 0` and
-  set `OMP_NUM_THREADS=1` and `MKL_NUM_THREADS=1`.
+- Benchmark run targets use per-suite pinned cores:
+  `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`, and
+  `JOBSHOP_BENCH_CPU ?= 2`. They set `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`,
+  and per-core `BENCH_LOCK` values so different suites can run in parallel
+  while accidental same-core runs serialize. `BENCH_CPU=<n>` intentionally
+  forces all suites onto one core.
 - Override child harness arguments with `BENCH_ARGS`, nightly child arguments
   with `NIGHTLY_ARGS`, config path with `BENCH_CONFIG`, and SQLx reset flags
   with `DB_RESET_FLAGS`.
@@ -161,6 +199,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   `capture_solver_output`.
 - `[benchmarks.cvrp]` accepts `num_instances`.
 - `[benchmarks.employee-scheduling]` accepts `dataset_set` and `datasets`.
+- `[benchmarks.job-shop-scheduling]` accepts `dataset_set` and `datasets`.
 - `run_kind` is one of `quick`, `candidate`, or `tag`; `tag` requires
   `release_tag`.
 - A CLI `--postgres-url` enables PostgreSQL persistence unless
@@ -174,8 +213,12 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - CVRP output defaults to `list-variable/cvrp/data/benchmark_cvrp_<stamp>.csv`.
 - Employee scheduling output defaults to
   `scalar-variable/employee-scheduling/data/benchmark_employee_scheduling_<stamp>.csv`.
+- Job-shop scheduling output defaults to
+  `scalar-variable/job-shop-scheduling/data/benchmark_job_shop_scheduling_<stamp>.csv`.
 - Employee scheduling solution artifacts are written under
   `scalar-variable/employee-scheduling/data/artifacts/employee_scheduling_<stamp>/`.
+- Job-shop scheduling solution artifacts are written under
+  `scalar-variable/job-shop-scheduling/data/artifacts/job_shop_scheduling_<stamp>/`.
 - PostgreSQL stores run catalog rows in `benchmark_runs`, solver-version rows in
   `benchmark_solver_versions`, and result rows in `benchmark_results`.
 - `benchmark_result_facts`, `latest_benchmark_runs`, and

@@ -43,9 +43,12 @@
   uses the sibling checkout at `../solverforge/crates/solverforge`. The
   employee-scheduling SolverForge adapter uses the `0.15.0` node-sharing
   compiler branch at `../solverforge-node-sharing/crates/solverforge`.
-- Benchmark run targets pin the shared harness with `taskset -c $(BENCH_CPU)`;
-  `BENCH_CPU` defaults to `0`. They also set `OMP_NUM_THREADS=1` and
-  `MKL_NUM_THREADS=1`.
+- Benchmark run targets pin the shared harness with per-suite CPU defaults:
+  `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`, and
+  `JOBSHOP_BENCH_CPU ?= 2`. They also set `OMP_NUM_THREADS=1`,
+  `MKL_NUM_THREADS=1`, and per-core `BENCH_LOCK` values so different suites can
+  run in parallel while accidental same-core runs serialize. `BENCH_CPU=<n>`
+  intentionally forces all suites onto one core.
 - `make validate-cvrp` validates all bundled CVRP `.vrp`/`.sol` pairs.
 - `make build-cvrp` builds Python dependencies plus CVRP Timefold, SolverForge,
   OR-Tools, rustvrp, and VROOM integrations.

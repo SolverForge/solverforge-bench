@@ -20,11 +20,12 @@ See `WIREFRAME.md` for the current as-built repository map.
   uses the bundled INRC-II TXT corpus and compares `solverforge`,
   `timefold`, and `ortools` on nurse-to-shift assignments.
 - `scalar-variable/job-shop-scheduling/` is the job-shop scheduling benchmark. It
-  uses bundled JSPLIB instances for machine scheduling with job precedence
-  and disjunctive machine capacity constraints. It compares `solverforge`,
-  `timefold`, and `ortools` on fixed-machine operation start times. The
-  SolverForge adapter is a Rust/PyO3 planning model, the Timefold adapter is a
-  Java fat JAR, and the OR-Tools adapter is a native C++ CP-SAT executable.
+  uses the bundled classic JSPLIB corpus for machine scheduling with job
+  precedence and disjunctive machine capacity constraints. It compares
+  `solverforge`, `timefold`, and `ortools` on fixed-machine operation start
+  times. The SolverForge adapter is a Rust/PyO3 planning model, the Timefold
+  adapter is a Java fat JAR, and the OR-Tools adapter is a native C++ CP-SAT
+  executable.
 
 ## Documentation Map
 
@@ -56,9 +57,12 @@ employee-scheduling SolverForge adapter uses the `0.15.0` node-sharing compiler
 branch at `../solverforge-node-sharing/crates/solverforge`. Keep CI or local
 bootstrap checkouts aligned to those Cargo paths.
 
-Benchmark run targets execute the shared harness through `taskset` on
-`BENCH_CPU`, which defaults to CPU `0`, and set `OMP_NUM_THREADS=1` plus
-`MKL_NUM_THREADS=1`. Override `BENCH_CPU` for a different pinned core.
+Benchmark run targets execute the shared harness through `taskset` with
+different default pinned cores: `CVRP_BENCH_CPU ?= 0`,
+`EMPLOYEE_BENCH_CPU ?= 1`, and `JOBSHOP_BENCH_CPU ?= 2`. They set
+`OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, and a per-core `BENCH_LOCK`; runs on
+different cores can proceed in parallel, while accidental same-core runs
+serialize. Set `BENCH_CPU=<n>` to intentionally force all suites onto one core.
 
 ## CI
 
@@ -175,7 +179,10 @@ and `ortools` at `1` and `10` seconds. The canonical target uses the
 `canonical` group in
 `scalar-variable/job-shop-scheduling/data/jsplib/manifest.json`.
 In the current bundled manifest, `quick` contains `ft06` and `la01`, while
-`canonical` contains `ft06`, `la01`, and `la02`.
+`canonical` contains all 162 classic JSPLIB instances from `tamy0612/JSPLIB`
+(`abz`, `ft`, `la`, `orb`, `swv`, `ta`, and `yn`). The manifest records the
+upstream source URL and known optimum or lower/upper bounds when the upstream
+metadata provides them.
 
 ## Unified Harness
 
@@ -400,18 +407,19 @@ make bench-nightly-db
 
 `make bench-nightly-db` is the cron entrypoint. It builds all benchmark stacks,
 applies migrations once, then calls `scripts/run_benchmark.py` directly for
-CVRP, employee scheduling, and job-shop scheduling. By default it uses
-`benchmark.nightly.example.toml`; set `BENCH_CONFIG` for a different nightly
-config, or append explicit child harness overrides with `NIGHTLY_ARGS`. It does
-not pass `--solver`, so each benchmark uses its full default solver set.
+CVRP, employee scheduling, and job-shop scheduling in parallel on their
+per-suite pinned cores. By default it uses `benchmark.nightly.example.toml`;
+set `BENCH_CONFIG` for a different nightly config, or append explicit child
+harness overrides with `NIGHTLY_ARGS`. It does not pass `--solver`, so each
+benchmark uses its full default solver set.
 
 ## Result Schema
 
 Benchmark runs now write one global snake_case CSV schema directly. Native
 problem fields are stable optional columns, for example `nurses`, `weeks`,
 `validator_model_delta`, `score_drift`, `num_jobs`, `num_machines`,
-`num_operations`, `source_family`, `known_best_makespan`, and
-`makespan_gap_to_best`.
+`num_operations`, `source_family`, `known_best_makespan`,
+`lower_bound_makespan`, `upper_bound_makespan`, and `makespan_gap_to_best`.
 
 PostgreSQL stores run-level catalog data in `benchmark_runs`, one solver-version
 row per solver involved in the run in `benchmark_solver_versions`, and one row
@@ -456,6 +464,6 @@ watchdog_limit_seconds, watchdog_killed, run_error, solver_stdout_path,
 solver_stderr_path, hard_feasible, cost, reported_cost, fresh_cost,
 reference_cost, quality_ratio, validation_error, solution_artifact, nurses,
 weeks, validator_model_delta, score_drift, num_jobs, num_machines,
-num_operations, source_family, known_best_makespan, makespan_gap_to_best,
-source_file
+num_operations, source_family, known_best_makespan, lower_bound_makespan,
+upper_bound_makespan, makespan_gap_to_best, source_file
 ```
