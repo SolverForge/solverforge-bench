@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import fcntl
 import logging
+import os
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
@@ -64,112 +66,147 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
         {name: version.version for name, version in solver_versions.items()},
     )
 
-    postgres_writer = None
-    with ExitStack() as stack:
-        writer = stack.enter_context(
-            IncrementalCsvWriter(
-                output_path, columns=benchmark_columns(spec.native_columns)
-            )
-        )
-        LOGGER.info("csv_writer_opened path=%s", output_path)
-        if args.save_postgres:
-            postgres_writer = stack.enter_context(
-                PostgresResultWriter(
-                    make_postgres_config(
-                        args=args,
-                        spec=spec,
-                        output_path=output_path,
-                        artifact_dir=artifact_dir,
-                        solvers=solvers,
-                        solver_versions=solver_versions,
-                        time_limits=time_limits,
-                    )
+    lock_path = _benchmark_lock_path()
+    lock_handle = _acquire_benchmark_lock(lock_path) if lock_path else None
+    try:
+        postgres_writer = None
+        with ExitStack() as stack:
+            writer = stack.enter_context(
+                IncrementalCsvWriter(
+                    output_path, columns=benchmark_columns(spec.native_columns)
                 )
             )
-            args.postgres_run_id = str(postgres_writer.run_id)
-            LOGGER.info("postgres_run_opened run_id=%s", args.postgres_run_id)
+            LOGGER.info("csv_writer_opened path=%s", output_path)
+            if args.save_postgres:
+                postgres_writer = stack.enter_context(
+                    PostgresResultWriter(
+                        make_postgres_config(
+                            args=args,
+                            spec=spec,
+                            output_path=output_path,
+                            artifact_dir=artifact_dir,
+                            solvers=solvers,
+                            solver_versions=solver_versions,
+                            time_limits=time_limits,
+                        )
+                    )
+                )
+                args.postgres_run_id = str(postgres_writer.run_id)
+                LOGGER.info("postgres_run_opened run_id=%s", args.postgres_run_id)
 
-        for case in spec.cases(args):
-            LOGGER.info(
-                "case_start dataset=%s dataset_set=%s instance=%s instance_size=%s",
-                case.dataset,
-                case.dataset_set,
-                case.instance,
-                case.instance_size,
-            )
-            for time_limit in time_limits:
-                watchdog_seconds = watchdog_limit_seconds(
-                    time_limit,
-                    multiplier=args.watchdog_multiplier,
-                    grace_seconds=args.watchdog_grace_seconds,
+            for case in spec.cases(args):
+                LOGGER.info(
+                    "case_start dataset=%s dataset_set=%s instance=%s "
+                    "instance_size=%s",
+                    case.dataset,
+                    case.dataset_set,
+                    case.instance,
+                    case.instance_size,
                 )
-                for solver_name in solvers:
-                    stdout_path, stderr_path = solver_output_paths(
-                        log_dir=solver_log_dir,
-                        instance_name=case.instance,
-                        solver_name=solver_name,
-                        time_limit_seconds=time_limit,
-                    )
-                    captured_stdout_path = (
-                        stdout_path if args.capture_solver_output else None
-                    )
-                    captured_stderr_path = (
-                        stderr_path if args.capture_solver_output else None
-                    )
-                    LOGGER.info(
-                        "solver_start instance=%s solver=%s time_limit=%s "
-                        "watchdog=%s stdout=%s stderr=%s",
-                        case.instance,
-                        solver_name,
+                for time_limit in time_limits:
+                    watchdog_seconds = watchdog_limit_seconds(
                         time_limit,
-                        watchdog_seconds,
-                        captured_stdout_path,
-                        captured_stderr_path,
+                        multiplier=args.watchdog_multiplier,
+                        grace_seconds=args.watchdog_grace_seconds,
                     )
-                    run = run_solver(
-                        solver_name=solver_name,
-                        solver_factory=spec.create_solver,
-                        solution_model=spec.solution_model,
-                        instance=case.payload,
-                        time_limit_seconds=time_limit,
-                        watchdog_seconds=watchdog_seconds,
-                        stdout_path=captured_stdout_path,
-                        stderr_path=captured_stderr_path,
-                        capture_solver_output=args.capture_solver_output,
-                        show_solver_output=args.show_solver_output,
-                    )
-                    evaluation = _evaluate(
-                        spec,
-                        case=case,
-                        run=run,
-                        artifact_dir=artifact_dir,
-                    )
-                    row = _row(
-                        spec=spec,
-                        case=case,
-                        run=run,
-                        evaluation=evaluation,
-                        solver_version=solver_versions[run.solver].version,
-                        wall_time_tolerance=args.wall_time_tolerance,
-                    )
-                    writer.write_row(row.as_dict())
-                    if postgres_writer is not None:
-                        postgres_writer.write_row(row)
-                    LOGGER.info(
-                        "solver_end instance=%s solver=%s time_limit=%s "
-                        "actual_time=%.6f watchdog_killed=%s run_error=%s "
-                        "hard_feasible=%s",
-                        case.instance,
-                        solver_name,
-                        time_limit,
-                        run.actual_time_seconds,
-                        run.watchdog_killed,
-                        run.run_error,
-                        evaluation.hard_feasible,
-                    )
+                    for solver_name in solvers:
+                        stdout_path, stderr_path = solver_output_paths(
+                            log_dir=solver_log_dir,
+                            instance_name=case.instance,
+                            solver_name=solver_name,
+                            time_limit_seconds=time_limit,
+                        )
+                        captured_stdout_path = (
+                            stdout_path if args.capture_solver_output else None
+                        )
+                        captured_stderr_path = (
+                            stderr_path if args.capture_solver_output else None
+                        )
+                        LOGGER.info(
+                            "solver_start instance=%s solver=%s time_limit=%s "
+                            "watchdog=%s stdout=%s stderr=%s",
+                            case.instance,
+                            solver_name,
+                            time_limit,
+                            watchdog_seconds,
+                            captured_stdout_path,
+                            captured_stderr_path,
+                        )
+                        run = run_solver(
+                            solver_name=solver_name,
+                            solver_factory=spec.create_solver,
+                            solution_model=spec.solution_model,
+                            instance=case.payload,
+                            time_limit_seconds=time_limit,
+                            watchdog_seconds=watchdog_seconds,
+                            stdout_path=captured_stdout_path,
+                            stderr_path=captured_stderr_path,
+                            capture_solver_output=args.capture_solver_output,
+                            show_solver_output=args.show_solver_output,
+                        )
+                        evaluation = _evaluate(
+                            spec,
+                            case=case,
+                            run=run,
+                            artifact_dir=artifact_dir,
+                        )
+                        row = _row(
+                            spec=spec,
+                            case=case,
+                            run=run,
+                            evaluation=evaluation,
+                            solver_version=solver_versions[run.solver].version,
+                            wall_time_tolerance=args.wall_time_tolerance,
+                        )
+                        writer.write_row(row.as_dict())
+                        if postgres_writer is not None:
+                            postgres_writer.write_row(row)
+                        LOGGER.info(
+                            "solver_end instance=%s solver=%s time_limit=%s "
+                            "actual_time=%.6f watchdog_killed=%s run_error=%s "
+                            "hard_feasible=%s",
+                            case.instance,
+                            solver_name,
+                            time_limit,
+                            run.actual_time_seconds,
+                            run.watchdog_killed,
+                            run.run_error,
+                            evaluation.hard_feasible,
+                        )
+    finally:
+        if lock_handle is not None:
+            _release_benchmark_lock(lock_handle)
 
     LOGGER.info("benchmark_completed benchmark=%s output=%s", spec.name, output_path)
     return output_path
+
+
+def _benchmark_lock_path() -> Path | None:
+    explicit = os.environ.get("BENCH_LOCK") or os.environ.get("SOLVERFORGE_BENCH_LOCK")
+    if explicit:
+        return Path(explicit)
+    return None
+
+
+def _acquire_benchmark_lock(lock_path: Path):
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = lock_path.open("a+", encoding="utf-8")
+    LOGGER.info("benchmark_lock_wait path=%s", lock_path)
+    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+    handle.seek(0)
+    handle.truncate()
+    handle.write(f"pid={os.getpid()}\n")
+    handle.flush()
+    LOGGER.info("benchmark_lock_acquired path=%s", lock_path)
+    return handle
+
+
+def _release_benchmark_lock(handle) -> None:
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        LOGGER.info("benchmark_lock_released path=%s", handle.name)
+    finally:
+        handle.close()
 
 
 def _evaluate(spec: BenchmarkSpec, *, case, run, artifact_dir: Path) -> Evaluation:

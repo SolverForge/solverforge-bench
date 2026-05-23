@@ -33,9 +33,18 @@ BENCH_CONFIG_ARG = $(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",)
 NIGHTLY_CONFIG_ARG = $(if $(findstring --config,$(NIGHTLY_ARGS)),,$(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",--config "benchmark.nightly.example.toml"))
 BENCH_DB_ARGS := --postgres-url "$(DATABASE_URL)"
 BENCH_PYTHONPATH := src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src
-BENCH_ENV := OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$(BENCH_PYTHONPATH)
-BENCH_CPU ?= 0
-PINNED_BENCH := taskset -c $(BENCH_CPU) env $(BENCH_ENV)
+BENCH_CPU ?=
+CVRP_BENCH_CPU ?= $(if $(BENCH_CPU),$(BENCH_CPU),0)
+EMPLOYEE_BENCH_CPU ?= $(if $(BENCH_CPU),$(BENCH_CPU),1)
+JOBSHOP_BENCH_CPU ?= $(if $(BENCH_CPU),$(BENCH_CPU),2)
+BENCH_LOCK_DIR ?= /tmp
+CVRP_BENCH_LOCK ?= $(BENCH_LOCK_DIR)/solverforge-bench-cpu-$(CVRP_BENCH_CPU).lock
+EMPLOYEE_BENCH_LOCK ?= $(BENCH_LOCK_DIR)/solverforge-bench-cpu-$(EMPLOYEE_BENCH_CPU).lock
+JOBSHOP_BENCH_LOCK ?= $(BENCH_LOCK_DIR)/solverforge-bench-cpu-$(JOBSHOP_BENCH_CPU).lock
+BENCH_ENV_COMMON := OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$(BENCH_PYTHONPATH)
+PINNED_CVRP_BENCH := taskset -c $(CVRP_BENCH_CPU) env $(BENCH_ENV_COMMON) BENCH_CPU=$(CVRP_BENCH_CPU) BENCH_LOCK=$(CVRP_BENCH_LOCK)
+PINNED_EMPLOYEE_BENCH := taskset -c $(EMPLOYEE_BENCH_CPU) env $(BENCH_ENV_COMMON) BENCH_CPU=$(EMPLOYEE_BENCH_CPU) BENCH_LOCK=$(EMPLOYEE_BENCH_LOCK)
+PINNED_JOBSHOP_BENCH := taskset -c $(JOBSHOP_BENCH_CPU) env $(BENCH_ENV_COMMON) BENCH_CPU=$(JOBSHOP_BENCH_CPU) BENCH_LOCK=$(JOBSHOP_BENCH_LOCK)
 
 CVRP_ROOT := list-variable/cvrp
 CVRP_SOLVERFORGE_DIR := $(CVRP_ROOT)/src/cvrp_bench/solver/solverforge
@@ -159,28 +168,28 @@ build-cvrp-solverforge: banner install-python-deps
 	cd $(CVRP_SOLVERFORGE_DIR) && PIP_DISABLE_PIP_VERSION_CHECK=1 maturin develop --release --locked --pip-path "$(PIP)"
 
 bench-cvrp: build-cvrp
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) $(BENCH_ARGS)
+	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) $(BENCH_ARGS)
 
 bench-cvrp-db: build-cvrp db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-cvrp-quick: build-cvrp
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --num-instances 3 --time-limits 1 10 $(BENCH_ARGS)
+	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --num-instances 3 --time-limits 1 10 $(BENCH_ARGS)
 
 bench-cvrp-quick-db: build-cvrp db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --num-instances 3 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --num-instances 3 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-cvrp-solverforge: build-cvrp-solverforge
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --solver solverforge $(BENCH_ARGS)
+	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --solver solverforge $(BENCH_ARGS)
 
 bench-cvrp-solverforge-db: build-cvrp-solverforge db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --solver solverforge $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --solver solverforge $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-cvrp-solverforge-quick: build-cvrp-solverforge
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --num-instances 3 --time-limits 1 10 $(BENCH_ARGS)
+	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --num-instances 3 --time-limits 1 10 $(BENCH_ARGS)
 
 bench-cvrp-solverforge-quick-db: build-cvrp-solverforge db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --num-instances 3 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --num-instances 3 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 validate-cvrp: banner
 	cd $(CVRP_ROOT) && PYTHONPATH=src "$(PYTHON)" scripts/validate_all.py
@@ -201,33 +210,41 @@ build-employee-scheduling-solverforge: banner install-python-deps
 	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install --force-reinstall $$(ls -t $(EMPLOYEE_SOLVERFORGE_DIR)/target/wheels/*.whl | head -1)
 
 bench-employee-scheduling: build-employee-scheduling
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
+	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
 
 bench-employee-scheduling-db: build-employee-scheduling db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-employee-scheduling-quick: build-employee-scheduling
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --datasets n005w4 --time-limits 1 10 $(BENCH_ARGS)
+	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --datasets n005w4 --time-limits 1 10 $(BENCH_ARGS)
 
 bench-employee-scheduling-quick-db: build-employee-scheduling db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --datasets n005w4 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --datasets n005w4 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-employee-scheduling-solverforge: build-employee-scheduling-solverforge
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
+	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
 
 bench-employee-scheduling-solverforge-db: build-employee-scheduling-solverforge db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-employee-scheduling-solverforge-quick: build-employee-scheduling-solverforge
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --datasets n005w4 --time-limits 1 10 $(BENCH_ARGS)
+	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --datasets n005w4 --time-limits 1 10 $(BENCH_ARGS)
 
 bench-employee-scheduling-solverforge-quick-db: build-employee-scheduling-solverforge db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --datasets n005w4 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --datasets n005w4 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-nightly-db: build-cvrp build-employee-scheduling build-job-shop-scheduling db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS)
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS)
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS)
+	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS) & \
+	cvrp_pid=$$!; \
+	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS) & \
+	employee_pid=$$!; \
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS) & \
+	jobshop_pid=$$!; \
+	status=0; \
+	wait $$cvrp_pid || status=$$?; \
+	wait $$employee_pid || status=$$?; \
+	wait $$jobshop_pid || status=$$?; \
+	exit $$status
 
 validate-employee-scheduling: banner
 	cd $(EMPLOYEE_ROOT) && PYTHONPATH=../../src:../../list-variable/cvrp/src:src "$(PYTHON)" scripts/validate_all.py
@@ -257,28 +274,28 @@ build-job-shop-scheduling-ortools: banner $(ORTOOLS_ROOT)/lib64/cmake/ortools/or
 	cp build/job-shop-scheduling-ortools/job_shop_scheduling_ortools $(JOBSHOP_ORTOOLS_DIR)/target/
 
 bench-job-shop-scheduling: build-job-shop-scheduling
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
 
 bench-job-shop-scheduling-db: build-job-shop-scheduling db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-job-shop-scheduling-quick: build-job-shop-scheduling
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --dataset-set quick --time-limits 1 10 $(BENCH_ARGS)
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --dataset-set quick --time-limits 1 10 $(BENCH_ARGS)
 
 bench-job-shop-scheduling-quick-db: build-job-shop-scheduling db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --dataset-set quick --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --dataset-set quick --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-job-shop-scheduling-solverforge: build-job-shop-scheduling-solverforge
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_ARGS)
 
 bench-job-shop-scheduling-solverforge-db: build-job-shop-scheduling-solverforge db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --solver solverforge --dataset-set canonical --time-limits 1 10 60 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 bench-job-shop-scheduling-solverforge-quick: build-job-shop-scheduling-solverforge
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --dataset-set quick --time-limits 1 10 $(BENCH_ARGS)
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --dataset-set quick --time-limits 1 10 $(BENCH_ARGS)
 
 bench-job-shop-scheduling-solverforge-quick-db: build-job-shop-scheduling-solverforge db-migrate
-	$(PINNED_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --dataset-set quick --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --dataset-set quick --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
 validate-job-shop-scheduling: banner
 	cd $(JOBSHOP_ROOT) && PYTHONPATH=../../src:src "$(PYTHON)" scripts/validate_all.py
