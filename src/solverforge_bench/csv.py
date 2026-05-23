@@ -43,6 +43,8 @@ GLOBAL_COLUMNS = [
     "num_operations",
     "source_family",
     "known_best_makespan",
+    "lower_bound_makespan",
+    "upper_bound_makespan",
     "makespan_gap_to_best",
 ]
 
