@@ -116,6 +116,8 @@ def normalize_global_row(
         "num_operations": as_int(row.get("num_operations")),
         "source_family": blank_to_none(row.get("source_family")),
         "known_best_makespan": as_int(row.get("known_best_makespan")),
+        "lower_bound_makespan": as_int(row.get("lower_bound_makespan")),
+        "upper_bound_makespan": as_int(row.get("upper_bound_makespan")),
         "makespan_gap_to_best": as_float(row.get("makespan_gap_to_best")),
         "source_file": str(source_file),
     }
