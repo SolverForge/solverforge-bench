@@ -1,11 +1,1249 @@
 {
+  "source": {
+    "name": "tamy0612/JSPLIB",
+    "url": "https://github.com/tamy0612/JSPLIB",
+    "metadata_url": "https://raw.githubusercontent.com/tamy0612/JSPLIB/master/instances.json"
+  },
   "groups": {
-    "quick": ["ft06", "la01"],
-    "canonical": ["ft06", "la01", "la02"]
+    "quick": [
+      "ft06",
+      "la01"
+    ],
+    "canonical": [
+      "abz5",
+      "abz6",
+      "abz7",
+      "abz8",
+      "abz9",
+      "ft06",
+      "ft10",
+      "ft20",
+      "la01",
+      "la02",
+      "la03",
+      "la04",
+      "la05",
+      "la06",
+      "la07",
+      "la08",
+      "la09",
+      "la10",
+      "la11",
+      "la12",
+      "la13",
+      "la14",
+      "la15",
+      "la16",
+      "la17",
+      "la18",
+      "la19",
+      "la20",
+      "la21",
+      "la22",
+      "la23",
+      "la24",
+      "la25",
+      "la26",
+      "la27",
+      "la28",
+      "la29",
+      "la30",
+      "la31",
+      "la32",
+      "la33",
+      "la34",
+      "la35",
+      "la36",
+      "la37",
+      "la38",
+      "la39",
+      "la40",
+      "orb01",
+      "orb02",
+      "orb03",
+      "orb04",
+      "orb05",
+      "orb06",
+      "orb07",
+      "orb08",
+      "orb09",
+      "orb10",
+      "swv01",
+      "swv02",
+      "swv03",
+      "swv04",
+      "swv05",
+      "swv06",
+      "swv07",
+      "swv08",
+      "swv09",
+      "swv10",
+      "swv11",
+      "swv12",
+      "swv13",
+      "swv14",
+      "swv15",
+      "swv16",
+      "swv17",
+      "swv18",
+      "swv19",
+      "swv20",
+      "yn1",
+      "yn2",
+      "yn3",
+      "yn4",
+      "ta01",
+      "ta02",
+      "ta03",
+      "ta04",
+      "ta05",
+      "ta06",
+      "ta07",
+      "ta08",
+      "ta09",
+      "ta10",
+      "ta11",
+      "ta12",
+      "ta13",
+      "ta14",
+      "ta15",
+      "ta16",
+      "ta17",
+      "ta18",
+      "ta19",
+      "ta20",
+      "ta21",
+      "ta22",
+      "ta23",
+      "ta24",
+      "ta25",
+      "ta26",
+      "ta27",
+      "ta28",
+      "ta29",
+      "ta30",
+      "ta31",
+      "ta32",
+      "ta33",
+      "ta34",
+      "ta35",
+      "ta36",
+      "ta37",
+      "ta38",
+      "ta39",
+      "ta40",
+      "ta41",
+      "ta42",
+      "ta43",
+      "ta44",
+      "ta45",
+      "ta46",
+      "ta47",
+      "ta48",
+      "ta49",
+      "ta50",
+      "ta51",
+      "ta52",
+      "ta53",
+      "ta54",
+      "ta55",
+      "ta56",
+      "ta57",
+      "ta58",
+      "ta59",
+      "ta60",
+      "ta61",
+      "ta62",
+      "ta63",
+      "ta64",
+      "ta65",
+      "ta66",
+      "ta67",
+      "ta68",
+      "ta69",
+      "ta70",
+      "ta71",
+      "ta72",
+      "ta73",
+      "ta74",
+      "ta75",
+      "ta76",
+      "ta77",
+      "ta78",
+      "ta79",
+      "ta80"
+    ]
   },
   "instances": [
-    {"name": "ft06", "family": "ft", "path": "ft06.txt", "known_best_makespan": 55},
-    {"name": "la01", "family": "la", "path": "la01.txt", "known_best_makespan": 666},
-    {"name": "la02", "family": "la", "path": "la02.txt", "known_best_makespan": 655}
+    {
+      "name": "abz5",
+      "family": "abz",
+      "path": "abz5.txt",
+      "known_best_makespan": 1234
+    },
+    {
+      "name": "abz6",
+      "family": "abz",
+      "path": "abz6.txt",
+      "known_best_makespan": 943
+    },
+    {
+      "name": "abz7",
+      "family": "abz",
+      "path": "abz7.txt",
+      "known_best_makespan": 656
+    },
+    {
+      "name": "abz8",
+      "family": "abz",
+      "path": "abz8.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 645,
+      "upper_bound_makespan": 665
+    },
+    {
+      "name": "abz9",
+      "family": "abz",
+      "path": "abz9.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 661,
+      "upper_bound_makespan": 679
+    },
+    {
+      "name": "ft06",
+      "family": "ft",
+      "path": "ft06.txt",
+      "known_best_makespan": 55
+    },
+    {
+      "name": "ft10",
+      "family": "ft",
+      "path": "ft10.txt",
+      "known_best_makespan": 930
+    },
+    {
+      "name": "ft20",
+      "family": "ft",
+      "path": "ft20.txt",
+      "known_best_makespan": 1165
+    },
+    {
+      "name": "la01",
+      "family": "la",
+      "path": "la01.txt",
+      "known_best_makespan": 666
+    },
+    {
+      "name": "la02",
+      "family": "la",
+      "path": "la02.txt",
+      "known_best_makespan": 655
+    },
+    {
+      "name": "la03",
+      "family": "la",
+      "path": "la03.txt",
+      "known_best_makespan": 597
+    },
+    {
+      "name": "la04",
+      "family": "la",
+      "path": "la04.txt",
+      "known_best_makespan": 590
+    },
+    {
+      "name": "la05",
+      "family": "la",
+      "path": "la05.txt",
+      "known_best_makespan": 593
+    },
+    {
+      "name": "la06",
+      "family": "la",
+      "path": "la06.txt",
+      "known_best_makespan": 926
+    },
+    {
+      "name": "la07",
+      "family": "la",
+      "path": "la07.txt",
+      "known_best_makespan": 890
+    },
+    {
+      "name": "la08",
+      "family": "la",
+      "path": "la08.txt",
+      "known_best_makespan": 863
+    },
+    {
+      "name": "la09",
+      "family": "la",
+      "path": "la09.txt",
+      "known_best_makespan": 951
+    },
+    {
+      "name": "la10",
+      "family": "la",
+      "path": "la10.txt",
+      "known_best_makespan": 958
+    },
+    {
+      "name": "la11",
+      "family": "la",
+      "path": "la11.txt",
+      "known_best_makespan": 1222
+    },
+    {
+      "name": "la12",
+      "family": "la",
+      "path": "la12.txt",
+      "known_best_makespan": 1039
+    },
+    {
+      "name": "la13",
+      "family": "la",
+      "path": "la13.txt",
+      "known_best_makespan": 1150
+    },
+    {
+      "name": "la14",
+      "family": "la",
+      "path": "la14.txt",
+      "known_best_makespan": 1292
+    },
+    {
+      "name": "la15",
+      "family": "la",
+      "path": "la15.txt",
+      "known_best_makespan": 1207
+    },
+    {
+      "name": "la16",
+      "family": "la",
+      "path": "la16.txt",
+      "known_best_makespan": 945
+    },
+    {
+      "name": "la17",
+      "family": "la",
+      "path": "la17.txt",
+      "known_best_makespan": 784
+    },
+    {
+      "name": "la18",
+      "family": "la",
+      "path": "la18.txt",
+      "known_best_makespan": 848
+    },
+    {
+      "name": "la19",
+      "family": "la",
+      "path": "la19.txt",
+      "known_best_makespan": 842
+    },
+    {
+      "name": "la20",
+      "family": "la",
+      "path": "la20.txt",
+      "known_best_makespan": 902
+    },
+    {
+      "name": "la21",
+      "family": "la",
+      "path": "la21.txt",
+      "known_best_makespan": 1046
+    },
+    {
+      "name": "la22",
+      "family": "la",
+      "path": "la22.txt",
+      "known_best_makespan": 927
+    },
+    {
+      "name": "la23",
+      "family": "la",
+      "path": "la23.txt",
+      "known_best_makespan": 1032
+    },
+    {
+      "name": "la24",
+      "family": "la",
+      "path": "la24.txt",
+      "known_best_makespan": 935
+    },
+    {
+      "name": "la25",
+      "family": "la",
+      "path": "la25.txt",
+      "known_best_makespan": 977
+    },
+    {
+      "name": "la26",
+      "family": "la",
+      "path": "la26.txt",
+      "known_best_makespan": 1218
+    },
+    {
+      "name": "la27",
+      "family": "la",
+      "path": "la27.txt",
+      "known_best_makespan": 1235
+    },
+    {
+      "name": "la28",
+      "family": "la",
+      "path": "la28.txt",
+      "known_best_makespan": 1216
+    },
+    {
+      "name": "la29",
+      "family": "la",
+      "path": "la29.txt",
+      "known_best_makespan": 1152
+    },
+    {
+      "name": "la30",
+      "family": "la",
+      "path": "la30.txt",
+      "known_best_makespan": 1355
+    },
+    {
+      "name": "la31",
+      "family": "la",
+      "path": "la31.txt",
+      "known_best_makespan": 1784
+    },
+    {
+      "name": "la32",
+      "family": "la",
+      "path": "la32.txt",
+      "known_best_makespan": 1850
+    },
+    {
+      "name": "la33",
+      "family": "la",
+      "path": "la33.txt",
+      "known_best_makespan": 1719
+    },
+    {
+      "name": "la34",
+      "family": "la",
+      "path": "la34.txt",
+      "known_best_makespan": 1721
+    },
+    {
+      "name": "la35",
+      "family": "la",
+      "path": "la35.txt",
+      "known_best_makespan": 1888
+    },
+    {
+      "name": "la36",
+      "family": "la",
+      "path": "la36.txt",
+      "known_best_makespan": 1268
+    },
+    {
+      "name": "la37",
+      "family": "la",
+      "path": "la37.txt",
+      "known_best_makespan": 1397
+    },
+    {
+      "name": "la38",
+      "family": "la",
+      "path": "la38.txt",
+      "known_best_makespan": 1196
+    },
+    {
+      "name": "la39",
+      "family": "la",
+      "path": "la39.txt",
+      "known_best_makespan": 1233
+    },
+    {
+      "name": "la40",
+      "family": "la",
+      "path": "la40.txt",
+      "known_best_makespan": 1222
+    },
+    {
+      "name": "orb01",
+      "family": "orb",
+      "path": "orb01.txt",
+      "known_best_makespan": 1059
+    },
+    {
+      "name": "orb02",
+      "family": "orb",
+      "path": "orb02.txt",
+      "known_best_makespan": 888
+    },
+    {
+      "name": "orb03",
+      "family": "orb",
+      "path": "orb03.txt",
+      "known_best_makespan": 1005
+    },
+    {
+      "name": "orb04",
+      "family": "orb",
+      "path": "orb04.txt",
+      "known_best_makespan": 1005
+    },
+    {
+      "name": "orb05",
+      "family": "orb",
+      "path": "orb05.txt",
+      "known_best_makespan": 887
+    },
+    {
+      "name": "orb06",
+      "family": "orb",
+      "path": "orb06.txt",
+      "known_best_makespan": 1010
+    },
+    {
+      "name": "orb07",
+      "family": "orb",
+      "path": "orb07.txt",
+      "known_best_makespan": 397
+    },
+    {
+      "name": "orb08",
+      "family": "orb",
+      "path": "orb08.txt",
+      "known_best_makespan": 899
+    },
+    {
+      "name": "orb09",
+      "family": "orb",
+      "path": "orb09.txt",
+      "known_best_makespan": 934
+    },
+    {
+      "name": "orb10",
+      "family": "orb",
+      "path": "orb10.txt",
+      "known_best_makespan": 944
+    },
+    {
+      "name": "swv01",
+      "family": "swv",
+      "path": "swv01.txt",
+      "known_best_makespan": 1407
+    },
+    {
+      "name": "swv02",
+      "family": "swv",
+      "path": "swv02.txt",
+      "known_best_makespan": 1475
+    },
+    {
+      "name": "swv03",
+      "family": "swv",
+      "path": "swv03.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1369,
+      "upper_bound_makespan": 1398
+    },
+    {
+      "name": "swv04",
+      "family": "swv",
+      "path": "swv04.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1450,
+      "upper_bound_makespan": 1474
+    },
+    {
+      "name": "swv05",
+      "family": "swv",
+      "path": "swv05.txt",
+      "known_best_makespan": 1424
+    },
+    {
+      "name": "swv06",
+      "family": "swv",
+      "path": "swv06.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1591,
+      "upper_bound_makespan": 1678
+    },
+    {
+      "name": "swv07",
+      "family": "swv",
+      "path": "swv07.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1446,
+      "upper_bound_makespan": 1600
+    },
+    {
+      "name": "swv08",
+      "family": "swv",
+      "path": "swv08.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1640,
+      "upper_bound_makespan": 1763
+    },
+    {
+      "name": "swv09",
+      "family": "swv",
+      "path": "swv09.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1604,
+      "upper_bound_makespan": 1661
+    },
+    {
+      "name": "swv10",
+      "family": "swv",
+      "path": "swv10.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1631,
+      "upper_bound_makespan": 1767
+    },
+    {
+      "name": "swv11",
+      "family": "swv",
+      "path": "swv11.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 2983,
+      "upper_bound_makespan": 2991
+    },
+    {
+      "name": "swv12",
+      "family": "swv",
+      "path": "swv12.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 2972,
+      "upper_bound_makespan": 3003
+    },
+    {
+      "name": "swv13",
+      "family": "swv",
+      "path": "swv13.txt",
+      "known_best_makespan": 3104
+    },
+    {
+      "name": "swv14",
+      "family": "swv",
+      "path": "swv14.txt",
+      "known_best_makespan": 2968
+    },
+    {
+      "name": "swv15",
+      "family": "swv",
+      "path": "swv15.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 2885,
+      "upper_bound_makespan": 2904
+    },
+    {
+      "name": "swv16",
+      "family": "swv",
+      "path": "swv16.txt",
+      "known_best_makespan": 2924
+    },
+    {
+      "name": "swv17",
+      "family": "swv",
+      "path": "swv17.txt",
+      "known_best_makespan": 2794
+    },
+    {
+      "name": "swv18",
+      "family": "swv",
+      "path": "swv18.txt",
+      "known_best_makespan": 2852
+    },
+    {
+      "name": "swv19",
+      "family": "swv",
+      "path": "swv19.txt",
+      "known_best_makespan": 2843
+    },
+    {
+      "name": "swv20",
+      "family": "swv",
+      "path": "swv20.txt",
+      "known_best_makespan": 2823
+    },
+    {
+      "name": "yn1",
+      "family": "yn",
+      "path": "yn1.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 826,
+      "upper_bound_makespan": 885
+    },
+    {
+      "name": "yn2",
+      "family": "yn",
+      "path": "yn2.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 861,
+      "upper_bound_makespan": 909
+    },
+    {
+      "name": "yn3",
+      "family": "yn",
+      "path": "yn3.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 827,
+      "upper_bound_makespan": 892
+    },
+    {
+      "name": "yn4",
+      "family": "yn",
+      "path": "yn4.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 918,
+      "upper_bound_makespan": 968
+    },
+    {
+      "name": "ta01",
+      "family": "ta",
+      "path": "ta01.txt",
+      "known_best_makespan": 1231
+    },
+    {
+      "name": "ta02",
+      "family": "ta",
+      "path": "ta02.txt",
+      "known_best_makespan": 1244
+    },
+    {
+      "name": "ta03",
+      "family": "ta",
+      "path": "ta03.txt",
+      "known_best_makespan": 1218
+    },
+    {
+      "name": "ta04",
+      "family": "ta",
+      "path": "ta04.txt",
+      "known_best_makespan": 1175
+    },
+    {
+      "name": "ta05",
+      "family": "ta",
+      "path": "ta05.txt",
+      "known_best_makespan": 1224
+    },
+    {
+      "name": "ta06",
+      "family": "ta",
+      "path": "ta06.txt",
+      "known_best_makespan": 1238
+    },
+    {
+      "name": "ta07",
+      "family": "ta",
+      "path": "ta07.txt",
+      "known_best_makespan": 1227
+    },
+    {
+      "name": "ta08",
+      "family": "ta",
+      "path": "ta08.txt",
+      "known_best_makespan": 1217
+    },
+    {
+      "name": "ta09",
+      "family": "ta",
+      "path": "ta09.txt",
+      "known_best_makespan": 1274
+    },
+    {
+      "name": "ta10",
+      "family": "ta",
+      "path": "ta10.txt",
+      "known_best_makespan": 1241
+    },
+    {
+      "name": "ta11",
+      "family": "ta",
+      "path": "ta11.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1323,
+      "upper_bound_makespan": 1361
+    },
+    {
+      "name": "ta12",
+      "family": "ta",
+      "path": "ta12.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1351,
+      "upper_bound_makespan": 1367
+    },
+    {
+      "name": "ta13",
+      "family": "ta",
+      "path": "ta13.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1282,
+      "upper_bound_makespan": 1342
+    },
+    {
+      "name": "ta14",
+      "family": "ta",
+      "path": "ta14.txt",
+      "known_best_makespan": 1345
+    },
+    {
+      "name": "ta15",
+      "family": "ta",
+      "path": "ta15.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1304,
+      "upper_bound_makespan": 1340
+    },
+    {
+      "name": "ta16",
+      "family": "ta",
+      "path": "ta16.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1302,
+      "upper_bound_makespan": 1360
+    },
+    {
+      "name": "ta17",
+      "family": "ta",
+      "path": "ta17.txt",
+      "known_best_makespan": 1462
+    },
+    {
+      "name": "ta18",
+      "family": "ta",
+      "path": "ta18.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1369,
+      "upper_bound_makespan": 1396
+    },
+    {
+      "name": "ta19",
+      "family": "ta",
+      "path": "ta19.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1297,
+      "upper_bound_makespan": 1335
+    },
+    {
+      "name": "ta20",
+      "family": "ta",
+      "path": "ta20.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1318,
+      "upper_bound_makespan": 1351
+    },
+    {
+      "name": "ta21",
+      "family": "ta",
+      "path": "ta21.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1539,
+      "upper_bound_makespan": 1644
+    },
+    {
+      "name": "ta22",
+      "family": "ta",
+      "path": "ta22.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1511,
+      "upper_bound_makespan": 1600
+    },
+    {
+      "name": "ta23",
+      "family": "ta",
+      "path": "ta23.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1472,
+      "upper_bound_makespan": 1557
+    },
+    {
+      "name": "ta24",
+      "family": "ta",
+      "path": "ta24.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1602,
+      "upper_bound_makespan": 1647
+    },
+    {
+      "name": "ta25",
+      "family": "ta",
+      "path": "ta25.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1504,
+      "upper_bound_makespan": 1595
+    },
+    {
+      "name": "ta26",
+      "family": "ta",
+      "path": "ta26.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1539,
+      "upper_bound_makespan": 1645
+    },
+    {
+      "name": "ta27",
+      "family": "ta",
+      "path": "ta27.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1616,
+      "upper_bound_makespan": 1680
+    },
+    {
+      "name": "ta28",
+      "family": "ta",
+      "path": "ta28.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1591,
+      "upper_bound_makespan": 1614
+    },
+    {
+      "name": "ta29",
+      "family": "ta",
+      "path": "ta29.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1514,
+      "upper_bound_makespan": 1635
+    },
+    {
+      "name": "ta30",
+      "family": "ta",
+      "path": "ta30.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1473,
+      "upper_bound_makespan": 1584
+    },
+    {
+      "name": "ta31",
+      "family": "ta",
+      "path": "ta31.txt",
+      "known_best_makespan": 1764
+    },
+    {
+      "name": "ta32",
+      "family": "ta",
+      "path": "ta32.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1774,
+      "upper_bound_makespan": 1796
+    },
+    {
+      "name": "ta33",
+      "family": "ta",
+      "path": "ta33.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1778,
+      "upper_bound_makespan": 1793
+    },
+    {
+      "name": "ta34",
+      "family": "ta",
+      "path": "ta34.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1828,
+      "upper_bound_makespan": 1829
+    },
+    {
+      "name": "ta35",
+      "family": "ta",
+      "path": "ta35.txt",
+      "known_best_makespan": 2007
+    },
+    {
+      "name": "ta36",
+      "family": "ta",
+      "path": "ta36.txt",
+      "known_best_makespan": 1819
+    },
+    {
+      "name": "ta37",
+      "family": "ta",
+      "path": "ta37.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1771,
+      "upper_bound_makespan": 1778
+    },
+    {
+      "name": "ta38",
+      "family": "ta",
+      "path": "ta38.txt",
+      "known_best_makespan": 1673
+    },
+    {
+      "name": "ta39",
+      "family": "ta",
+      "path": "ta39.txt",
+      "known_best_makespan": 1795
+    },
+    {
+      "name": "ta40",
+      "family": "ta",
+      "path": "ta40.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1631,
+      "upper_bound_makespan": 1674
+    },
+    {
+      "name": "ta41",
+      "family": "ta",
+      "path": "ta41.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1859,
+      "upper_bound_makespan": 2018
+    },
+    {
+      "name": "ta42",
+      "family": "ta",
+      "path": "ta42.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1867,
+      "upper_bound_makespan": 1956
+    },
+    {
+      "name": "ta43",
+      "family": "ta",
+      "path": "ta43.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1809,
+      "upper_bound_makespan": 1859
+    },
+    {
+      "name": "ta44",
+      "family": "ta",
+      "path": "ta44.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1927,
+      "upper_bound_makespan": 1984
+    },
+    {
+      "name": "ta45",
+      "family": "ta",
+      "path": "ta45.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1997,
+      "upper_bound_makespan": 2000
+    },
+    {
+      "name": "ta46",
+      "family": "ta",
+      "path": "ta46.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1940,
+      "upper_bound_makespan": 2021
+    },
+    {
+      "name": "ta47",
+      "family": "ta",
+      "path": "ta47.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1789,
+      "upper_bound_makespan": 1903
+    },
+    {
+      "name": "ta48",
+      "family": "ta",
+      "path": "ta48.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1912,
+      "upper_bound_makespan": 1952
+    },
+    {
+      "name": "ta49",
+      "family": "ta",
+      "path": "ta49.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1915,
+      "upper_bound_makespan": 1968
+    },
+    {
+      "name": "ta50",
+      "family": "ta",
+      "path": "ta50.txt",
+      "known_best_makespan": null,
+      "lower_bound_makespan": 1807,
+      "upper_bound_makespan": 1926
+    },
+    {
+      "name": "ta51",
+      "family": "ta",
+      "path": "ta51.txt",
+      "known_best_makespan": 2760
+    },
+    {
+      "name": "ta52",
+      "family": "ta",
+      "path": "ta52.txt",
+      "known_best_makespan": 2756
+    },
+    {
+      "name": "ta53",
+      "family": "ta",
+      "path": "ta53.txt",
+      "known_best_makespan": 2717
+    },
+    {
+      "name": "ta54",
+      "family": "ta",
+      "path": "ta54.txt",
+      "known_best_makespan": 2839
+    },
+    {
+      "name": "ta55",
+      "family": "ta",
+      "path": "ta55.txt",
+      "known_best_makespan": 2679
+    },
+    {
+      "name": "ta56",
+      "family": "ta",
+      "path": "ta56.txt",
+      "known_best_makespan": 2781
+    },
+    {
+      "name": "ta57",
+      "family": "ta",
+      "path": "ta57.txt",
+      "known_best_makespan": 2943
+    },
+    {
+      "name": "ta58",
+      "family": "ta",
+      "path": "ta58.txt",
+      "known_best_makespan": 2885
+    },
+    {
+      "name": "ta59",
+      "family": "ta",
+      "path": "ta59.txt",
+      "known_best_makespan": 2655
+    },
+    {
+      "name": "ta60",
+      "family": "ta",
+      "path": "ta60.txt",
+      "known_best_makespan": 2723
+    },
+    {
+      "name": "ta61",
+      "family": "ta",
+      "path": "ta61.txt",
+      "known_best_makespan": 2868
+    },
+    {
+      "name": "ta62",
+      "family": "ta",
+      "path": "ta62.txt",
+      "known_best_makespan": 2869
+    },
+    {
+      "name": "ta63",
+      "family": "ta",
+      "path": "ta63.txt",
+      "known_best_makespan": 2755
+    },
+    {
+      "name": "ta64",
+      "family": "ta",
+      "path": "ta64.txt",
+      "known_best_makespan": 2702
+    },
+    {
+      "name": "ta65",
+      "family": "ta",
+      "path": "ta65.txt",
+      "known_best_makespan": 2725
+    },
+    {
+      "name": "ta66",
+      "family": "ta",
+      "path": "ta66.txt",
+      "known_best_makespan": 2845
+    },
+    {
+      "name": "ta67",
+      "family": "ta",
+      "path": "ta67.txt",
+      "known_best_makespan": 2825
+    },
+    {
+      "name": "ta68",
+      "family": "ta",
+      "path": "ta68.txt",
+      "known_best_makespan": 2784
+    },
+    {
+      "name": "ta69",
+      "family": "ta",
+      "path": "ta69.txt",
+      "known_best_makespan": 3071
+    },
+    {
+      "name": "ta70",
+      "family": "ta",
+      "path": "ta70.txt",
+      "known_best_makespan": 2995
+    },
+    {
+      "name": "ta71",
+      "family": "ta",
+      "path": "ta71.txt",
+      "known_best_makespan": null
+    },
+    {
+      "name": "ta72",
+      "family": "ta",
+      "path": "ta72.txt",
+      "known_best_makespan": null
+    },
+    {
+      "name": "ta73",
+      "family": "ta",
+      "path": "ta73.txt",
+      "known_best_makespan": null
+    },
+    {
+      "name": "ta74",
+      "family": "ta",
+      "path": "ta74.txt",
+      "known_best_makespan": null
+    },
+    {
+      "name": "ta75",
+      "family": "ta",
+      "path": "ta75.txt",
+      "known_best_makespan": null
+    },
+    {
+      "name": "ta76",
+      "family": "ta",
+      "path": "ta76.txt",
+      "known_best_makespan": null
+    },
+    {
+      "name": "ta77",
+      "family": "ta",
+      "path": "ta77.txt",
+      "known_best_makespan": null
+    },
+    {
+      "name": "ta78",
+      "family": "ta",
+      "path": "ta78.txt",
+      "known_best_makespan": null
+    },
+    {
+      "name": "ta79",
+      "family": "ta",
+      "path": "ta79.txt",
+      "known_best_makespan": null
+    },
+    {
+      "name": "ta80",
+      "family": "ta",
+      "path": "ta80.txt",
+      "known_best_makespan": null
+    }
   ]
 }

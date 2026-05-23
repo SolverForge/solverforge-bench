@@ -1,3 +1,7 @@
+#+++++++++++++++++++++++++++++
+# instance la01
+#+++++++++++++++++++++++++++++
+# Lawrence 10x5 instance (Table 3, instance 1); also called (setf1) or (F1)
 10 5
 1 21 0 53 4 95 3 55 2 34
 0 21 3 52 4 16 2 26 1 71
