@@ -43,13 +43,14 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 4. `runner.py` resolves cases, time limits, solvers, solver versions, output
    paths, artifact paths, run logs, and solver output paths. It then iterates
    `case -> time_limit -> solver`.
-5. `execution.py` runs each solver in a child process. The nominal time limit is
-   passed to the solver; it is not the hard kill deadline. The watchdog only
-   terminates runaway processes after `max(time_limit * multiplier,
-   time_limit + grace_seconds)`.
-6. Each benchmark spec validates and evaluates returned solutions, then the
-   shared runner writes an incremental CSV row and, when enabled, a PostgreSQL
-   row.
+5. `execution.py` runs each solver in a child process. Only the instance payload
+   and nominal time limit are passed to the solver callable; the nominal time
+   limit is not the hard kill deadline. The watchdog only terminates runaway
+   processes after `max(time_limit * multiplier, time_limit + grace_seconds)`.
+6. Each benchmark spec validates and evaluates returned solutions externally,
+   then the shared runner writes an incremental CSV row and, when enabled, a
+   PostgreSQL row. Reference solutions may be used here for scoring, not as
+   solver starts.
 7. Solver exceptions, including `NoSolutionFoundError`, become result rows with
    `run_error`. CSV or PostgreSQL write failures remain fatal output-integrity
    failures.
@@ -74,19 +75,25 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   `rustvrp`, `pyhygese`, and `solverforge`.
 - Native solver builds are rooted in `solver/ortools/`, `solver/rustvrp/`,
   `solver/vroom/`, `solver/timefold/`, and `solver/solverforge/`.
-- The SolverForge CVRP adapter is pinned to SolverForge `0.14.1` and resolves
+- The SolverForge CVRP adapter is pinned to SolverForge `0.15.1` and resolves
   the sibling checkout at `../solverforge/crates/solverforge` from the
   repository root.
 - The CVRP model uses public SolverForge CVRP list-variable hooks:
   `VrpSolution`, matrix distance meters, route get/set/depot hooks, route
   metric classes, route distance, and route feasibility. The benchmark budget
   is applied through the model config provider.
+- The SolverForge and Timefold CVRP list variables start from empty route lists;
+  adapter-owned incumbents, route hints, and reference-solution reads are not
+  part of solver input.
 - `solverforge/solver.toml` uses reproducible mode, seed `42`, a 60 second
   internal termination cap, list construction phases, and a local-search union
   of nearby list moves, reverse moves, k-opt, ruin, and limited-neighborhood
   sublist change moves.
 - Native OR-Tools no-solution exits are normalized to `NoSolutionFoundError`
   rather than benchmark-aborting runtime errors.
+- Every CVRP wrapper emits a fair-start witness before solving. The native
+  OR-Tools and SolverForge adapters also include native witness checks in their
+  JSON output.
 
 ## Employee Scheduling Adapter Shape
 
@@ -105,14 +112,21 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   artifacts for hard-feasible runs, and reports validator/model deltas through
   native columns.
 - `solver/solver.py` registers `solverforge`, `timefold`, and `ortools`.
-- The SolverForge NRP adapter is pinned to SolverForge `0.15.0` with `serde`
-  enabled and resolves the node-sharing compiler sibling checkout at
-  `../solverforge-node-sharing/crates/solverforge` from the repository root.
+- The SolverForge NRP adapter is pinned to SolverForge `0.15.1` with `serde`
+  enabled and resolves the sibling checkout at
+  `../solverforge/crates/solverforge` from the repository root.
 - The SolverForge NRP model uses public scalar APIs: per-shift candidate
   values, unassigned scalar variables for optional slots, nearby value/entity
   candidates, and one `ScalarGroup::assignment` for required minimum slots,
   one nurse per day capacity, adjacent forbidden-succession assignment rules,
   ordered shift positions, and nurse sequence keys.
+- SolverForge initializes each shift with `nurse_idx = None`, Timefold leaves
+  each `nurse` planning variable unset, and OR-Tools performs one CP-SAT solve
+  without adapter hints, hard seeds, warm starts, or fallback schedules.
+- The Python wrappers emit a witness before solving. SolverForge Rust counts
+  preassigned scalar variables, Timefold Java counts preassigned `nurse`
+  planning variables, and OR-Tools C++ inspects CP-SAT solution-hint fields in
+  the native model proto.
 - `solverforge_nrp/solver.toml` sets `environment_mode = "non_reproducible"`
   and `random_seed = 1`. It intentionally does not impose an independent
   termination cap; the shared harness passes the requested benchmark budget.
@@ -131,9 +145,18 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   size, known optimum, lower/upper bounds, and makespan gap through native
   columns.
 - `solver/solver.py` registers `solverforge`, `timefold`, and `ortools`.
-- The SolverForge JSSP adapter is pinned to SolverForge `0.14.1` and resolves
+- The SolverForge JSSP adapter is pinned to SolverForge `0.15.1` and resolves
   the sibling checkout at `../solverforge/crates/solverforge` from the
   repository root.
+- Its list model declares each operation's fixed machine owner with
+  `element_owner_fn`; SolverForge construction and list neighborhoods must not
+  move an operation to a non-required machine.
+- SolverForge and Timefold JSSP machine operation lists start empty. Known best
+  bounds and validation data stay in specs and validators, not in solver-start
+  incumbents.
+- The JSSP wrappers emit witnesses before solving. SolverForge Rust and
+  Timefold Java count prefilled machine lists, and OR-Tools C++ records CP-SAT
+  solution-hint counts from the model proto.
 
 ## Makefile Contract
 
@@ -144,6 +167,11 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   Timefold, SolverForge, and OR-Tools integrations.
 - `make build-job-shop-scheduling` builds Python dependencies plus job-shop
   Timefold, SolverForge, and OR-Tools integrations.
+- `make verify-fair-start` enforces that active solver adapters start from
+  unassigned scalar variables or empty list variables, emit runtime witnesses,
+  and do not read reference solutions or inject adapter-owned incumbents.
+- `make verify-fair-start-rows RUN_ID=<uuid>` checks persisted PostgreSQL rows
+  for valid fair-start witnesses after a DB smoke run.
 - `make bench-cvrp-quick` runs three CVRP instances at 1 and 10 seconds with
   all registered CVRP solvers.
 - `make bench-cvrp-quick-db` runs the same CVRP smoke path after applying
@@ -237,10 +265,9 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   `.venv` through `make install-python-deps HOST_PYTHON=...`, compiles Python
   source, parses benchmark TOML examples, validates bundled CVRP instances, and
   validates employee model parity.
-- Rust CI clones SolverForge tag `v0.14.1` into
-  `$GITHUB_WORKSPACE/../solverforge` and clones `feat/node-sharing-compiler`
-  into `$GITHUB_WORKSPACE/../solverforge-node-sharing`, the exact relative paths
-  declared by the active adapter `Cargo.toml` files. It checks formatting, runs
+- Rust CI clones SolverForge `main` into `$GITHUB_WORKSPACE/../solverforge`,
+  the exact relative path declared by the active adapter `Cargo.toml` files. It
+  checks formatting, runs
   `cargo clippy --locked --all-targets -- -D warnings`, and runs
   `cargo build --locked` for the CVRP SolverForge adapter, CVRP rustvrp
   adapter, and employee SolverForge adapter.

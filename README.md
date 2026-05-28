@@ -51,11 +51,10 @@ normalization, and nightly runs. `make install-python-deps` creates or refreshes
 it before benchmark builds and is the CI-safe entrypoint for scripts that
 bootstrap themselves through the repository virtualenv.
 
-The CVRP SolverForge benchmark adapter is pinned to SolverForge `0.14.1` and
-uses the sibling local checkout at `../solverforge/crates/solverforge`. The
-employee-scheduling SolverForge adapter uses the `0.15.0` node-sharing compiler
-branch at `../solverforge-node-sharing/crates/solverforge`. Keep CI or local
-bootstrap checkouts aligned to those Cargo paths.
+The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
+aligned to SolverForge `0.15.1` on the sibling local checkout at
+`../solverforge/crates/solverforge`. Keep CI or local bootstrap checkouts
+aligned to that Cargo path.
 
 Benchmark run targets execute the shared harness through `taskset` with
 different default pinned cores: `CVRP_BENCH_CPU ?= 0`,
@@ -64,24 +63,46 @@ different default pinned cores: `CVRP_BENCH_CPU ?= 0`,
 different cores can proceed in parallel, while accidental same-core runs
 serialize. Set `BENCH_CPU=<n>` to intentionally force all suites onto one core.
 
+## Fair-Start Contract
+
+Solver adapters receive only the problem instance and the benchmark time limit.
+Scalar-variable models must start from unassigned planning variables, and
+list-variable models must start from empty lists. Adapter-owned incumbents,
+hints, hard seeds, fallback schedules, warm starts, and reference-solution reads
+are not valid benchmark inputs.
+
+Every solver wrapper returns a `SolverResult` with a runtime fair-start witness.
+The harness validates that witness in the child process, records
+`fair_start_valid`, `fair_start_error`, and `fair_start_witness` in CSV and
+PostgreSQL rows, and aborts the run if a solver reaches the execution boundary
+without a clean witness. Native adapters also report solver-specific checks,
+such as CP-SAT solution-hint counts for OR-Tools.
+
+Reference solutions remain valid in specs, validators, parity scripts, demos,
+and result evaluation because they are external scoring inputs, not solver
+starts. Run `make verify-fair-start` after changing solver adapters, specs,
+validators, CI, or benchmark architecture documentation. After a PostgreSQL
+smoke run, use `make verify-fair-start-rows RUN_ID=<uuid>` to require every
+persisted row in that run to carry a valid witness.
+
 ## CI
 
 `.github/workflows/ci.yml` defines separate jobs for GitHub-hosted Actions and
 local Forgejo runners. The Python jobs set up Python 3.14, create the root
 `.venv` with `make install-python-deps HOST_PYTHON=...`, compile the source
-trees, parse `benchmark*.toml`, run `make validate-cvrp`, and run
+trees including job-shop scheduling, parse `benchmark*.toml`, run
+`make verify-fair-start`, run `make validate-cvrp`, and run
 `make validate-employee-model-parity`. The parity script requires that root
 `.venv`, so CI must use the Makefile bootstrap instead of a detached
 `python -m pip install -e .`.
 
-The Rust jobs clone SolverForge tag `v0.14.1` into
-`$GITHUB_WORKSPACE/../solverforge` and clone `feat/node-sharing-compiler` into
-`$GITHUB_WORKSPACE/../solverforge-node-sharing`, matching the active adapter
-`Cargo.toml` path dependencies. They set the PyO3 Python environment from
+The Rust jobs clone SolverForge `main` into
+`$GITHUB_WORKSPACE/../solverforge`, matching the active adapter `Cargo.toml`
+path dependencies. They set the PyO3 Python environment from
 `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
 for the CVRP SolverForge adapter, CVRP rustvrp adapter, and employee scheduling
-SolverForge adapter.
+SolverForge adapter, and job-shop scheduling SolverForge adapter.
 
 ## CVRP Commands
 
@@ -400,7 +421,7 @@ make bench-employee-scheduling-quick
 make bench-employee-scheduling-quick-db
 make bench-job-shop-scheduling-quick
 make bench-job-shop-scheduling-quick-db
-make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.14.1"
+make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.15.1"
 make bench-cvrp-db BENCH_ARGS="--run-kind quick --nightly"
 make bench-nightly-db
 ```
