@@ -11,6 +11,7 @@ from typing import Any
 
 from solverforge_bench.csv import IncrementalCsvWriter, benchmark_columns
 from solverforge_bench.execution import run_solver, watchdog_limit_seconds
+from solverforge_bench.fair_start import stable_input_hash
 from solverforge_bench.logging import (
     configure_run_logging,
     run_log_path,
@@ -95,6 +96,7 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
                 LOGGER.info("postgres_run_opened run_id=%s", args.postgres_run_id)
 
             for case in spec.cases(args):
+                case_input_hash = stable_input_hash(case.payload)
                 LOGGER.info(
                     "case_start dataset=%s dataset_set=%s instance=%s "
                     "instance_size=%s",
@@ -140,6 +142,7 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
                             instance=case.payload,
                             time_limit_seconds=time_limit,
                             watchdog_seconds=watchdog_seconds,
+                            solver_input_hash=case_input_hash,
                             stdout_path=captured_stdout_path,
                             stderr_path=captured_stderr_path,
                             capture_solver_output=args.capture_solver_output,

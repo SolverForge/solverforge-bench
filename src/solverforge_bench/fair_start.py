@@ -17,6 +17,9 @@ FAIR_START_WITNESS_VERSION = 1
 _WITNESS_RECORDER: ContextVar[Callable[[FairStartWitness], None] | None] = ContextVar(
     "fair_start_witness_recorder", default=None
 )
+_PRECOMPUTED_INPUT_HASH: ContextVar[str | None] = ContextVar(
+    "fair_start_precomputed_input_hash", default=None
+)
 
 
 class FairStartViolationError(RuntimeError):
@@ -29,6 +32,7 @@ def make_fair_start_witness(
     solver: str,
     planning_state: str,
     solver_input: Any,
+    solver_input_hash: str | None = None,
     reference_solution_reads: int = 0,
     adapter_hint_count: int = 0,
     preliminary_solve_count: int = 0,
@@ -42,7 +46,10 @@ def make_fair_start_witness(
         benchmark_name=benchmark_name,
         solver=solver,
         planning_state=planning_state,
-        solver_input_hash=stable_input_hash(solver_input),
+        solver_input_hash=_solver_input_hash(
+            solver_input=solver_input,
+            explicit_hash=solver_input_hash,
+        ),
         reference_solution_reads=reference_solution_reads,
         adapter_hint_count=adapter_hint_count,
         preliminary_solve_count=preliminary_solve_count,
@@ -61,6 +68,15 @@ def emit_fair_start_witness(witness: FairStartWitness) -> None:
     recorder = _WITNESS_RECORDER.get()
     if recorder is not None:
         recorder(witness)
+
+
+@contextmanager
+def fair_start_input_hash(solver_input_hash: str | None) -> Iterator[None]:
+    token = _PRECOMPUTED_INPUT_HASH.set(solver_input_hash)
+    try:
+        yield
+    finally:
+        _PRECOMPUTED_INPUT_HASH.reset(token)
 
 
 @contextmanager
@@ -86,6 +102,21 @@ def stable_input_hash(value: Any) -> str:
             separators=(",", ":"),
         ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def _solver_input_hash(*, solver_input: Any, explicit_hash: str | None) -> str:
+    if explicit_hash is not None:
+        return _validated_solver_input_hash(explicit_hash)
+    precomputed_hash = _PRECOMPUTED_INPUT_HASH.get()
+    if precomputed_hash is not None:
+        return _validated_solver_input_hash(precomputed_hash)
+    return stable_input_hash(solver_input)
+
+
+def _validated_solver_input_hash(value: str) -> str:
+    if not _looks_like_sha256(value):
+        raise ValueError(f"solver_input_hash is not a sha256 hex digest: {value!r}")
+    return value
 
 
 def validate_solver_result(
