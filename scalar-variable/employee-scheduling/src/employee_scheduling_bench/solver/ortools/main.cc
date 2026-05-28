@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -7,13 +6,11 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
-#include <numeric>
 #include <optional>
 #include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -156,6 +153,18 @@ sat::LinearExpr IntSum(const std::vector<sat::IntVar>& vars) {
     return sat::LinearExpr(0);
   }
   return sat::LinearExpr::Sum(vars);
+}
+
+json::object FairStartWitness(const sat::CpModelProto& proto) {
+  json::object witness;
+  witness["cp_sat_solution_hint_vars"] = proto.solution_hint().vars_size();
+  witness["cp_sat_solution_hint_values"] = proto.solution_hint().values_size();
+  witness["adapter_hint_count"] = 0;
+  witness["preliminary_solve_count"] = 0;
+  witness["fallback_solution_enabled"] = false;
+  witness["preassigned_scalar_variables"] = 0;
+  witness["prefilled_list_variables"] = 0;
+  return witness;
 }
 
 void AddObjectiveTerm(sat::LinearExpr* objective, sat::BoolVar var,
@@ -399,22 +408,6 @@ InstancePayload ParsePayload(const std::string& input) {
   return payload;
 }
 
-int PreviousShiftType(const std::vector<int>& assigned_shift_type_by_day,
-                      const NurseHistory& history, int global_day) {
-  if (global_day == 0) {
-    return history.last_shift_type_idx;
-  }
-  return assigned_shift_type_by_day[global_day - 1];
-}
-
-int NextShiftType(const std::vector<int>& assigned_shift_type_by_day,
-                  int global_day) {
-  if (global_day + 1 >= static_cast<int>(assigned_shift_type_by_day.size())) {
-    return -1;
-  }
-  return assigned_shift_type_by_day[global_day + 1];
-}
-
 bool IsForbiddenSuccessor(const InstancePayload& payload, int preceding,
                           int succeeding) {
   if (preceding < 0) {
@@ -425,178 +418,6 @@ bool IsForbiddenSuccessor(const InstancePayload& payload, int preceding,
     return false;
   }
   return found->second.find(succeeding) != found->second.end();
-}
-
-std::unordered_set<int64_t> BuildGreedyHint(const InstancePayload& payload) {
-  const int num_nurses = static_cast<int>(payload.nurses.size());
-  const int total_days = payload.num_weeks * 7;
-  std::vector<std::vector<int>> assigned_shift_type_by_nurse_day(
-      num_nurses, std::vector<int>(total_days, -1));
-  std::vector<int> assignment_count_by_nurse(num_nurses, 0);
-  std::unordered_set<int64_t> hint;
-
-  std::vector<int> shift_indices(payload.shifts.size());
-  std::iota(shift_indices.begin(), shift_indices.end(), 0);
-  std::sort(shift_indices.begin(), shift_indices.end(),
-            [&payload](int left_idx, int right_idx) {
-              const Shift& left = payload.shifts[left_idx];
-              const Shift& right = payload.shifts[right_idx];
-              return std::make_tuple(left.week, left.day, !left.is_minimum,
-                                     left.shift_type_idx, left.skill_idx,
-                                     left_idx) <
-                     std::make_tuple(right.week, right.day, !right.is_minimum,
-                                     right.shift_type_idx, right.skill_idx,
-                                     right_idx);
-            });
-
-  for (int shift_idx : shift_indices) {
-    const Shift& shift = payload.shifts[shift_idx];
-    if (!shift.is_minimum) {
-      continue;
-    }
-    const int global_day = GlobalDay(shift);
-    std::vector<int> candidates;
-    for (int nurse_idx = 0; nurse_idx < num_nurses; ++nurse_idx) {
-      const Nurse& nurse = payload.nurses[nurse_idx];
-      if (nurse.skills.find(shift.skill_idx) == nurse.skills.end()) {
-        continue;
-      }
-      if (assigned_shift_type_by_nurse_day[nurse_idx][global_day] >= 0) {
-        continue;
-      }
-      const int previous_shift_type =
-          PreviousShiftType(assigned_shift_type_by_nurse_day[nurse_idx],
-                            payload.histories[nurse_idx], global_day);
-      if (IsForbiddenSuccessor(payload, previous_shift_type,
-                               shift.shift_type_idx)) {
-        continue;
-      }
-      const int next_shift_type =
-          NextShiftType(assigned_shift_type_by_nurse_day[nurse_idx],
-                        global_day);
-      if (IsForbiddenSuccessor(payload, shift.shift_type_idx,
-                               next_shift_type)) {
-        continue;
-      }
-      candidates.push_back(nurse_idx);
-    }
-    if (candidates.empty()) {
-      continue;
-    }
-    const int nurse_idx = *std::min_element(
-        candidates.begin(), candidates.end(), [&](int left, int right) {
-          return std::tie(assignment_count_by_nurse[left], left) <
-                 std::tie(assignment_count_by_nurse[right], right);
-        });
-    assigned_shift_type_by_nurse_day[nurse_idx][global_day] =
-        shift.shift_type_idx;
-    assignment_count_by_nurse[nurse_idx] += 1;
-    hint.insert(Key(shift_idx, nurse_idx, num_nurses));
-  }
-
-  return hint;
-}
-
-std::unordered_set<int64_t> SolveHardSeed(const InstancePayload& payload,
-                                          double time_limit) {
-  sat::CpModelBuilder model;
-  const int num_nurses = static_cast<int>(payload.nurses.size());
-  const int total_days = payload.num_weeks * 7;
-  std::vector<AssignmentVar> assignment_vars;
-  std::vector<std::vector<std::vector<sat::BoolVar>>> vars_by_nurse_day(
-      num_nurses, std::vector<std::vector<sat::BoolVar>>(total_days));
-  std::vector<std::vector<std::vector<std::vector<sat::BoolVar>>>>
-      vars_by_nurse_day_shift_type(
-          num_nurses,
-          std::vector<std::vector<std::vector<sat::BoolVar>>>(
-              total_days,
-              std::vector<std::vector<sat::BoolVar>>(
-                  payload.shift_types.size())));
-
-  for (int shift_idx = 0; shift_idx < static_cast<int>(payload.shifts.size());
-       ++shift_idx) {
-    const Shift& shift = payload.shifts[shift_idx];
-    const int global_day = GlobalDay(shift);
-    std::vector<sat::BoolVar> candidates;
-    for (int nurse_idx = 0; nurse_idx < num_nurses; ++nurse_idx) {
-      const Nurse& nurse = payload.nurses[nurse_idx];
-      if (nurse.skills.find(shift.skill_idx) == nurse.skills.end()) {
-        continue;
-      }
-      const int history_last_shift =
-          payload.histories[nurse_idx].last_shift_type_idx;
-      if (global_day == 0 &&
-          IsForbiddenSuccessor(payload, history_last_shift,
-                               shift.shift_type_idx)) {
-        continue;
-      }
-      sat::BoolVar var =
-          model.NewBoolVar().WithName("seed_s" + std::to_string(shift_idx) +
-                                      "_n" + std::to_string(nurse_idx));
-      candidates.push_back(var);
-      assignment_vars.push_back({shift_idx, nurse_idx, var});
-      vars_by_nurse_day[nurse_idx][global_day].push_back(var);
-      vars_by_nurse_day_shift_type[nurse_idx][global_day]
-                                  [shift.shift_type_idx]
-                                      .push_back(var);
-    }
-
-    if (shift.is_minimum) {
-      model.AddEquality(BoolSum(candidates), 1);
-    } else {
-      model.AddEquality(BoolSum(candidates), 0);
-    }
-  }
-
-  for (int nurse_idx = 0; nurse_idx < num_nurses; ++nurse_idx) {
-    for (int day = 0; day < total_days; ++day) {
-      model.AddLessOrEqual(BoolSum(vars_by_nurse_day[nurse_idx][day]), 1);
-    }
-    for (int day = 0; day < total_days - 1; ++day) {
-      for (const auto& [preceding, successors] : payload.forbidden_successors) {
-        for (int succeeding : successors) {
-          for (sat::BoolVar left :
-               vars_by_nurse_day_shift_type[nurse_idx][day][preceding]) {
-            for (sat::BoolVar right :
-                 vars_by_nurse_day_shift_type[nurse_idx][day + 1][succeeding]) {
-              model.AddLessOrEqual(left + right, 1);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  const std::unordered_set<int64_t> greedy_hint = BuildGreedyHint(payload);
-  for (const AssignmentVar& assignment_var : assignment_vars) {
-    model.AddHint(assignment_var.var,
-                  greedy_hint.find(Key(assignment_var.shift_idx,
-                                       assignment_var.nurse_idx,
-                                       num_nurses)) != greedy_hint.end());
-  }
-
-  sat::Model solver_model;
-  sat::SatParameters parameters;
-  parameters.set_max_time_in_seconds(time_limit);
-  parameters.set_num_search_workers(1);
-  parameters.set_random_seed(1);
-  parameters.set_log_search_progress(false);
-  solver_model.Add(sat::NewSatParameters(parameters));
-  const sat::CpSolverResponse response =
-      sat::SolveCpModel(model.Build(), &solver_model);
-  if (response.status() != sat::CpSolverStatus::OPTIMAL &&
-      response.status() != sat::CpSolverStatus::FEASIBLE) {
-    return {};
-  }
-
-  std::unordered_set<int64_t> assignment_keys;
-  for (const AssignmentVar& assignment_var : assignment_vars) {
-    if (sat::SolutionBooleanValue(response, assignment_var.var)) {
-      assignment_keys.insert(Key(assignment_var.shift_idx,
-                                 assignment_var.nurse_idx, num_nurses));
-    }
-  }
-  return assignment_keys;
 }
 
 json::object SolutionJson(const InstancePayload& payload,
@@ -634,27 +455,12 @@ json::object SolutionJson(const InstancePayload& payload,
 
 std::optional<json::object> Solve(const InstancePayload& payload,
                                   double time_limit) {
-  const double seed_time_limit =
-      std::min(std::min(5.0, std::max(1.0, time_limit * 0.25)), time_limit);
-  const auto seed_start = std::chrono::steady_clock::now();
-  const std::unordered_set<int64_t> hard_seed =
-      SolveHardSeed(payload, seed_time_limit);
-  const double seed_elapsed =
-      std::chrono::duration<double>(std::chrono::steady_clock::now() -
-                                    seed_start)
-          .count();
-  const double remaining_time = time_limit - seed_elapsed;
-  if (!hard_seed.empty() && remaining_time <= 0.1) {
-    return SolutionJson(payload, hard_seed, std::nullopt);
-  }
-
   sat::CpModelBuilder model;
   const int num_nurses = static_cast<int>(payload.nurses.size());
   const int total_days = payload.num_weeks * 7;
 
   sat::LinearExpr objective(0);
   std::vector<AssignmentVar> assignment_vars;
-  std::vector<std::pair<int, sat::BoolVar>> unassigned_vars;
   std::vector<std::vector<sat::BoolVar>> vars_by_nurse(num_nurses);
   std::vector<std::vector<std::vector<sat::BoolVar>>> vars_by_nurse_day(
       num_nurses, std::vector<std::vector<sat::BoolVar>>(total_days));
@@ -714,7 +520,6 @@ std::optional<json::object> Solve(const InstancePayload& payload,
       sat::BoolVar unassigned =
           model.NewBoolVar().WithName("optional_unassigned_s" +
                                       std::to_string(shift_idx));
-      unassigned_vars.push_back({shift_idx, unassigned});
       model.AddEquality(unassigned + BoolSum(candidates), 1);
       AddObjectiveTerm(&objective, unassigned, 30);
     }
@@ -862,68 +667,21 @@ std::optional<json::object> Solve(const InstancePayload& payload,
     AddObjectiveTerm(&objective, over_weekends, 30);
   }
 
-  const std::unordered_set<int64_t> hint =
-      !hard_seed.empty() ? hard_seed : BuildGreedyHint(payload);
-  for (const AssignmentVar& assignment_var : assignment_vars) {
-    model.AddHint(assignment_var.var,
-                  hint.find(Key(assignment_var.shift_idx,
-                                assignment_var.nurse_idx, num_nurses)) !=
-                      hint.end());
-  }
-  std::unordered_set<int> hinted_shift_indices;
-  for (int64_t key : hint) {
-    hinted_shift_indices.insert(KeyShift(key, num_nurses));
-  }
-  for (const auto& [shift_idx, var] : unassigned_vars) {
-    model.AddHint(var, hinted_shift_indices.find(shift_idx) ==
-                           hinted_shift_indices.end());
-  }
-  for (int nurse_idx = 0; nurse_idx < num_nurses; ++nurse_idx) {
-    for (int day = 0; day < total_days; ++day) {
-      bool works = false;
-      for (int64_t key : hint) {
-        if (KeyNurse(key, num_nurses) == nurse_idx &&
-            GlobalDay(payload.shifts[KeyShift(key, num_nurses)]) == day) {
-          works = true;
-          break;
-        }
-      }
-      model.AddHint(work_by_nurse_day[nurse_idx][day], works);
-      for (int shift_type_idx = 0;
-           shift_type_idx < static_cast<int>(payload.shift_types.size());
-           ++shift_type_idx) {
-        bool works_type = false;
-        for (int64_t key : hint) {
-          const Shift& shift = payload.shifts[KeyShift(key, num_nurses)];
-          if (KeyNurse(key, num_nurses) == nurse_idx &&
-              GlobalDay(shift) == day &&
-              shift.shift_type_idx == shift_type_idx) {
-            works_type = true;
-            break;
-          }
-        }
-        model.AddHint(shift_type_by_nurse_day[nurse_idx][day][shift_type_idx],
-                      works_type);
-      }
-    }
-  }
-
   model.Minimize(objective);
 
   sat::Model solver_model;
   sat::SatParameters parameters;
-  parameters.set_max_time_in_seconds(std::max(0.1, remaining_time));
+  parameters.set_max_time_in_seconds(std::max(0.1, time_limit));
   parameters.set_num_search_workers(1);
   parameters.set_random_seed(1);
   parameters.set_log_search_progress(false);
   solver_model.Add(sat::NewSatParameters(parameters));
+  const sat::CpModelProto proto = model.Build();
+  const json::object fair_start_witness = FairStartWitness(proto);
   const sat::CpSolverResponse response =
-      sat::SolveCpModel(model.Build(), &solver_model);
+      sat::SolveCpModel(proto, &solver_model);
   if (response.status() != sat::CpSolverStatus::OPTIMAL &&
       response.status() != sat::CpSolverStatus::FEASIBLE) {
-    if (!hard_seed.empty()) {
-      return SolutionJson(payload, hard_seed, std::nullopt);
-    }
     return std::nullopt;
   }
 
@@ -934,7 +692,10 @@ std::optional<json::object> Solve(const InstancePayload& payload,
                                  assignment_var.nurse_idx, num_nurses));
     }
   }
-  return SolutionJson(payload, assignment_keys, response.objective_value());
+  json::object solution =
+      SolutionJson(payload, assignment_keys, response.objective_value());
+  solution["fair_start_witness"] = fair_start_witness;
+  return solution;
 }
 
 }  // namespace
