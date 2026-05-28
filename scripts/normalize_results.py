@@ -15,12 +15,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 ensure_repo_venv(REPO_ROOT)
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+import polars as pl  # noqa: E402
+
 from solverforge_bench.csv import GLOBAL_COLUMNS, NORMALIZED_COLUMNS  # noqa: E402
 from solverforge_bench.etl import (  # noqa: E402
     frame_from_records,
     read_csv_frame,
     write_csv_frame,
 )
+
+
+CSV_JSON_COLUMNS = {"fair_start_witness"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -130,9 +135,32 @@ def normalize_global_row(
 def write_rows(path: Path, rows, output_format: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if output_format == "csv":
-        write_csv_frame(path, rows, columns=NORMALIZED_COLUMNS)
+        write_csv_frame(
+            path,
+            _serialize_json_columns_for_csv(rows),
+            columns=NORMALIZED_COLUMNS,
+        )
         return
     rows.select(NORMALIZED_COLUMNS).write_ndjson(path)
+
+
+def _serialize_json_columns_for_csv(rows: pl.DataFrame) -> pl.DataFrame:
+    expressions = [
+        pl.col(column).map_elements(_compact_json_or_none, return_dtype=pl.String)
+        for column in CSV_JSON_COLUMNS
+        if column in rows.columns
+    ]
+    if not expressions:
+        return rows
+    return rows.with_columns(expressions)
+
+
+def _compact_json_or_none(value: object | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
 def blank_to_none(value: str | None) -> str | None:
