@@ -13,6 +13,7 @@ from typing import Any, Callable
 
 from solverforge_bench.fair_start import (
     FairStartViolationError,
+    fair_start_input_hash,
     fair_start_recorder,
     validate_fair_start_witness,
     validate_solver_result,
@@ -47,6 +48,7 @@ def run_solver(
     instance: Any,
     time_limit_seconds: int,
     watchdog_seconds: float,
+    solver_input_hash: str | None = None,
     stdout_path: Path | None = None,
     stderr_path: Path | None = None,
     capture_solver_output: bool = True,
@@ -63,6 +65,7 @@ def run_solver(
             solver_name,
             solver_factory,
             instance,
+            solver_input_hash,
             time_limit_seconds,
             output_queue,
             str(stdout_path) if stdout_path else None,
@@ -183,6 +186,7 @@ def _run_solver_child(
     solver_name: str,
     solver_factory,
     instance: Any,
+    solver_input_hash: str | None,
     time_limit_seconds: int,
     output_queue,
     stdout_path: str | None,
@@ -217,7 +221,10 @@ def _run_solver_child(
             )
 
         try:
-            with fair_start_recorder(record_witness):
+            with (
+                fair_start_input_hash(solver_input_hash),
+                fair_start_recorder(record_witness),
+            ):
                 solver = solver_factory(
                     method=solver_name, time_limit=time_limit_seconds
                 )
