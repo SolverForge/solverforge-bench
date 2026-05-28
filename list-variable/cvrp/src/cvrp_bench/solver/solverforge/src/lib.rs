@@ -36,6 +36,16 @@ struct InstanceInput {
 struct SolutionOutput {
     routes: Vec<Vec<usize>>,
     cost: i64,
+    fair_start_witness: FairStartWitness,
+}
+
+#[derive(Serialize)]
+struct FairStartWitness {
+    adapter_hint_count: usize,
+    preliminary_solve_count: usize,
+    fallback_solution_enabled: bool,
+    preassigned_scalar_variables: usize,
+    prefilled_list_variables: usize,
 }
 
 fn build_plan(input: InstanceInput, time_limit_secs: u64) -> CvrpPlan {
@@ -86,6 +96,17 @@ fn solve_cvrp(instance_json: &str, time_limit: u64) -> PyResult<String> {
     let input: InstanceInput = serde_json::from_str(instance_json)
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
     let plan = build_plan(input, time_limit);
+    let fair_start_witness = FairStartWitness {
+        adapter_hint_count: 0,
+        preliminary_solve_count: 0,
+        fallback_solution_enabled: false,
+        preassigned_scalar_variables: 0,
+        prefilled_list_variables: plan
+            .routes
+            .iter()
+            .filter(|route| !route.visits.is_empty())
+            .count(),
+    };
     let (job_id, mut receiver) = MANAGER
         .solve(plan)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
@@ -130,7 +151,11 @@ fn solve_cvrp(instance_json: &str, time_limit: u64) -> PyResult<String> {
     let routes = solved.materialized_routes();
     let cost = solved.total_cost();
 
-    let output = SolutionOutput { routes, cost };
+    let output = SolutionOutput {
+        routes,
+        cost,
+        fair_start_witness,
+    };
     serde_json::to_string(&output)
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
 }

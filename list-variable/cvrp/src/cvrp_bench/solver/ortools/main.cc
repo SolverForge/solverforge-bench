@@ -70,6 +70,17 @@ CvrpInstance ParseInput(const std::string& input) {
   return instance;
 }
 
+json::object FairStartWitness() {
+  json::object witness;
+  witness["routing_assignment_hint_present"] = false;
+  witness["adapter_hint_count"] = 0;
+  witness["preliminary_solve_count"] = 0;
+  witness["fallback_solution_enabled"] = false;
+  witness["preassigned_scalar_variables"] = 0;
+  witness["prefilled_list_variables"] = 0;
+  return witness;
+}
+
 json::object Solve(const CvrpInstance& instance, int time_limit_seconds) {
   const int num_nodes = static_cast<int>(instance.demand.size());
   const int num_vehicles = num_nodes;
@@ -131,6 +142,7 @@ json::object Solve(const CvrpInstance& instance, int time_limit_seconds) {
   json::object output;
   output["cost"] = solution->ObjectiveValue();
   output["routes"] = std::move(routes);
+  output["fair_start_witness"] = FairStartWitness();
   return output;
 }
 

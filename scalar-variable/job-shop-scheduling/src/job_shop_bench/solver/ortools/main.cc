@@ -82,6 +82,18 @@ std::string OpName(const Operation& op) {
   return "j" + std::to_string(op.job_id) + "_o" + std::to_string(op.op_index);
 }
 
+json::object FairStartWitness(const sat::CpModelProto& proto) {
+  json::object witness;
+  witness["cp_sat_solution_hint_vars"] = proto.solution_hint().vars_size();
+  witness["cp_sat_solution_hint_values"] = proto.solution_hint().values_size();
+  witness["adapter_hint_count"] = 0;
+  witness["preliminary_solve_count"] = 0;
+  witness["fallback_solution_enabled"] = false;
+  witness["preassigned_scalar_variables"] = 0;
+  witness["prefilled_list_variables"] = 0;
+  return witness;
+}
+
 json::object Solve(const InstancePayload& payload, double time_limit) {
   const int horizon = std::max(
       1, std::accumulate(payload.operations.begin(), payload.operations.end(), 0,
@@ -144,9 +156,11 @@ json::object Solve(const InstancePayload& payload, double time_limit) {
   parameters.set_random_seed(1);
   parameters.set_log_search_progress(false);
   solver_model.Add(sat::NewSatParameters(parameters));
+  const sat::CpModelProto proto = model.Build();
+  const json::object fair_start_witness = FairStartWitness(proto);
 
   const sat::CpSolverResponse response =
-      sat::SolveCpModel(model.Build(), &solver_model);
+      sat::SolveCpModel(proto, &solver_model);
   if (response.status() != sat::CpSolverStatus::OPTIMAL &&
       response.status() != sat::CpSolverStatus::FEASIBLE) {
     throw std::runtime_error("OR-Tools CP-SAT found no feasible solution");
@@ -168,6 +182,7 @@ json::object Solve(const InstancePayload& payload, double time_limit) {
   output["operations"] = operations;
   output["reported_makespan"] =
       static_cast<int>(sat::SolutionIntegerValue(response, makespan));
+  output["fair_start_witness"] = fair_start_witness;
   return output;
 }
 

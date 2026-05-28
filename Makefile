@@ -88,7 +88,7 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-job-shop-scheduling-solverforge bench-job-shop-scheduling-solverforge-db \
 	bench-job-shop-scheduling-solverforge-quick bench-job-shop-scheduling-solverforge-quick-db \
 	bench-nightly-db \
-	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
+	verify-fair-start verify-fair-start-rows validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
 	db-check db-create db-migrate db-reset normalize-results
 
 # ============== Default Target ==============
@@ -103,6 +103,13 @@ banner:
 	@printf -- " |____/ \\\\___/|_| \\_/ \\___|_|  |_|  \\___/|_|  \\__, |\\___|\n"
 	@printf -- "                                             |___/$(RESET)\n"
 	@printf -- "  $(GRAY)v$(VERSION)$(RESET) $(EMERALD)Benchmark Build System$(RESET)\n\n"
+
+verify-fair-start: banner venv
+	"$(PYTHON)" scripts/verify_fair_start.py
+
+verify-fair-start-rows: banner venv
+	@test -n "$(RUN_ID)" || (echo "RUN_ID is required" >&2; exit 2)
+	"$(PYTHON)" scripts/verify_fair_start.py --run-id "$(RUN_ID)" --database-url "$(DATABASE_URL)"
 
 venv:
 	@if [ -x "$(PYTHON)" ]; then \

@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
-from job_shop_bench.domain.models import JobShopInstance, Solution
+from job_shop_bench.domain.models import JobShopInstance
 from job_shop_bench.solver.ortools import solve_with_ortools
-from solverforge_bench.model import SolverVersion
+from solverforge_bench.model import SolverResult, SolverVersion
 from solverforge_bench.solver_versions import (
     cargo_dependency_version,
     executable_version,
@@ -19,7 +19,7 @@ _SOLVER_DIR = Path(__file__).resolve().parent
 
 def create_solver(
     method: str, time_limit: int
-) -> Callable[[JobShopInstance, int], Solution]:
+) -> Callable[[JobShopInstance, int], SolverResult]:
     if method not in AVAILABLE_METHODS:
         raise ValueError(
             f"Unknown method '{method}'. Available: {', '.join(AVAILABLE_METHODS)}"

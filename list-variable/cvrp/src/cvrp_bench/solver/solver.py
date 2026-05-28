@@ -1,12 +1,12 @@
 from pathlib import Path
 from typing import Callable, Iterable
 
-from cvrp_bench.domain.models import Instance, Solution
+from cvrp_bench.domain.models import Instance
 from cvrp_bench.solver.ortools import solve_with_ortools
 from cvrp_bench.solver.pyhygese import solve_with_pyhygese
 from cvrp_bench.solver.pyvrp import solve_with_pyvrp
 from cvrp_bench.solver.vroom import solve_with_vroom
-from solverforge_bench.model import SolverVersion
+from solverforge_bench.model import SolverResult, SolverVersion
 from solverforge_bench.solver_versions import (
     cargo_dependency_version,
     executable_version,
@@ -49,7 +49,7 @@ def _load_solverforge():
 
 
 # Type alias for solver functions
-SolverFn = Callable[[Instance, int], Solution]
+SolverFn = Callable[[Instance, int], SolverResult]
 
 
 def solver_versions(methods: Iterable[str]) -> dict[str, SolverVersion]:

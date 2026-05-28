@@ -112,6 +112,9 @@ class PostgresResultWriter:
                     wall_time_over_limit,
                     watchdog_limit_seconds,
                     watchdog_killed,
+                    fair_start_valid,
+                    fair_start_error,
+                    fair_start_witness,
                     run_error,
                     solver_stdout_path,
                     solver_stderr_path,
@@ -144,6 +147,9 @@ class PostgresResultWriter:
                     %(wall_time_over_limit)s,
                     %(watchdog_limit_seconds)s,
                     %(watchdog_killed)s,
+                    %(fair_start_valid)s,
+                    %(fair_start_error)s,
+                    %(fair_start_witness)s,
                     %(run_error)s,
                     %(solver_stdout_path)s,
                     %(solver_stderr_path)s,
@@ -182,6 +188,9 @@ class PostgresResultWriter:
     def _postgres_params(self, row: dict[str, Any]) -> dict[str, Any]:
         params = dict(row)
         params["solver_version_id"] = self._solver_version_ids[params["solver"]]
+        params["fair_start_witness"] = self._jsonb(
+            _json_safe(params["fair_start_witness"])
+        )
         params["native_fields"] = self._jsonb(_json_safe(params["native_fields"]))
         params["row_payload"] = self._jsonb(_json_safe(params["row_payload"]))
         return params
@@ -383,6 +392,12 @@ def make_postgres_config(
             "log_level": getattr(args, "log_level", None),
             "show_solver_output": getattr(args, "show_solver_output", None),
             "capture_solver_output": getattr(args, "capture_solver_output", None),
+            "fair_start_witness_version": 1,
+            "fair_start_contract": (
+                "Solvers must start from unassigned scalar variables or empty "
+                "list variables, with no adapter-owned hints, preliminary "
+                "solves, fallback schedules, or reference-solution reads."
+            ),
             "config_path": (
                 str(args.config) if getattr(args, "config", None) else None
             ),

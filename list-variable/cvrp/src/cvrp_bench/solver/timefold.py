@@ -4,12 +4,18 @@ import sys
 from pathlib import Path
 
 from cvrp_bench.domain.models import Instance, Solution
+from solverforge_bench.fair_start import (
+    emit_fair_start_witness,
+    make_fair_start_witness,
+    solver_result,
+)
+from solverforge_bench.model import SolverResult
 
 # Fat JAR produced by: mvn -f <this_dir>/timefold/pom.xml package
 _JAR_PATH = Path(__file__).parent / "timefold" / "target" / "timefold-cvrp.jar"
 
 
-def solve_with_timefold(instance: Instance, time_limit: int) -> Solution:
+def solve_with_timefold(instance: Instance, time_limit: int) -> SolverResult:
     """
     Solve the CVRP using Timefold Solver running on the JVM (Java).
 
@@ -36,6 +42,13 @@ def solve_with_timefold(instance: Instance, time_limit: int) -> Solution:
     )
 
     # 2 solve: call the fat JAR, passing time_limit as CLI arg and instance as stdin
+    witness = make_fair_start_witness(
+        benchmark_name="cvrp",
+        solver="timefold",
+        planning_state="empty_list_variables",
+        solver_input=instance_json,
+    )
+    emit_fair_start_witness(witness)
     result = subprocess.run(
         ["java", "-jar", str(_JAR_PATH), str(time_limit)],
         input=instance_json.encode(),
@@ -51,4 +64,6 @@ def solve_with_timefold(instance: Instance, time_limit: int) -> Solution:
 
     # 3 transform: routes are already depot-excluded lists of customer indices
     output = json.loads(result.stdout)
-    return Solution(routes=output["routes"], cost=output["cost"])
+    return solver_result(
+        Solution(routes=output["routes"], cost=output["cost"]), witness
+    )

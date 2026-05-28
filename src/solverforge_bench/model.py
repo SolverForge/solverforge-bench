@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Protocol
 
 
-SolverFactory = Callable[..., Callable[[Any, int], Any]]
+SolverFactory = Callable[..., Callable[[Any, int], "SolverResult"]]
 
 
 class NoSolutionFoundError(RuntimeError):
@@ -20,6 +20,31 @@ class SolverVersion:
     version: str
     source: str
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class FairStartWitness:
+    version: int
+    benchmark_name: str
+    solver: str
+    planning_state: str
+    solver_input_hash: str
+    reference_solution_reads: int = 0
+    adapter_hint_count: int = 0
+    preliminary_solve_count: int = 0
+    fallback_solution_enabled: bool = False
+    preassigned_scalar_variables: int = 0
+    prefilled_list_variables: int = 0
+    native_checks: dict[str, Any] = field(default_factory=dict)
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class SolverResult:
+    solution: Any
+    fair_start_witness: FairStartWitness
 
 
 @dataclass(frozen=True)
@@ -42,6 +67,9 @@ class SolverRun:
     watchdog_limit_seconds: float
     watchdog_killed: bool
     solution: Any | None
+    fair_start_witness: FairStartWitness | None
+    fair_start_valid: bool
+    fair_start_error: str | None
     run_error: str | None
     exit_code: int | None
     solver_stdout_path: str | None = None
@@ -78,6 +106,9 @@ class BenchmarkRow:
     wall_time_over_limit: bool
     watchdog_limit_seconds: float
     watchdog_killed: bool
+    fair_start_valid: bool
+    fair_start_error: str | None
+    fair_start_witness: dict[str, Any] | None
     run_error: str | None
     solver_stdout_path: str | None
     solver_stderr_path: str | None
@@ -108,6 +139,9 @@ class BenchmarkRow:
             "wall_time_over_limit": self.wall_time_over_limit,
             "watchdog_limit_seconds": self.watchdog_limit_seconds,
             "watchdog_killed": self.watchdog_killed,
+            "fair_start_valid": self.fair_start_valid,
+            "fair_start_error": self.fair_start_error,
+            "fair_start_witness": self.fair_start_witness,
             "run_error": self.run_error,
             "solver_stdout_path": self.solver_stdout_path,
             "solver_stderr_path": self.solver_stderr_path,
@@ -139,7 +173,7 @@ class BenchmarkSpec(Protocol):
 
     def create_solver(
         self, method: str, time_limit: int
-    ) -> Callable[[Any, int], Any]: ...
+    ) -> Callable[[Any, int], SolverResult]: ...
 
     def solver_versions(self, solvers: Iterable[str]) -> dict[str, SolverVersion]: ...
 

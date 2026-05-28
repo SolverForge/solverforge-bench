@@ -11,6 +11,14 @@ import traceback
 from pathlib import Path
 from typing import Any, Callable
 
+from solverforge_bench.fair_start import (
+    FairStartViolationError,
+    fair_start_recorder,
+    validate_fair_start_witness,
+    validate_solver_result,
+    witness_from_payload,
+    witness_to_payload,
+)
 from solverforge_bench.logging import capture_output
 from solverforge_bench.model import NoSolutionFoundError, SolverRun
 
@@ -32,6 +40,7 @@ def watchdog_limit_seconds(
 
 def run_solver(
     *,
+    benchmark_name: str,
     solver_name: str,
     solver_factory: Callable[..., Callable[[Any, int], Any]],
     solution_model: type,
@@ -46,10 +55,11 @@ def run_solver(
     """Pass the benchmark budget to the solver and wait up to watchdog_seconds."""
 
     ctx = _process_context()
-    output_queue = ctx.Queue(maxsize=1)
+    output_queue = ctx.Queue()
     process = ctx.Process(
         target=_run_solver_child,
         args=(
+            benchmark_name,
             solver_name,
             solver_factory,
             instance,
@@ -69,6 +79,12 @@ def run_solver(
     if process.is_alive():
         _terminate_process_tree(process)
         elapsed = time.monotonic() - started
+        message, fair_start_witness = _collect_child_messages(output_queue)
+        fair_start_error = (
+            None
+            if fair_start_witness is not None
+            else f"{solver_name} emitted no fair-start witness before watchdog kill"
+        )
         return SolverRun(
             solver=solver_name,
             time_limit_seconds=time_limit_seconds,
@@ -76,6 +92,9 @@ def run_solver(
             watchdog_limit_seconds=watchdog_seconds,
             watchdog_killed=True,
             solution=None,
+            fair_start_witness=fair_start_witness,
+            fair_start_valid=fair_start_error is None,
+            fair_start_error=fair_start_error,
             run_error=(
                 f"WatchdogTimeout: {solver_name} exceeded watchdog limit "
                 f"({elapsed:.6f}s > {watchdog_seconds:.6f}s)"
@@ -85,9 +104,13 @@ def run_solver(
             solver_stderr_path=str(stderr_path) if stderr_path else None,
         )
 
-    try:
-        message = output_queue.get_nowait()
-    except queue_module.Empty:
+    message, fair_start_witness = _collect_child_messages(output_queue)
+    if message is None:
+        fair_start_error = (
+            None
+            if fair_start_witness is not None
+            else f"{solver_name} emitted no fair-start witness"
+        )
         return SolverRun(
             solver=solver_name,
             time_limit_seconds=time_limit_seconds,
@@ -95,6 +118,9 @@ def run_solver(
             watchdog_limit_seconds=watchdog_seconds,
             watchdog_killed=False,
             solution=None,
+            fair_start_witness=fair_start_witness,
+            fair_start_valid=fair_start_error is None,
+            fair_start_error=fair_start_error,
             run_error=(
                 f"RuntimeError: {solver_name} exited without producing a result "
                 f"(exit {process.exitcode})"
@@ -104,6 +130,14 @@ def run_solver(
             solver_stderr_path=str(stderr_path) if stderr_path else None,
         )
 
+    if message.get("fatal"):
+        raise FairStartViolationError(message["error"])
+
+    message_witness = witness_from_payload(message.get("fair_start_witness"))
+    if message_witness is not None:
+        fair_start_witness = message_witness
+    fair_start_error = message.get("fair_start_error")
+
     if message["ok"]:
         return SolverRun(
             solver=solver_name,
@@ -112,6 +146,9 @@ def run_solver(
             watchdog_limit_seconds=watchdog_seconds,
             watchdog_killed=False,
             solution=solution_model(**message["solution"]),
+            fair_start_witness=fair_start_witness,
+            fair_start_valid=fair_start_error is None,
+            fair_start_error=fair_start_error,
             run_error=None,
             exit_code=process.exitcode,
             solver_stdout_path=str(stdout_path) if stdout_path else None,
@@ -125,6 +162,9 @@ def run_solver(
         watchdog_limit_seconds=watchdog_seconds,
         watchdog_killed=False,
         solution=None,
+        fair_start_witness=fair_start_witness,
+        fair_start_valid=fair_start_error is None,
+        fair_start_error=fair_start_error,
         run_error=message["error"],
         exit_code=process.exitcode,
         solver_stdout_path=str(stdout_path) if stdout_path else None,
@@ -139,6 +179,7 @@ def _process_context() -> mp.context.BaseContext:
 
 
 def _run_solver_child(
+    benchmark_name: str,
     solver_name: str,
     solver_factory,
     instance: Any,
@@ -158,18 +199,76 @@ def _run_solver_child(
         stderr_path=stderr,
         show_output=show_solver_output,
     ):
+        latest_witness = None
+
+        def record_witness(witness) -> None:
+            nonlocal latest_witness
+            validate_fair_start_witness(
+                witness,
+                benchmark_name=benchmark_name,
+                solver_name=solver_name,
+            )
+            latest_witness = witness
+            output_queue.put(
+                {
+                    "event": "fair_start_witness",
+                    "fair_start_witness": witness_to_payload(witness),
+                }
+            )
+
         try:
-            solver = solver_factory(method=solver_name, time_limit=time_limit_seconds)
-            solution = solver(instance, time_limit_seconds)
+            with fair_start_recorder(record_witness):
+                solver = solver_factory(
+                    method=solver_name, time_limit=time_limit_seconds
+                )
+                result = solver(instance, time_limit_seconds)
+            solver_output = validate_solver_result(
+                result,
+                benchmark_name=benchmark_name,
+                solver_name=solver_name,
+            )
+            latest_witness = solver_output.fair_start_witness
+            solution = solver_output.solution
             if solution is None:
                 raise NoSolutionFoundError(f"{solver_name} returned no solution")
-            output_queue.put({"ok": True, "solution": _solution_payload(solution)})
-        except Exception as exc:
+            output_queue.put(
+                {
+                    "ok": True,
+                    "solution": _solution_payload(solution),
+                    "fair_start_witness": witness_to_payload(latest_witness),
+                    "fair_start_error": None,
+                }
+            )
+        except FairStartViolationError as exc:
             traceback.print_exc()
             output_queue.put(
                 {
                     "ok": False,
+                    "fatal": True,
                     "error": f"{exc.__class__.__name__}: {exc}",
+                }
+            )
+        except Exception as exc:
+            traceback.print_exc()
+            if latest_witness is None:
+                output_queue.put(
+                    {
+                        "ok": False,
+                        "fatal": True,
+                        "error": (
+                            "FairStartViolationError: "
+                            f"{solver_name} failed before emitting a fair-start "
+                            f"witness: {exc.__class__.__name__}: {exc}"
+                        ),
+                    }
+                )
+                return
+            output_queue.put(
+                {
+                    "ok": False,
+                    "error": f"{exc.__class__.__name__}: {exc}",
+                    "fair_start_witness": witness_to_payload(latest_witness),
+                    "fair_start_error": None,
                 }
             )
 
@@ -178,6 +277,27 @@ def _solution_payload(solution: Any) -> dict[str, Any]:
     if hasattr(solution, "model_dump"):
         return solution.model_dump(mode="json")
     return solution.dict()
+
+
+def _collect_child_messages(output_queue) -> tuple[dict[str, Any] | None, Any | None]:
+    result_message = None
+    fair_start_witness = None
+    deadline = time.monotonic() + 1.0
+    while time.monotonic() < deadline:
+        try:
+            message = output_queue.get(timeout=0.05)
+        except queue_module.Empty:
+            if result_message is not None:
+                break
+            continue
+
+        witness = witness_from_payload(message.get("fair_start_witness"))
+        if witness is not None:
+            fair_start_witness = witness
+        if message.get("event") == "fair_start_witness":
+            continue
+        result_message = message
+    return result_message, fair_start_witness
 
 
 def _terminate_process_tree(process) -> None:
