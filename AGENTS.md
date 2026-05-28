@@ -8,11 +8,10 @@
   behavior or structure changes.
 - `.github/workflows/ci.yml` contains the split GitHub/Forgejo CI workflow.
   Keep its sibling SolverForge checkout paths aligned with the active adapter
-  `Cargo.toml` path dependencies. The Rust jobs must clone SolverForge
-  `v0.14.1` into `../solverforge`, clone `feat/node-sharing-compiler` into
-  `../solverforge-node-sharing`, and run Cargo checks with `--locked`; the
-  Python jobs must create the root `.venv` with `make install-python-deps`
-  before parity validation.
+  `Cargo.toml` path dependencies. The Rust jobs must clone SolverForge `main`
+  into `../solverforge` and run Cargo checks with `--locked`; the Python jobs
+  must create the root `.venv` with `make install-python-deps` before parity
+  validation.
 - `src/solverforge_bench/` contains the shared benchmark framework. CLI,
   TOML configuration, registry, run matrix, timing, overshoot calculation,
   watchdog containment, result rows, CSV writing, production logging, solver
@@ -39,10 +38,9 @@
   creates the single repository virtualenv used by all benchmark commands.
 - `make install-python-deps` creates or refreshes that root `.venv` from the
   Makefile.
-- The CVRP SolverForge adapter is pinned to SolverForge `0.14.1` and currently
-  uses the sibling checkout at `../solverforge/crates/solverforge`. The
-  employee-scheduling SolverForge adapter uses the `0.15.0` node-sharing
-  compiler branch at `../solverforge-node-sharing/crates/solverforge`.
+- The CVRP, employee-scheduling, and job-shop SolverForge adapters are pinned
+  to SolverForge `0.15.1` and use the sibling checkout at
+  `../solverforge/crates/solverforge`.
 - Benchmark run targets pin the shared harness with per-suite CPU defaults:
   `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`, and
   `JOBSHOP_BENCH_CPU ?= 2`. They also set `OMP_NUM_THREADS=1`,
@@ -138,8 +136,9 @@ deterministic run and confirm failures are solution failures, not loader or
 adapter errors.
 
 For CI or documentation contract changes, also verify Python syntax with
-`python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scripts`
-and parse `benchmark*.toml` with `tomllib` or an equivalent TOML parser.
+`python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src scripts`,
+run `make verify-fair-start`, and parse `benchmark*.toml` with `tomllib` or an
+equivalent TOML parser.
 
 ## Commit & Pull Request Guidelines
 
@@ -160,6 +159,19 @@ configuration policy, logging policy, solver-output capture policy, or
 PostgreSQL persistence policy. The nominal benchmark budget is not a hard kill
 deadline; preserve late returned solutions and record overshoot. Only the
 separate watchdog may terminate runaway processes.
+
+Benchmark fairness is part of the architecture, not an optional benchmark knob.
+Solvers must not receive or construct adapter-owned initial feasible schedules,
+incumbent hints, hard seeds, fallback schedules, warm starts, or reference
+solutions. The only acceptable initial planning state is unassigned scalar
+variables or empty list variables. Every solver wrapper must return
+`SolverResult`, emit a fair-start witness before invoking the actual solver, and
+keep native witness checks aligned with the underlying adapter. Reference
+solutions belong only in specs, validators, parity scripts, demos, and result
+evaluation. Run `make verify-fair-start` when editing solver adapters, solver
+specs, validators, benchmark CI, or benchmark architecture docs. For persisted
+smoke runs, also run `make verify-fair-start-rows RUN_ID=<uuid>` so PostgreSQL
+rows prove the runtime contract, not only the static source shape.
 
 Do not reintroduce `standard-variable`, `CoverageGroup`, `coverage_first_fit`,
 or benchmark-local scoring internals for employee scheduling. The active
