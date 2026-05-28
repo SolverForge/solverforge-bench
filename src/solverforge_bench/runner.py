@@ -133,6 +133,7 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
                             captured_stderr_path,
                         )
                         run = run_solver(
+                            benchmark_name=spec.name,
                             solver_name=solver_name,
                             solver_factory=spec.create_solver,
                             solution_model=spec.solution_model,
@@ -249,6 +250,13 @@ def _row(
         ),
         watchdog_limit_seconds=run.watchdog_limit_seconds,
         watchdog_killed=run.watchdog_killed,
+        fair_start_valid=run.fair_start_valid,
+        fair_start_error=run.fair_start_error,
+        fair_start_witness=(
+            run.fair_start_witness.as_dict()
+            if run.fair_start_witness is not None
+            else None
+        ),
         run_error=run.run_error,
         solver_stdout_path=run.solver_stdout_path,
         solver_stderr_path=run.solver_stderr_path,

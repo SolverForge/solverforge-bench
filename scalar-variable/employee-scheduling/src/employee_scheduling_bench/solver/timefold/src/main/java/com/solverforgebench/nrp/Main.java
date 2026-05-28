@@ -135,10 +135,30 @@ public class Main {
     static class NrpOutput {
         public List<List<AssignmentOutput>> assignments;
         public int cost;
+        @JsonProperty("fair_start_witness")
+        public FairStartWitness fairStartWitness;
 
-        NrpOutput(List<List<AssignmentOutput>> assignments, int cost) {
+        NrpOutput(List<List<AssignmentOutput>> assignments, int cost, FairStartWitness fairStartWitness) {
             this.assignments = assignments;
             this.cost = cost;
+            this.fairStartWitness = fairStartWitness;
+        }
+    }
+
+    static class FairStartWitness {
+        @JsonProperty("adapter_hint_count")
+        public int adapterHintCount = 0;
+        @JsonProperty("preliminary_solve_count")
+        public int preliminarySolveCount = 0;
+        @JsonProperty("fallback_solution_enabled")
+        public boolean fallbackSolutionEnabled = false;
+        @JsonProperty("preassigned_scalar_variables")
+        public int preassignedScalarVariables;
+        @JsonProperty("prefilled_list_variables")
+        public int prefilledListVariables = 0;
+
+        FairStartWitness(int preassignedScalarVariables) {
+            this.preassignedScalarVariables = preassignedScalarVariables;
         }
     }
 
@@ -250,6 +270,7 @@ public class Main {
         }
 
         NurseRoster problem = new NurseRoster(nurses, assignments);
+        FairStartWitness fairStartWitness = fairStartWitness(problem);
         SolverConfig solverConfig = new SolverConfig()
                 .withSolutionClass(NurseRoster.class)
                 .withEntityClasses(ShiftAssignment.class)
@@ -280,7 +301,17 @@ public class Main {
         }
 
         int cost = solution.getScore() == null ? 0 : Math.toIntExact(-solution.getScore().softScore());
-        mapper.writeValue(System.out, new NrpOutput(weekly, cost));
+        mapper.writeValue(System.out, new NrpOutput(weekly, cost, fairStartWitness));
+    }
+
+    private static FairStartWitness fairStartWitness(NurseRoster problem) {
+        int preassigned = 0;
+        for (ShiftAssignment assignment : problem.getAssignments()) {
+            if (assignment.getNurse() != null) {
+                preassigned++;
+            }
+        }
+        return new FairStartWitness(preassigned);
     }
 
     private static List<Integer> forbiddenPredecessors(List<ForbiddenInput> forbidden, int shiftTypeIdx) {

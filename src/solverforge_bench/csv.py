@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -23,6 +24,9 @@ GLOBAL_COLUMNS = [
     "wall_time_over_limit",
     "watchdog_limit_seconds",
     "watchdog_killed",
+    "fair_start_valid",
+    "fair_start_error",
+    "fair_start_witness",
     "run_error",
     "solver_stdout_path",
     "solver_stderr_path",
@@ -91,4 +95,6 @@ def _csv_value(value: Any) -> Any:
         return ""
     if isinstance(value, bool):
         return "true" if value else "false"
+    if isinstance(value, dict | list):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
     return value

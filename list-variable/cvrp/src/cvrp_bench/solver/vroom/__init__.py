@@ -4,16 +4,17 @@ import sys
 from pathlib import Path
 
 from cvrp_bench.domain.models import Instance, Solution
+from solverforge_bench.fair_start import (
+    emit_fair_start_witness,
+    make_fair_start_witness,
+    solver_result,
+)
+from solverforge_bench.model import SolverResult
 
 _BINARY_PATH = Path(__file__).parent / "target" / "cvrp_vroom"
 
 
-def solve_with_vroom(instance: Instance, time_limit: int) -> Solution:
-    if not _BINARY_PATH.exists():
-        raise RuntimeError(
-            "native VROOM solver is not built; run `make build-cvrp-vroom`"
-        )
-
+def solve_with_vroom(instance: Instance, time_limit: int) -> SolverResult:
     matrix = [
         [round(float(value)) for value in row] for row in instance.edge_weight.tolist()
     ]
@@ -42,6 +43,18 @@ def solve_with_vroom(instance: Instance, time_limit: int) -> Solution:
             }
         },
     }
+    witness = make_fair_start_witness(
+        benchmark_name="cvrp",
+        solver="vroom",
+        planning_state="external_solver_model",
+        solver_input=payload,
+    )
+    emit_fair_start_witness(witness)
+    if not _BINARY_PATH.exists():
+        raise RuntimeError(
+            "native VROOM solver is not built; run `make build-cvrp-vroom`"
+        )
+
     result = subprocess.run(
         [
             str(_BINARY_PATH),
@@ -77,4 +90,7 @@ def solve_with_vroom(instance: Instance, time_limit: int) -> Solution:
         if customers:
             routes.append(customers)
 
-    return Solution(cost=int(output["summary"]["cost"]), routes=routes)
+    return solver_result(
+        Solution(cost=int(output["summary"]["cost"]), routes=routes),
+        witness,
+    )

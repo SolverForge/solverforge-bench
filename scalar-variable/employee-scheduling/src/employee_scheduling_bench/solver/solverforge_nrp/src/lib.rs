@@ -281,6 +281,13 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
         time_limit_secs: time_limit.max(1),
         data: problem_data,
     };
+    let fair_start_witness = serde_json::json!({
+        "adapter_hint_count": 0,
+        "preliminary_solve_count": 0,
+        "fallback_solution_enabled": false,
+        "preassigned_scalar_variables": plan.shifts.iter().filter(|shift| shift.nurse_idx.is_some()).count(),
+        "prefilled_list_variables": 0,
+    });
 
     let (solved, telemetry) = solve(plan, time_limit)?;
 
@@ -384,6 +391,7 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
             })).collect::<Vec<_>>(),
         })),
         "constraint_breakdown": constraint_breakdown,
+        "fair_start_witness": fair_start_witness,
     });
 
     serde_json::to_string(&output).map_err(|e| format!("Serialization error: {}", e))

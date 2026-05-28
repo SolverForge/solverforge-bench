@@ -1,9 +1,9 @@
 from pathlib import Path
 from typing import Callable, Iterable
 
-from employee_scheduling_bench.domain.models import Instance, Solution
+from employee_scheduling_bench.domain.models import Instance
 from employee_scheduling_bench.solver.ortools import solve_with_ortools
-from solverforge_bench.model import SolverVersion
+from solverforge_bench.model import SolverResult, SolverVersion
 from solverforge_bench.solver_versions import (
     cargo_dependency_version,
     executable_version,
@@ -11,7 +11,7 @@ from solverforge_bench.solver_versions import (
     versions_for_solvers,
 )
 
-SolverFn = Callable[[Instance, int], Solution]
+SolverFn = Callable[[Instance, int], SolverResult]
 AVAILABLE_METHODS = ["solverforge", "timefold", "ortools"]
 _SOLVER_DIR = Path(__file__).resolve().parent
 

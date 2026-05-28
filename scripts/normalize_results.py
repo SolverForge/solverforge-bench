@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -96,6 +97,9 @@ def normalize_global_row(
         "wall_time_over_limit": as_bool(row.get("wall_time_over_limit")),
         "watchdog_limit_seconds": as_float(row.get("watchdog_limit_seconds")),
         "watchdog_killed": as_bool(row.get("watchdog_killed")),
+        "fair_start_valid": as_bool(row.get("fair_start_valid")),
+        "fair_start_error": blank_to_none(row.get("fair_start_error")),
+        "fair_start_witness": as_json(row.get("fair_start_witness")),
         "run_error": blank_to_none(row.get("run_error")),
         "solver_stdout_path": blank_to_none(row.get("solver_stdout_path")),
         "solver_stderr_path": blank_to_none(row.get("solver_stderr_path")),
@@ -159,6 +163,13 @@ def as_bool(value: str | None) -> bool | None:
     if value is None:
         return None
     return value.lower() in {"1", "true", "yes"}
+
+
+def as_json(value: str | None) -> object | None:
+    value = blank_to_none(value)
+    if value is None:
+        return None
+    return json.loads(value)
 
 
 if __name__ == "__main__":
