@@ -102,6 +102,11 @@ struct AssignmentVar {
   sat::BoolVar var;
 };
 
+struct SolveResult {
+  json::object output;
+  bool feasible;
+};
+
 int64_t AsInt(const json::value& value) {
   if (value.is_int64()) {
     return value.as_int64();
@@ -453,8 +458,7 @@ json::object SolutionJson(const InstancePayload& payload,
   return output;
 }
 
-std::optional<json::object> Solve(const InstancePayload& payload,
-                                  double time_limit) {
+SolveResult Solve(const InstancePayload& payload, double time_limit) {
   sat::CpModelBuilder model;
   const int num_nurses = static_cast<int>(payload.nurses.size());
   const int total_days = payload.num_weeks * 7;
@@ -682,7 +686,9 @@ std::optional<json::object> Solve(const InstancePayload& payload,
       sat::SolveCpModel(proto, &solver_model);
   if (response.status() != sat::CpSolverStatus::OPTIMAL &&
       response.status() != sat::CpSolverStatus::FEASIBLE) {
-    return std::nullopt;
+    json::object output;
+    output["fair_start_witness"] = fair_start_witness;
+    return SolveResult{std::move(output), false};
   }
 
   std::unordered_set<int64_t> assignment_keys;
@@ -695,7 +701,7 @@ std::optional<json::object> Solve(const InstancePayload& payload,
   json::object solution =
       SolutionJson(payload, assignment_keys, response.objective_value());
   solution["fair_start_witness"] = fair_start_witness;
-  return solution;
+  return SolveResult{std::move(solution), true};
 }
 
 }  // namespace
@@ -718,11 +724,12 @@ int main(int argc, char* argv[]) {
     const std::string input((std::istreambuf_iterator<char>(std::cin)),
                             std::istreambuf_iterator<char>());
     const InstancePayload payload = ParsePayload(input);
-    const std::optional<json::object> solution = Solve(payload, time_limit);
-    if (!solution.has_value()) {
-      throw std::runtime_error("OR-Tools CP-SAT found no feasible solution");
+    const SolveResult result = Solve(payload, time_limit);
+    std::cout << json::serialize(result.output) << '\n';
+    if (!result.feasible) {
+      std::cerr << "OR-Tools CP-SAT found no feasible solution" << '\n';
+      return EXIT_FAILURE;
     }
-    std::cout << json::serialize(*solution) << '\n';
     return EXIT_SUCCESS;
   } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
