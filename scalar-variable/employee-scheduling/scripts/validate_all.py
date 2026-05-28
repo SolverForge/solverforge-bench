@@ -24,7 +24,7 @@ def main() -> None:
         solution = load_solution(inst_info["solution_dir"])
         cost = validate(solution, instance)
 
-        if solution.cost > 0 and cost != solution.cost:
+        if solution.cost is not None and solution.cost > 0 and cost != solution.cost:
             raise AssertionError(
                 f"{inst_info['name']}: validator cost mismatch, local={cost}, reference={solution.cost}"
             )
