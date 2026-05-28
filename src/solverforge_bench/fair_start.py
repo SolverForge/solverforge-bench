@@ -201,7 +201,15 @@ def witness_from_native_output(
     witness_key: str = "fair_start_witness",
 ) -> FairStartWitness:
     native_witness = output.get(witness_key)
-    native_checks = dict(native_witness or {})
+    if native_witness is None:
+        raise FairStartViolationError(
+            f"{solver} native output did not include {witness_key!r}"
+        )
+    if not isinstance(native_witness, dict):
+        raise FairStartViolationError(
+            f"{solver} native {witness_key!r} must be an object"
+        )
+    native_checks = dict(native_witness)
     return make_fair_start_witness(
         benchmark_name=benchmark_name,
         solver=solver,
