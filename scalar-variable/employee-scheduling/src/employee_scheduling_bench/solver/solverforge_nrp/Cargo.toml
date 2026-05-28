@@ -10,7 +10,7 @@ name = "solverforge_nrp"
 crate-type = ["cdylib"]
 
 [dependencies]
-solverforge = { version = "0.15.0", path = "../../../../../../../solverforge-node-sharing/crates/solverforge", features = ["serde"] }
+solverforge = { version = "0.15.1", path = "../../../../../../../solverforge/crates/solverforge", features = ["serde"] }
 tokio = { version = "1", features = ["sync", "rt", "time"] }
 rand = "0.9"
 pyo3 = { version = "0.28", features = ["extension-module"] }
