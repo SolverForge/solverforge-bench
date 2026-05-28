@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solverforgebench.jssp.domain.JsspSchedule;
+import com.solverforgebench.jssp.domain.MachineSequence;
 import com.solverforgebench.jssp.domain.OperationAssignment;
 
 import java.util.ArrayList;
@@ -49,7 +50,7 @@ public class Main {
             this.jobId = operation.getJobId();
             this.opIndex = operation.getOpIndex();
             this.machineId = operation.getMachineId();
-            this.start = operation.getStart();
+            this.start = operation.getStart() == null ? 0 : operation.getStart();
             this.duration = operation.getDuration();
         }
     }
@@ -58,10 +59,30 @@ public class Main {
         public List<OperationOutput> operations;
         @JsonProperty("reported_makespan")
         public int reportedMakespan;
+        @JsonProperty("fair_start_witness")
+        public FairStartWitness fairStartWitness;
 
-        JsspOutput(List<OperationOutput> operations, int reportedMakespan) {
+        JsspOutput(List<OperationOutput> operations, int reportedMakespan, FairStartWitness fairStartWitness) {
             this.operations = operations;
             this.reportedMakespan = reportedMakespan;
+            this.fairStartWitness = fairStartWitness;
+        }
+    }
+
+    static class FairStartWitness {
+        @JsonProperty("adapter_hint_count")
+        public int adapterHintCount = 0;
+        @JsonProperty("preliminary_solve_count")
+        public int preliminarySolveCount = 0;
+        @JsonProperty("fallback_solution_enabled")
+        public boolean fallbackSolutionEnabled = false;
+        @JsonProperty("preassigned_scalar_variables")
+        public int preassignedScalarVariables = 0;
+        @JsonProperty("prefilled_list_variables")
+        public int prefilledListVariables;
+
+        FairStartWitness(int prefilledListVariables) {
+            this.prefilledListVariables = prefilledListVariables;
         }
     }
 
@@ -76,13 +97,6 @@ public class Main {
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         InstanceInput input = mapper.readValue(System.in, InstanceInput.class);
 
-        int horizon = input.operations.stream().mapToInt(operation -> operation.duration).sum();
-        List<Integer> startRange = new ArrayList<>();
-        for (int i = 0; i <= horizon; i++) {
-            startRange.add(i);
-        }
-
-        List<Integer> dispatchStarts = dispatchStarts(input);
         List<OperationAssignment> operations = new ArrayList<>();
         for (int i = 0; i < input.operations.size(); i++) {
             OperationInput operation = input.operations.get(i);
@@ -91,15 +105,34 @@ public class Main {
                     operation.jobId,
                     operation.opIndex,
                     operation.machineId,
-                    operation.duration,
-                    dispatchStarts.get(i)));
+                    operation.duration));
         }
 
-        JsspSchedule problem = new JsspSchedule(startRange, operations);
+        List<List<OperationAssignment>> operationsByMachine = new ArrayList<>();
+        for (int i = 0; i < input.numMachines; i++) {
+            operationsByMachine.add(new ArrayList<>());
+        }
+        for (OperationAssignment operation : operations) {
+            if (operation.getMachineId() >= 0 && operation.getMachineId() < input.numMachines) {
+                operationsByMachine.get(operation.getMachineId()).add(operation);
+            }
+        }
+
+        List<MachineSequence> machineSequences = new ArrayList<>();
+        for (int i = 0; i < input.numMachines; i++) {
+            machineSequences.add(new MachineSequence(i, operationsByMachine.get(i)));
+        }
+
+        JsspSchedule problem = new JsspSchedule(
+                input.numJobs,
+                input.numMachines,
+                machineSequences,
+                operations);
+        FairStartWitness fairStartWitness = fairStartWitness(problem);
         SolverConfig solverConfig = new SolverConfig()
                 .withSolutionClass(JsspSchedule.class)
-                .withEntityClasses(OperationAssignment.class)
-                .withConstraintProviderClass(JsspConstraintProvider.class)
+                .withEntityClasses(MachineSequence.class, OperationAssignment.class)
+                .withEasyScoreCalculatorClass(JsspEasyScoreCalculator.class)
                 .withRandomSeed(1L)
                 .withMoveThreadCount(SolverConfig.MOVE_THREAD_COUNT_NONE)
                 .withTerminationConfig(new TerminationConfig()
@@ -109,30 +142,26 @@ public class Main {
         Solver<JsspSchedule> solver = solverFactory.buildSolver();
         JsspSchedule solution = solver.solve(problem);
 
+        JsspScheduleEvaluator.Evaluation evaluation = JsspScheduleEvaluator.evaluate(solution);
+        for (OperationAssignment operation : solution.getOperations()) {
+            operation.setStart(evaluation.startFor(operation));
+        }
         List<OperationOutput> outputOperations = solution.getOperations().stream()
                 .sorted(Comparator
                         .comparingInt(OperationAssignment::getJobId)
-                        .thenComparingInt(OperationAssignment::getOpIndex))
+                .thenComparingInt(OperationAssignment::getOpIndex))
                 .map(OperationOutput::new)
                 .toList();
-        int makespan = solution.getOperations().stream()
-                .mapToInt(OperationAssignment::getEnd)
-                .max()
-                .orElse(0);
-        mapper.writeValue(System.out, new JsspOutput(outputOperations, makespan));
+        mapper.writeValue(System.out, new JsspOutput(outputOperations, evaluation.makespan(), fairStartWitness));
     }
 
-    private static List<Integer> dispatchStarts(InstanceInput input) {
-        int[] jobReady = new int[input.numJobs];
-        int[] machineReady = new int[input.numMachines];
-        List<Integer> starts = new ArrayList<>();
-        for (OperationInput operation : input.operations) {
-            int start = Math.max(jobReady[operation.jobId], machineReady[operation.machineId]);
-            starts.add(start);
-            int finish = start + operation.duration;
-            jobReady[operation.jobId] = finish;
-            machineReady[operation.machineId] = finish;
+    private static FairStartWitness fairStartWitness(JsspSchedule problem) {
+        int prefilled = 0;
+        for (MachineSequence machine : problem.getMachineSequences()) {
+            if (!machine.getOperations().isEmpty()) {
+                prefilled++;
+            }
         }
-        return starts;
+        return new FairStartWitness(prefilled);
     }
 }

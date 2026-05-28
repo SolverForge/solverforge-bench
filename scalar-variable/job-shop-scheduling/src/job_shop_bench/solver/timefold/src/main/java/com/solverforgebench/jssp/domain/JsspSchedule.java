@@ -3,8 +3,6 @@ package com.solverforgebench.jssp.domain;
 import ai.timefold.solver.core.api.domain.solution.PlanningEntityCollectionProperty;
 import ai.timefold.solver.core.api.domain.solution.PlanningScore;
 import ai.timefold.solver.core.api.domain.solution.PlanningSolution;
-import ai.timefold.solver.core.api.domain.solution.ProblemFactCollectionProperty;
-import ai.timefold.solver.core.api.domain.valuerange.ValueRangeProvider;
 import ai.timefold.solver.core.api.score.HardSoftScore;
 
 import java.util.List;
@@ -12,9 +10,11 @@ import java.util.List;
 @PlanningSolution
 public class JsspSchedule {
 
-    @ProblemFactCollectionProperty
-    @ValueRangeProvider(id = "startRange")
-    private List<Integer> startRange;
+    private int numJobs;
+    private int numMachines;
+
+    @PlanningEntityCollectionProperty
+    private List<MachineSequence> machineSequences;
 
     @PlanningEntityCollectionProperty
     private List<OperationAssignment> operations;
@@ -25,13 +25,27 @@ public class JsspSchedule {
     public JsspSchedule() {
     }
 
-    public JsspSchedule(List<Integer> startRange, List<OperationAssignment> operations) {
-        this.startRange = startRange;
+    public JsspSchedule(
+            int numJobs,
+            int numMachines,
+            List<MachineSequence> machineSequences,
+            List<OperationAssignment> operations) {
+        this.numJobs = numJobs;
+        this.numMachines = numMachines;
+        this.machineSequences = machineSequences;
         this.operations = operations;
     }
 
-    public List<Integer> getStartRange() {
-        return startRange;
+    public int getNumJobs() {
+        return numJobs;
+    }
+
+    public int getNumMachines() {
+        return numMachines;
+    }
+
+    public List<MachineSequence> getMachineSequences() {
+        return machineSequences;
     }
 
     public List<OperationAssignment> getOperations() {
