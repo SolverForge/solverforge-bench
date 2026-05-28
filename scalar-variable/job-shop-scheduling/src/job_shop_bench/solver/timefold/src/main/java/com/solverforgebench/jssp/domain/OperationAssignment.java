@@ -2,7 +2,9 @@ package com.solverforgebench.jssp.domain;
 
 import ai.timefold.solver.core.api.domain.common.PlanningId;
 import ai.timefold.solver.core.api.domain.entity.PlanningEntity;
-import ai.timefold.solver.core.api.domain.variable.PlanningVariable;
+import ai.timefold.solver.core.api.domain.variable.InverseRelationShadowVariable;
+import ai.timefold.solver.core.api.domain.variable.NextElementShadowVariable;
+import ai.timefold.solver.core.api.domain.variable.PreviousElementShadowVariable;
 
 @PlanningEntity
 public class OperationAssignment {
@@ -14,19 +16,26 @@ public class OperationAssignment {
     private int machineId;
     private int duration;
 
-    @PlanningVariable(valueRangeProviderRefs = "startRange")
+    @InverseRelationShadowVariable(sourceVariableName = "operations")
+    private MachineSequence machineSequence;
+
+    @PreviousElementShadowVariable(sourceVariableName = "operations")
+    private OperationAssignment previousOnMachine;
+
+    @NextElementShadowVariable(sourceVariableName = "operations")
+    private OperationAssignment nextOnMachine;
+
     private Integer start;
 
     public OperationAssignment() {
     }
 
-    public OperationAssignment(int id, int jobId, int opIndex, int machineId, int duration, Integer start) {
+    public OperationAssignment(int id, int jobId, int opIndex, int machineId, int duration) {
         this.id = id;
         this.jobId = jobId;
         this.opIndex = opIndex;
         this.machineId = machineId;
         this.duration = duration;
-        this.start = start;
     }
 
     public int getId() {
@@ -58,10 +67,34 @@ public class OperationAssignment {
     }
 
     public boolean isAssigned() {
-        return start != null;
+        return machineSequence != null;
     }
 
     public int getEnd() {
         return start == null ? 0 : start + duration;
+    }
+
+    public MachineSequence getMachineSequence() {
+        return machineSequence;
+    }
+
+    public void setMachineSequence(MachineSequence machineSequence) {
+        this.machineSequence = machineSequence;
+    }
+
+    public OperationAssignment getPreviousOnMachine() {
+        return previousOnMachine;
+    }
+
+    public void setPreviousOnMachine(OperationAssignment previousOnMachine) {
+        this.previousOnMachine = previousOnMachine;
+    }
+
+    public OperationAssignment getNextOnMachine() {
+        return nextOnMachine;
+    }
+
+    public void setNextOnMachine(OperationAssignment nextOnMachine) {
+        this.nextOnMachine = nextOnMachine;
     }
 }
