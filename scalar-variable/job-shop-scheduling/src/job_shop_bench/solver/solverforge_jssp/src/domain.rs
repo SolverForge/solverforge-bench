@@ -8,6 +8,7 @@ pub struct JsspOperation {
     pub op_index: usize,
     pub machine_id: usize,
     pub duration: usize,
+    pub successor_id: Option<usize>,
 }
 
 #[planning_entity]
@@ -17,7 +18,10 @@ pub struct MachineSequence {
 
     #[planning_list_variable(
         element_collection = "operations",
-        element_owner_fn = "operation_machine_owner"
+        element_owner_fn = "operation_machine_owner",
+        construction_element_order_key = "operation_construction_order",
+        precedence_duration_fn = "operation_duration",
+        precedence_successors_fn = "operation_job_successors"
     )]
     pub operations: Vec<usize>,
 }
@@ -141,10 +145,6 @@ impl JsspPlan {
             hard_penalty,
         }
     }
-
-    pub fn reported_makespan(&self) -> usize {
-        self.evaluate_schedule().makespan
-    }
 }
 
 pub fn solver_config_for_plan(
@@ -158,6 +158,27 @@ pub fn operation_machine_owner(plan: &JsspPlan, operation_id: usize) -> Option<u
     plan.operations
         .get(operation_id)
         .map(|operation| operation.machine_id)
+}
+
+pub fn operation_construction_order(plan: &JsspPlan, operation_id: usize) -> i64 {
+    plan.operations.get(operation_id).map_or(0, |operation| {
+        (operation.op_index as i64) * 1_000_000 - operation.duration as i64
+    })
+}
+
+pub fn operation_duration(plan: &JsspPlan, operation_id: usize) -> usize {
+    plan.operations
+        .get(operation_id)
+        .map_or(0, |operation| operation.duration)
+}
+
+pub fn operation_job_successors(plan: &JsspPlan, operation_id: usize, out: &mut Vec<usize>) {
+    let Some(operation) = plan.operations.get(operation_id) else {
+        return;
+    };
+    if let Some(successor_id) = operation.successor_id {
+        out.push(successor_id);
+    }
 }
 
 fn add_edge(

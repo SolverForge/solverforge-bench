@@ -1,97 +1,150 @@
 use solverforge::prelude::*;
 use solverforge_core::ConstraintRef;
-use solverforge_scoring::{ConstraintAnalysis, ConstraintResult};
 
-use crate::domain::JsspPlan;
+use crate::domain::{
+    operation_duration, operation_job_successors, operation_machine_owner, JsspPlan,
+};
 
 pub fn define_constraints() -> impl ConstraintSet<JsspPlan, HardSoftScore> {
-    (JsspScoreConstraint::new(),)
+    (ListPrecedenceMakespanConstraint::new(
+        ConstraintRef::new("", "jsspSchedule"),
+        0,
+        operation_count,
+        operation_duration,
+        operation_job_successors,
+        machine_count,
+        machine_len,
+        machine_get,
+    )
+    .with_expected_owner(Some(operation_machine_owner)),)
 }
 
-struct JsspScoreConstraint {
-    constraint_ref: ConstraintRef,
+fn operation_count(plan: &JsspPlan) -> usize {
+    plan.operations.len()
 }
 
-impl JsspScoreConstraint {
-    fn new() -> Self {
-        Self {
-            constraint_ref: ConstraintRef::new("", "jsspSchedule"),
-        }
-    }
+fn machine_count(plan: &JsspPlan) -> usize {
+    plan.machine_sequences.len()
+}
 
-    fn score(solution: &JsspPlan) -> HardSoftScore {
-        let evaluation = solution.evaluate_schedule();
+fn machine_len(plan: &JsspPlan, machine_id: usize) -> usize {
+    plan.machine_sequences
+        .get(machine_id)
+        .map_or(0, |machine| machine.operations.len())
+}
+
+fn machine_get(plan: &JsspPlan, machine_id: usize, pos: usize) -> Option<usize> {
+    plan.machine_sequences
+        .get(machine_id)?
+        .operations
+        .get(pos)
+        .copied()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::{JsspOperation, MachineSequence};
+
+    fn score_from_evaluator(plan: &JsspPlan) -> HardSoftScore {
+        let evaluation = plan.evaluate_schedule();
         HardSoftScore::of(
             -(evaluation.hard_penalty as i64),
             -(evaluation.makespan as i64),
         )
     }
 
-    fn match_count(solution: &JsspPlan) -> usize {
-        let evaluation = solution.evaluate_schedule();
-        evaluation.hard_penalty + usize::from(evaluation.makespan > 0)
-    }
-}
-
-impl ConstraintSet<JsspPlan, HardSoftScore> for JsspScoreConstraint {
-    fn evaluate_all(&self, solution: &JsspPlan) -> HardSoftScore {
-        Self::score(solution)
-    }
-
-    fn constraint_count(&self) -> usize {
-        1
-    }
-
-    fn constraint_metadata_entries(&self) -> Vec<ConstraintMetadata<'_>> {
-        vec![ConstraintMetadata::new(&self.constraint_ref, true)]
-    }
-
-    fn evaluate_each<'a>(
-        &'a self,
-        solution: &JsspPlan,
-    ) -> Vec<ConstraintResult<'a, HardSoftScore>> {
-        vec![ConstraintResult {
-            name: &self.constraint_ref.name,
-            score: Self::score(solution),
-            match_count: Self::match_count(solution),
-            is_hard: true,
-        }]
-    }
-
-    fn evaluate_detailed<'a>(
-        &'a self,
-        solution: &JsspPlan,
-    ) -> Vec<ConstraintAnalysis<'a, HardSoftScore>> {
-        vec![ConstraintAnalysis::new(
-            &self.constraint_ref,
-            HardSoftScore::ZERO,
-            Self::score(solution),
-            Vec::new(),
-            true,
-        )]
-    }
-
-    fn initialize_all(&mut self, solution: &JsspPlan) -> HardSoftScore {
-        Self::score(solution)
-    }
-
-    fn on_insert_all(
-        &mut self,
-        solution: &JsspPlan,
-        _entity_index: usize,
-        _descriptor_index: usize,
-    ) -> HardSoftScore {
-        Self::score(solution)
+    fn plan(machine_sequences: Vec<Vec<usize>>) -> JsspPlan {
+        JsspPlan {
+            operations: vec![
+                JsspOperation {
+                    id: 0,
+                    job_id: 0,
+                    op_index: 0,
+                    machine_id: 0,
+                    duration: 3,
+                    successor_id: Some(1),
+                },
+                JsspOperation {
+                    id: 1,
+                    job_id: 0,
+                    op_index: 1,
+                    machine_id: 1,
+                    duration: 2,
+                    successor_id: None,
+                },
+                JsspOperation {
+                    id: 2,
+                    job_id: 1,
+                    op_index: 0,
+                    machine_id: 1,
+                    duration: 4,
+                    successor_id: Some(3),
+                },
+                JsspOperation {
+                    id: 3,
+                    job_id: 1,
+                    op_index: 1,
+                    machine_id: 0,
+                    duration: 1,
+                    successor_id: None,
+                },
+            ],
+            machine_sequences: machine_sequences
+                .into_iter()
+                .enumerate()
+                .map(|(id, operations)| MachineSequence { id, operations })
+                .collect(),
+            score: None,
+            num_jobs: 2,
+            num_machines: 2,
+            time_limit_secs: 1,
+        }
     }
 
-    fn on_retract_all(
-        &mut self,
-        solution: &JsspPlan,
-        _entity_index: usize,
-        _descriptor_index: usize,
-    ) -> HardSoftScore {
-        HardSoftScore::ZERO - Self::score(solution)
+    #[test]
+    fn stock_constraint_matches_legacy_evaluator_for_valid_schedule() {
+        let plan = plan(vec![vec![0, 3], vec![2, 1]]);
+
+        assert_eq!(
+            define_constraints().evaluate_all(&plan),
+            score_from_evaluator(&plan)
+        );
     }
 
-    fn reset_all(&mut self) {}
+    #[test]
+    fn stock_constraint_matches_legacy_evaluator_for_cycle_penalty() {
+        let plan = plan(vec![vec![3, 0], vec![1, 2]]);
+
+        assert_eq!(
+            define_constraints().evaluate_all(&plan),
+            score_from_evaluator(&plan)
+        );
+    }
+
+    #[test]
+    fn stock_constraint_matches_legacy_evaluator_for_assignment_penalties() {
+        let plan = plan(vec![vec![0, 1], vec![1, 2]]);
+
+        assert_eq!(
+            define_constraints().evaluate_all(&plan),
+            score_from_evaluator(&plan)
+        );
+    }
+
+    #[test]
+    fn stock_constraint_updates_machine_route_incrementally() {
+        let mut constraints = define_constraints();
+        let mut plan = plan(vec![vec![0, 3], vec![2, 1]]);
+
+        let mut score = constraints.initialize_all(&plan);
+        assert_eq!(score, score_from_evaluator(&plan));
+
+        score = score + constraints.on_retract_all(&plan, 0, 0);
+        plan.machine_sequences[0].operations = vec![3, 0];
+        score = score + constraints.on_insert_all(&plan, 0, 0);
+
+        assert_eq!(score, score_from_evaluator(&plan));
+        assert_eq!(constraints.evaluate_all(&plan), score_from_evaluator(&plan));
+    }
 }

@@ -57,7 +57,7 @@ struct FairStartWitness {
 }
 
 fn build_plan(input: InstanceInput, time_limit_secs: u64) -> JsspPlan {
-    let operations = input
+    let mut operations: Vec<_> = input
         .operations
         .into_iter()
         .enumerate()
@@ -67,8 +67,18 @@ fn build_plan(input: InstanceInput, time_limit_secs: u64) -> JsspPlan {
             op_index: operation.op_index,
             machine_id: operation.machine_id,
             duration: operation.duration,
+            successor_id: None,
         })
         .collect();
+    let index_by_job_op = operations
+        .iter()
+        .map(|operation| ((operation.job_id, operation.op_index), operation.id))
+        .collect::<std::collections::HashMap<_, _>>();
+    for operation in &mut operations {
+        operation.successor_id = index_by_job_op
+            .get(&(operation.job_id, operation.op_index + 1))
+            .copied();
+    }
     let machine_sequences = (0..input.num_machines)
         .map(|id| MachineSequence {
             id,
