@@ -151,6 +151,16 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - Its list model declares each operation's fixed machine owner with
   `element_owner_fn`; SolverForge construction and list neighborhoods must not
   move an operation to a non-required machine.
+- The SolverForge JSSP score path uses the stock upstream
+  `ListPrecedenceMakespanConstraint`: job precedence is fixed precedence, each
+  machine sequence contributes list precedence, missing/duplicate/wrong-owner
+  assignments are hard penalties, and makespan is the soft objective. The
+  adapter maps JSPLIB data into that generic constraint; it does not own a
+  benchmark-local full-score search path.
+- `solverforge_jssp/solver.toml` remains a stock SolverForge selector
+  configuration. It may choose upstream list neighborhoods, but it does not add
+  benchmark-local solver/search helpers, config probes, warm starts, or
+  reference-solution hints.
 - SolverForge and Timefold JSSP machine operation lists start empty. Known best
   bounds and validation data stay in specs and validators, not in solver-start
   incumbents.
@@ -172,6 +182,11 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   and do not read reference solutions or inject adapter-owned incumbents.
 - `make verify-fair-start-rows RUN_ID=<uuid>` checks persisted PostgreSQL rows
   for valid fair-start witnesses after a DB smoke run.
+- `make verify-stock-solverforge-guardrails` builds the active native adapters,
+  runs stock SolverForge guardrail benchmarks, and parses the resulting CSVs.
+  JSSP quick plus the fixed canonical subset must have SolverForge tie or beat
+  the best feasible solver row; CVRP and employee SolverForge smoke rows must
+  remain hard-feasible with valid fair-start witnesses.
 - `make bench-cvrp-quick` runs three CVRP instances at 1 and 10 seconds with
   all registered CVRP solvers.
 - `make bench-cvrp-quick-db` runs the same CVRP smoke path after applying

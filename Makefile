@@ -29,6 +29,7 @@ DB_RESET_FLAGS ?= -y -f
 BENCH_ARGS ?=
 BENCH_CONFIG ?=
 NIGHTLY_ARGS ?=
+GUARDRAIL_ARGS ?=
 BENCH_CONFIG_ARG = $(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",)
 NIGHTLY_CONFIG_ARG = $(if $(findstring --config,$(NIGHTLY_ARGS)),,$(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",--config "benchmark.nightly.example.toml"))
 BENCH_DB_ARGS := --postgres-url "$(DATABASE_URL)"
@@ -88,7 +89,7 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-job-shop-scheduling-solverforge bench-job-shop-scheduling-solverforge-db \
 	bench-job-shop-scheduling-solverforge-quick bench-job-shop-scheduling-solverforge-quick-db \
 	bench-nightly-db \
-	verify-fair-start verify-fair-start-rows validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
+	verify-fair-start verify-fair-start-rows verify-stock-solverforge-guardrails validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
 	db-check db-create db-migrate db-reset normalize-results
 
 # ============== Default Target ==============
@@ -110,6 +111,9 @@ verify-fair-start: banner venv
 verify-fair-start-rows: banner venv
 	@test -n "$(RUN_ID)" || (echo "RUN_ID is required" >&2; exit 2)
 	"$(PYTHON)" scripts/verify_fair_start.py --run-id "$(RUN_ID)" --database-url "$(DATABASE_URL)"
+
+verify-stock-solverforge-guardrails: banner venv verify-fair-start build-job-shop-scheduling build-cvrp-solverforge build-employee-scheduling-solverforge
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/verify_stock_solverforge_guardrails.py $(GUARDRAIL_ARGS)
 
 venv:
 	@if [ -x "$(PYTHON)" ]; then \

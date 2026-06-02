@@ -25,7 +25,9 @@ See `WIREFRAME.md` for the current as-built repository map.
   `solverforge`, `timefold`, and `ortools` on fixed-machine operation start
   times. The SolverForge adapter is a Rust/PyO3 planning model, the Timefold
   adapter is a Java fat JAR, and the OR-Tools adapter is a native C++ CP-SAT
-  executable.
+  executable. The SolverForge adapter maps JSPLIB data into stock list
+  variables and the upstream `ListPrecedenceMakespanConstraint`; it does not
+  provide benchmark-local search helpers or warm-start schedules.
 
 ## Documentation Map
 
@@ -84,6 +86,12 @@ starts. Run `make verify-fair-start` after changing solver adapters, specs,
 validators, CI, or benchmark architecture documentation. After a PostgreSQL
 smoke run, use `make verify-fair-start-rows RUN_ID=<uuid>` to require every
 persisted row in that run to carry a valid witness.
+
+Use `make verify-stock-solverforge-guardrails` after upstream SolverForge
+solver architecture changes. It builds the active native adapters, runs the
+stock JSSP quick group plus a fixed JSPLIB canonical subset, and requires
+SolverForge to tie or beat the best feasible JSSP row while CVRP and employee
+SolverForge smoke rows stay hard-feasible with valid fair-start witnesses.
 
 ## CI
 
@@ -424,6 +432,19 @@ make bench-job-shop-scheduling-quick-db
 make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.15.1"
 make bench-cvrp-db BENCH_ARGS="--run-kind quick --nightly"
 make bench-nightly-db
+```
+
+For the stock SolverForge architecture guardrail:
+
+```sh
+make verify-stock-solverforge-guardrails
+```
+
+Override the fixed JSPLIB subset or time limits with `GUARDRAIL_ARGS`, for
+example:
+
+```sh
+make verify-stock-solverforge-guardrails GUARDRAIL_ARGS="--jssp-subset ft10 ta01 --time-limits 1 10"
 ```
 
 `make bench-nightly-db` is the cron entrypoint. It builds all benchmark stacks,
