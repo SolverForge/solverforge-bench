@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ forgejo.workflow }}-${{ forgejo.ref }}
   cancel-in-progress: true
 
 env:
@@ -16,16 +16,16 @@ env:
   BENCH_PYTHONPATH: src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src
 
 jobs:
-  python-github:
-    name: GitHub Python Harness
-    runs-on: ubuntu-latest
+  python:
+    name: Forgejo Python Harness
+    runs-on: python
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         id: setup-python
         with:
           python-version: "3.14"
@@ -63,9 +63,9 @@ jobs:
           PYTHONPATH: ${{ env.BENCH_PYTHONPATH }}
         run: make validate-employee-model-parity
 
-  rust-github:
-    name: GitHub Rust Adapters
-    runs-on: ubuntu-latest
+  rust:
+    name: Forgejo Rust Adapters
+    runs-on: rust
 
     strategy:
       fail-fast: false
@@ -83,10 +83,10 @@ jobs:
       - name: Checkout SolverForge path dependencies
         run: |
           rm -rf "$GITHUB_WORKSPACE/../solverforge"
-          git clone --depth 1 --branch main "${GITHUB_SERVER_URL:-https://github.com}/SolverForge/solverforge.git" "$GITHUB_WORKSPACE/../solverforge"
+          git clone --depth 1 --branch main "${GITHUB_SERVER_URL:-http://vigilance:3002}/SolverForge/solverforge.git" "$GITHUB_WORKSPACE/../solverforge"
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         id: setup-python
         with:
           python-version: "3.14"
@@ -96,15 +96,10 @@ jobs:
           echo "PYO3_PYTHON=${{ steps.setup-python.outputs.python-path }}" >> "$GITHUB_ENV"
           echo "PYTHON_SYS_EXECUTABLE=${{ steps.setup-python.outputs.python-path }}" >> "$GITHUB_ENV"
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Cache Rust artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: ${{ matrix.crate }}
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
 
       - name: Check formatting
         working-directory: ${{ matrix.crate }}

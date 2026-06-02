@@ -6,8 +6,9 @@
 - `README.md` is the operator guide. `WIREFRAME.md` is the as-built
   repository/data-flow map. Keep both aligned with this file when public
   behavior or structure changes.
-- `.github/workflows/ci.yml` contains the split GitHub/Forgejo CI workflow.
-  Keep its sibling SolverForge checkout paths aligned with the active adapter
+- `.github/workflows/ci.yml` contains the GitHub-hosted CI workflow.
+  `.forgejo/workflows/ci.yml` contains the local Forgejo CI workflow. Keep
+  sibling SolverForge checkout paths aligned with the active adapter
   `Cargo.toml` path dependencies. The Rust jobs must clone SolverForge `main`
   into `../solverforge` and run Cargo checks with `--locked`; the Python jobs
   must create the root `.venv` with `make install-python-deps` before parity

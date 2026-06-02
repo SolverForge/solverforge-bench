@@ -96,10 +96,12 @@ when checking the final JSSP win condition.
 
 ## CI
 
-`.github/workflows/ci.yml` defines separate jobs for GitHub-hosted Actions and
-local Forgejo runners. The Python jobs set up Python 3.14, create the root
-`.venv` with `make install-python-deps HOST_PYTHON=...`, compile the source
-trees including job-shop scheduling, parse `benchmark*.toml`, run
+`.github/workflows/ci.yml` defines the GitHub-hosted workflow, and
+`.forgejo/workflows/ci.yml` defines the local Forgejo workflow. Forgejo reads
+workflows from `.forgejo/workflows`, so its runner labels stay separate from
+GitHub's `ubuntu-latest` jobs. The Python jobs set up Python 3.14, create the
+root `.venv` with `make install-python-deps HOST_PYTHON=...`, compile the
+source trees including job-shop scheduling, parse `benchmark*.toml`, run
 `make verify-fair-start`, run `make validate-cvrp`, and run
 `make validate-employee-model-parity`. The parity script requires that root
 `.venv`, so CI must use the Makefile bootstrap instead of a detached
@@ -110,8 +112,10 @@ The Rust jobs clone SolverForge `main` into
 path dependencies. They set the PyO3 Python environment from
 `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
-for the CVRP SolverForge adapter, CVRP rustvrp adapter, and employee scheduling
-SolverForge adapter, and job-shop scheduling SolverForge adapter.
+for the CVRP SolverForge adapter, CVRP rustvrp adapter, employee scheduling
+SolverForge adapter, and job-shop scheduling SolverForge adapter. GitHub uses
+the hosted setup actions; Forgejo uses the local `python` and `rust` runner
+labels and a node20-compatible Python setup action.
 
 ## CVRP Commands
 

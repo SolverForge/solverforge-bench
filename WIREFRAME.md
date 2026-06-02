@@ -26,7 +26,8 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - `scalar-variable/job-shop-scheduling/` is the scalar-variable benchmark
   package for classic JSPLIB job-shop scheduling.
 - `migrations/` holds SQLx-compatible PostgreSQL warehouse migrations.
-- `.github/workflows/ci.yml` holds the split GitHub/Forgejo CI workflow.
+- `.github/workflows/ci.yml` holds the GitHub-hosted CI workflow.
+- `.forgejo/workflows/ci.yml` holds the local Forgejo CI workflow.
 - `archive/` holds historical reports and older standalone scripts only.
 
 ## Shared Harness Flow
@@ -275,20 +276,21 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 
 ## CI Contract
 
-- Python CI runs on `ubuntu-latest` for GitHub and `python` runner labels for
-  Forgejo.
-- Rust CI runs on `ubuntu-latest` for GitHub and `rust` runner labels for
-  Forgejo.
-- Python CI uses `actions/setup-python@v6` with Python 3.14, creates the root
-  `.venv` through `make install-python-deps HOST_PYTHON=...`, compiles Python
-  source, parses benchmark TOML examples, validates bundled CVRP instances, and
-  validates employee model parity.
+- Python CI runs on `ubuntu-latest` in `.github/workflows/ci.yml` and on
+  `python` runner labels in `.forgejo/workflows/ci.yml`.
+- Rust CI runs on `ubuntu-latest` in `.github/workflows/ci.yml` and on `rust`
+  runner labels in `.forgejo/workflows/ci.yml`.
+- Python CI uses Python 3.14, creates the root `.venv` through
+  `make install-python-deps HOST_PYTHON=...`, compiles Python source, parses
+  benchmark TOML examples, validates bundled CVRP instances, and validates
+  employee model parity. GitHub uses `actions/setup-python@v6`; Forgejo uses
+  `actions/setup-python@v5` to stay compatible with the local runner runtime.
 - Rust CI clones SolverForge `main` into `$GITHUB_WORKSPACE/../solverforge`,
   the exact relative path declared by the active adapter `Cargo.toml` files. It
   checks formatting, runs
   `cargo clippy --locked --all-targets -- -D warnings`, and runs
   `cargo build --locked` for the CVRP SolverForge adapter, CVRP rustvrp
-  adapter, and employee SolverForge adapter.
+  adapter, employee SolverForge adapter, and job-shop SolverForge adapter.
 
 ## Generated Artifacts
 
