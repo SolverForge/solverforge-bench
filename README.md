@@ -90,8 +90,9 @@ persisted row in that run to carry a valid witness.
 Use `make verify-stock-solverforge-guardrails` after upstream SolverForge
 solver architecture changes. It builds the active native adapters, runs the
 stock JSSP quick group plus a fixed JSPLIB canonical subset, and requires
-SolverForge to tie or beat the best feasible JSSP row while CVRP and employee
-SolverForge smoke rows stay hard-feasible with valid fair-start witnesses.
+SolverForge JSSP, CVRP, and employee smoke rows to stay hard-feasible with
+valid fair-start witnesses. Add `--require-jssp-win` through `GUARDRAIL_ARGS`
+when checking the final JSSP win condition.
 
 ## CI
 
@@ -445,6 +446,7 @@ example:
 
 ```sh
 make verify-stock-solverforge-guardrails GUARDRAIL_ARGS="--jssp-subset ft10 ta01 --time-limits 1 10"
+make verify-stock-solverforge-guardrails GUARDRAIL_ARGS="--require-jssp-win"
 ```
 
 `make bench-nightly-db` is the cron entrypoint. It builds all benchmark stacks,

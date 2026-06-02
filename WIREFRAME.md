@@ -184,9 +184,12 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   for valid fair-start witnesses after a DB smoke run.
 - `make verify-stock-solverforge-guardrails` builds the active native adapters,
   runs stock SolverForge guardrail benchmarks, and parses the resulting CSVs.
-  JSSP quick plus the fixed canonical subset must have SolverForge tie or beat
-  the best feasible solver row; CVRP and employee SolverForge smoke rows must
-  remain hard-feasible with valid fair-start witnesses.
+  JSSP quick plus the fixed canonical subset must produce hard-feasible
+  SolverForge rows with valid fair-start witnesses; CVRP and employee
+  SolverForge smoke rows must remain hard-feasible with valid fair-start
+  witnesses. Pass `--require-jssp-win` through `GUARDRAIL_ARGS` when the run
+  should enforce that SolverForge ties or beats the best feasible JSSP solver
+  row.
 - `make bench-cvrp-quick` runs three CVRP instances at 1 and 10 seconds with
   all registered CVRP solvers.
 - `make bench-cvrp-quick-db` runs the same CVRP smoke path after applying

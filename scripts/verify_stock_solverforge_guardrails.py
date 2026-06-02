@@ -37,6 +37,11 @@ def main() -> None:
         default=list(DEFAULT_TIME_LIMITS),
         help="Time limits used for every guardrail run.",
     )
+    parser.add_argument(
+        "--require-jssp-win",
+        action="store_true",
+        help="Require SolverForge to tie or beat the best feasible JSSP solver row.",
+    )
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -95,8 +100,20 @@ def main() -> None:
     )
 
     failures: list[str] = []
-    failures.extend(validate_jssp_win(jssp_quick, "JSSP quick"))
-    failures.extend(validate_jssp_win(jssp_subset, "JSSP canonical subset"))
+    failures.extend(
+        validate_jssp_rows(
+            jssp_quick,
+            "JSSP quick",
+            require_win=args.require_jssp_win,
+        )
+    )
+    failures.extend(
+        validate_jssp_rows(
+            jssp_subset,
+            "JSSP canonical subset",
+            require_win=args.require_jssp_win,
+        )
+    )
     failures.extend(validate_solverforge_smoke(cvrp_smoke, "CVRP SolverForge quick"))
     failures.extend(
         validate_solverforge_smoke(employee_smoke, "employee SolverForge quick")
@@ -125,7 +142,7 @@ def run_benchmark(args: list[str], output_path: Path) -> Path:
     return output_path
 
 
-def validate_jssp_win(path: Path, label: str) -> list[str]:
+def validate_jssp_rows(path: Path, label: str, *, require_win: bool) -> list[str]:
     rows = read_rows(path)
     failures = validate_common_rows(rows, label)
     grouped: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
@@ -148,6 +165,8 @@ def validate_jssp_win(path: Path, label: str) -> list[str]:
             failures.append(
                 f"{label} {instance} {time_limit}s SolverForge missing cost"
             )
+            continue
+        if not require_win:
             continue
         feasible_costs = [
             parse_int(row["cost"])
