@@ -24,23 +24,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        id: setup-python
-        with:
-          python-version: "3.14"
+      - name: Install Python 3.14
+        id: python
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          "$HOME/.local/bin/uv" python install 3.14
+          python_path="$("$HOME/.local/bin/uv" python find 3.14)"
+          echo "python-path=${python_path}" >> "$GITHUB_OUTPUT"
+          dirname "${python_path}" >> "$GITHUB_PATH"
+          "${python_path}" --version
 
       - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          make install-python-deps HOST_PYTHON="${{ steps.setup-python.outputs.python-path }}"
+        run: make install-python-deps HOST_PYTHON="${{ steps.python.outputs.python-path }}"
 
       - name: Check Python syntax
-        run: python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src scripts
+        run: .venv/bin/python3 -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src scripts
 
       - name: Validate TOML configuration examples
         run: |
-          python - <<'PY'
+          .venv/bin/python3 - <<'PY'
           import pathlib
           import tomllib
 
@@ -85,16 +87,20 @@ jobs:
           rm -rf "$GITHUB_WORKSPACE/../solverforge"
           git clone --depth 1 --branch main "${GITHUB_SERVER_URL:-http://vigilance:3002}/SolverForge/solverforge.git" "$GITHUB_WORKSPACE/../solverforge"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        id: setup-python
-        with:
-          python-version: "3.14"
+      - name: Install Python 3.14
+        id: python
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          "$HOME/.local/bin/uv" python install 3.14
+          python_path="$("$HOME/.local/bin/uv" python find 3.14)"
+          echo "python-path=${python_path}" >> "$GITHUB_OUTPUT"
+          dirname "${python_path}" >> "$GITHUB_PATH"
+          "${python_path}" --version
 
       - name: Set Python environment variables
         run: |
-          echo "PYO3_PYTHON=${{ steps.setup-python.outputs.python-path }}" >> "$GITHUB_ENV"
-          echo "PYTHON_SYS_EXECUTABLE=${{ steps.setup-python.outputs.python-path }}" >> "$GITHUB_ENV"
+          echo "PYO3_PYTHON=${{ steps.python.outputs.python-path }}" >> "$GITHUB_ENV"
+          echo "PYTHON_SYS_EXECUTABLE=${{ steps.python.outputs.python-path }}" >> "$GITHUB_ENV"
 
       - name: Install Rust toolchain
         run: |

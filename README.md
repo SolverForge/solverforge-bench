@@ -115,7 +115,8 @@ path dependencies. They set the PyO3 Python environment from
 for the CVRP SolverForge adapter, CVRP rustvrp adapter, employee scheduling
 SolverForge adapter, and job-shop scheduling SolverForge adapter. GitHub uses
 the hosted setup actions; Forgejo uses the local `python` and `rust` runner
-labels and a node20-compatible Python setup action.
+labels and installs Python 3.14 through a shell bootstrap before invoking the
+same Makefile targets.
 
 ## CVRP Commands
 

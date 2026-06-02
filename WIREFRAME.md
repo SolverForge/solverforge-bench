@@ -284,7 +284,8 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   `make install-python-deps HOST_PYTHON=...`, compiles Python source, parses
   benchmark TOML examples, validates bundled CVRP instances, and validates
   employee model parity. GitHub uses `actions/setup-python@v6`; Forgejo uses
-  `actions/setup-python@v5` to stay compatible with the local runner runtime.
+  a shell Python 3.14 bootstrap because the local Forgejo action mirror does
+  not provide that interpreter version.
 - Rust CI clones SolverForge `main` into `$GITHUB_WORKSPACE/../solverforge`,
   the exact relative path declared by the active adapter `Cargo.toml` files. It
   checks formatting, runs
