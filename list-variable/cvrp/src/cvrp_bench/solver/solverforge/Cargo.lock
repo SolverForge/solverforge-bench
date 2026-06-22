@@ -516,12 +516,12 @@ dependencies = [
  "pyo3",
  "serde",
  "serde_json",
- "solverforge 0.15.1",
+ "solverforge 0.17.1",
 ]
 
 [[package]]
 name = "solverforge"
-version = "0.15.1"
+version = "0.17.1"
 dependencies = [
  "solverforge-bridge",
  "solverforge-config",
@@ -535,7 +535,7 @@ dependencies = [
 
 [[package]]
 name = "solverforge-bridge"
-version = "0.15.1"
+version = "0.17.1"
 dependencies = [
  "solverforge-config",
  "solverforge-core",
@@ -545,7 +545,7 @@ dependencies = [
 
 [[package]]
 name = "solverforge-config"
-version = "0.15.1"
+version = "0.17.1"
 dependencies = [
  "serde",
  "serde_yaml",
@@ -556,21 +556,21 @@ dependencies = [
 
 [[package]]
 name = "solverforge-core"
-version = "0.15.1"
+version = "0.17.1"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "solverforge-cvrp"
-version = "0.15.1"
+version = "0.17.1"
 dependencies = [
  "solverforge-solver",
 ]
 
 [[package]]
 name = "solverforge-macros"
-version = "0.15.1"
+version = "0.17.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -579,7 +579,7 @@ dependencies = [
 
 [[package]]
 name = "solverforge-scoring"
-version = "0.15.1"
+version = "0.17.1"
 dependencies = [
  "solverforge-core",
  "thiserror",
@@ -587,7 +587,7 @@ dependencies = [
 
 [[package]]
 name = "solverforge-solver"
-version = "0.15.1"
+version = "0.17.1"
 dependencies = [
  "rand",
  "rand_chacha",

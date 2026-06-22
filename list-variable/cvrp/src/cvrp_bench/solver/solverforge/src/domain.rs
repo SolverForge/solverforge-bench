@@ -24,12 +24,9 @@ pub struct Route {
         solution_trait = "solverforge::cvrp::VrpSolution",
         distance_meter = "solverforge::cvrp::MatrixDistanceMeter",
         intra_distance_meter = "solverforge::cvrp::MatrixIntraDistanceMeter",
-        route_get_fn = "solverforge::cvrp::get_route",
-        route_set_fn = "solverforge::cvrp::replace_route",
-        route_depot_fn = "solverforge::cvrp::depot_for_entity",
-        route_metric_class_fn = "solverforge::cvrp::route_metric_class",
-        route_distance_fn = "solverforge::cvrp::route_distance",
-        route_feasible_fn = "solverforge::cvrp::route_feasible"
+        route_hooks = "solverforge::cvrp::route_hooks",
+        savings_hooks = "crate::domain::strict_savings_hooks",
+        savings_metric_class_fn = "solverforge::cvrp::savings_metric_class"
     )]
     pub visits: Vec<usize>,
 
@@ -145,4 +142,25 @@ pub fn solver_config_for_plan(plan: &CvrpPlan, base_config: SolverConfig) -> Sol
     termination.seconds_spent_limit = Some(plan.time_limit_secs.max(1));
     config.termination = Some(termination);
     config
+}
+
+pub mod strict_savings_hooks {
+    use solverforge::cvrp::VrpSolution;
+
+    pub fn depot<S: VrpSolution>(plan: &S, entity_idx: usize) -> usize {
+        solverforge::cvrp::savings_depot_for_entity(plan, entity_idx)
+    }
+
+    pub fn distance<S: VrpSolution>(
+        plan: &S,
+        entity_idx: usize,
+        from: usize,
+        to: usize,
+    ) -> i64 {
+        solverforge::cvrp::savings_distance(plan, entity_idx, from, to)
+    }
+
+    pub fn feasible<S: VrpSolution>(plan: &S, entity_idx: usize, route: &[usize]) -> bool {
+        solverforge::cvrp::route_feasible(plan, entity_idx, route)
+    }
 }

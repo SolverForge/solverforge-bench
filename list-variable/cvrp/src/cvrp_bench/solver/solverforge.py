@@ -14,7 +14,7 @@ from solverforge_bench.model import SolverResult
 
 def solve_with_solverforge(instance: Instance, time_limit: int) -> SolverResult:
     """
-    Solve the CVRP using the SolverForge 0.15.1 retained list-variable runtime.
+    Solve the CVRP using the SolverForge CVRP list-variable runtime.
 
     The Rust crate keeps the benchmark-facing contract thin:
       - Hard: every customer must be assigned exactly once and every route must

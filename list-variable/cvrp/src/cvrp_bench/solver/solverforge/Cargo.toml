@@ -10,7 +10,7 @@ name = "solverforge_cvrp"
 crate-type = ["cdylib"]
 
 [dependencies]
-solverforge = { version = "0.15.1", path = "../../../../../../../solverforge/crates/solverforge" }
+solverforge = { version = "0.17.1", path = "../../../../../../../solverforge/crates/solverforge" }
 pyo3 = { version = "0.28", features = ["extension-module"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
