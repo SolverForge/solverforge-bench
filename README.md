@@ -14,7 +14,7 @@ See `WIREFRAME.md` for the current as-built repository map.
 
 - `list-variable/cvrp/` is the canonical CVRP comparison imported from
   `~/hack/cvrp_solver_comparison`. It compares commercially usable Python solver
-  integrations, native VROOM, rustvrp, Timefold, and the retained SolverForge
+  integrations, native VROOM, rustvrp, Timefold, and the SolverForge CVRP
   list-variable runtime.
 - `scalar-variable/employee-scheduling/` is the nurse rostering benchmark. It
   uses the bundled INRC-II TXT corpus and compares `solverforge`,
@@ -54,7 +54,7 @@ it before benchmark builds and is the CI-safe entrypoint for scripts that
 bootstrap themselves through the repository virtualenv.
 
 The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
-aligned to SolverForge `0.15.1` on the sibling local checkout at
+aligned to SolverForge `0.17.1` on the sibling local checkout at
 `../solverforge/crates/solverforge`. Keep CI or local bootstrap checkouts
 aligned to that Cargo path.
 
@@ -435,7 +435,7 @@ make bench-employee-scheduling-quick
 make bench-employee-scheduling-quick-db
 make bench-job-shop-scheduling-quick
 make bench-job-shop-scheduling-quick-db
-make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.15.1"
+make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.17.1"
 make bench-cvrp-db BENCH_ARGS="--run-kind quick --nightly"
 make bench-nightly-db
 ```

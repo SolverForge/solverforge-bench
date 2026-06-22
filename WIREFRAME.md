@@ -76,13 +76,14 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   `rustvrp`, `pyhygese`, and `solverforge`.
 - Native solver builds are rooted in `solver/ortools/`, `solver/rustvrp/`,
   `solver/vroom/`, `solver/timefold/`, and `solver/solverforge/`.
-- The SolverForge CVRP adapter is pinned to SolverForge `0.15.1` and resolves
+- The SolverForge CVRP adapter is pinned to SolverForge `0.17.1` and resolves
   the sibling checkout at `../solverforge/crates/solverforge` from the
   repository root.
-- The CVRP model uses public SolverForge CVRP list-variable hooks:
-  `VrpSolution`, matrix distance meters, route get/set/depot hooks, route
-  metric classes, route distance, and route feasibility. The benchmark budget
-  is applied through the model config provider.
+- The CVRP model uses public SolverForge CVRP list-variable hook bundles:
+  `VrpSolution`, matrix distance meters, stock route hooks, stock savings
+  depot/distance/metric-class hooks, and strict route feasibility for
+  construction pruning. The benchmark budget is applied through the model
+  config provider.
 - The SolverForge and Timefold CVRP list variables start from empty route lists;
   adapter-owned incumbents, route hints, and reference-solution reads are not
   part of solver input.
@@ -113,7 +114,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   artifacts for hard-feasible runs, and reports validator/model deltas through
   native columns.
 - `solver/solver.py` registers `solverforge`, `timefold`, and `ortools`.
-- The SolverForge NRP adapter is pinned to SolverForge `0.15.1` with `serde`
+- The SolverForge NRP adapter is pinned to SolverForge `0.17.1` with `serde`
   enabled and resolves the sibling checkout at
   `../solverforge/crates/solverforge` from the repository root.
 - The SolverForge NRP model uses public scalar APIs: per-shift candidate
@@ -146,9 +147,10 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   size, known optimum, lower/upper bounds, and makespan gap through native
   columns.
 - `solver/solver.py` registers `solverforge`, `timefold`, and `ortools`.
-- The SolverForge JSSP adapter is pinned to SolverForge `0.15.1` and resolves
-  the sibling checkout at `../solverforge/crates/solverforge` from the
-  repository root.
+- The SolverForge JSSP adapter is pinned to SolverForge `0.17.1` and resolves
+  the sibling checkout at `../solverforge/crates/solverforge`,
+  `../solverforge/crates/solverforge-core`, and
+  `../solverforge/crates/solverforge-scoring` from the repository root.
 - Its list model declares each operation's fixed machine owner with
   `element_owner_fn`; SolverForge construction and list neighborhoods must not
   move an operation to a non-required machine.

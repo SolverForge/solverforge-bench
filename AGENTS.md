@@ -40,7 +40,7 @@
 - `make install-python-deps` creates or refreshes that root `.venv` from the
   Makefile.
 - The CVRP, employee-scheduling, and job-shop SolverForge adapters are pinned
-  to SolverForge `0.15.1` and use the sibling checkout at
+  to SolverForge `0.17.1` and use the sibling checkout at
   `../solverforge/crates/solverforge`.
 - Benchmark run targets pin the shared harness with per-suite CPU defaults:
   `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`, and
