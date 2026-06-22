@@ -76,13 +76,27 @@ def run_solver(
     )
     started = time.monotonic()
     process.start()
-    process.join(watchdog_seconds)
+    deadline = started + watchdog_seconds
+    message = None
+    fair_start_witness = None
+    while process.is_alive() and time.monotonic() < deadline:
+        message, fair_start_witness = _collect_child_messages(
+            output_queue,
+            result_message=message,
+            fair_start_witness=fair_start_witness,
+            wait_seconds=0.0,
+        )
+        process.join(min(0.05, max(0.0, deadline - time.monotonic())))
     elapsed = time.monotonic() - started
 
     if process.is_alive():
         _terminate_process_tree(process)
         elapsed = time.monotonic() - started
-        message, fair_start_witness = _collect_child_messages(output_queue)
+        message, fair_start_witness = _collect_child_messages(
+            output_queue,
+            result_message=message,
+            fair_start_witness=fair_start_witness,
+        )
         fair_start_error = (
             None
             if fair_start_witness is not None
@@ -107,7 +121,11 @@ def run_solver(
             solver_stderr_path=str(stderr_path) if stderr_path else None,
         )
 
-    message, fair_start_witness = _collect_child_messages(output_queue)
+    message, fair_start_witness = _collect_child_messages(
+        output_queue,
+        result_message=message,
+        fair_start_witness=fair_start_witness,
+    )
     if message is None:
         fair_start_error = (
             None
@@ -286,15 +304,23 @@ def _solution_payload(solution: Any) -> dict[str, Any]:
     return solution.dict()
 
 
-def _collect_child_messages(output_queue) -> tuple[dict[str, Any] | None, Any | None]:
-    result_message = None
-    fair_start_witness = None
-    deadline = time.monotonic() + 1.0
-    while time.monotonic() < deadline:
+def _collect_child_messages(
+    output_queue,
+    *,
+    result_message: dict[str, Any] | None = None,
+    fair_start_witness: Any | None = None,
+    wait_seconds: float = 1.0,
+) -> tuple[dict[str, Any] | None, Any | None]:
+    deadline = time.monotonic() + wait_seconds
+    while True:
         try:
-            message = output_queue.get(timeout=0.05)
+            message = (
+                output_queue.get(timeout=0.05)
+                if time.monotonic() < deadline
+                else output_queue.get_nowait()
+            )
         except queue_module.Empty:
-            if result_message is not None:
+            if result_message is not None or time.monotonic() >= deadline:
                 break
             continue
 
