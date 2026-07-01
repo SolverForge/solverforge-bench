@@ -24,6 +24,16 @@ AVAILABLE_METHODS = [
     "rustvrp",
     "pyhygese",
     "solverforge",
+    "solverforge-py",
+]
+DEFAULT_METHODS = [
+    "pyvrp",
+    "ortools",
+    "vroom",
+    "timefold",
+    "rustvrp",
+    "pyhygese",
+    "solverforge",
 ]
 
 
@@ -48,6 +58,12 @@ def _load_solverforge():
     return solve_with_solverforge
 
 
+def _load_solverforge_py():
+    from cvrp_bench.solver.solverforge_py import solve_with_solverforge_py
+
+    return solve_with_solverforge_py
+
+
 # Type alias for solver functions
 SolverFn = Callable[[Instance, int], SolverResult]
 
@@ -69,6 +85,7 @@ def solver_versions(methods: Iterable[str]) -> dict[str, SolverVersion]:
         "solverforge": cargo_dependency_version(
             _SOLVER_DIR / "solverforge" / "Cargo.toml", "solverforge"
         ),
+        "solverforge-py": python_distribution_version("solverforge"),
     }
     return versions_for_solvers(methods, resolvers)
 
@@ -79,7 +96,7 @@ def create_solver(method: str, *, time_limit: int = 60) -> SolverFn:
 
     Args:
         method: One of 'pyvrp', 'ortools', 'vroom', 'timefold', 'rustvrp',
-            'pyhygese', 'solverforge'
+            'pyhygese', 'solverforge', 'solverforge-py'
         time_limit: Maximum solve time in seconds
 
 
@@ -100,6 +117,9 @@ def create_solver(method: str, *, time_limit: int = 60) -> SolverFn:
 
     if method == "solverforge":
         return _load_solverforge()
+
+    if method == "solverforge-py":
+        return _load_solverforge_py()
 
     solvers: dict[str, SolverFn] = {
         "pyvrp": solve_with_pyvrp,

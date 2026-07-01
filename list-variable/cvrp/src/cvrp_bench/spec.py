@@ -10,14 +10,19 @@ import vrplib
 
 from cvrp_bench.domain.models import Instance, Solution
 from cvrp_bench.domain.utils import CvrpValidationError, validate
-from cvrp_bench.solver.solver import AVAILABLE_METHODS, create_solver, solver_versions
+from cvrp_bench.solver.solver import (
+    AVAILABLE_METHODS,
+    DEFAULT_METHODS,
+    create_solver,
+    solver_versions,
+)
 from solverforge_bench.model import BenchmarkCase, Evaluation, SolverRun, SolverVersion
 
 
 class CvrpSpec:
     name = "cvrp"
     category = "list_variable"
-    default_solvers = AVAILABLE_METHODS
+    default_solvers = DEFAULT_METHODS
     default_time_limits = [1, 10, 60]
     available_solvers = AVAILABLE_METHODS
     native_columns: list[str] = []
