@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 from typing import Iterable
 
@@ -17,6 +18,15 @@ from cvrp_bench.solver.solver import (
     solver_versions,
 )
 from solverforge_bench.model import BenchmarkCase, Evaluation, SolverRun, SolverVersion
+
+_CVRPLIB_X_NAME = re.compile(r"^X-n(?P<size>\d+)-k(?P<vehicles>\d+)$")
+
+
+def _instance_sort_key(name: str) -> tuple[int, int, str]:
+    match = _CVRPLIB_X_NAME.match(name)
+    if match is None:
+        return (10**9, 10**9, name)
+    return (int(match.group("size")), int(match.group("vehicles")), name)
 
 
 class CvrpSpec:
@@ -43,7 +53,8 @@ class CvrpSpec:
                 path.stem
                 for path in data_dir.iterdir()
                 if path.suffix in {".vrp", ".sol"}
-            }
+            },
+            key=_instance_sort_key,
         )
         selected = (
             instance_names[: args.num_instances]
