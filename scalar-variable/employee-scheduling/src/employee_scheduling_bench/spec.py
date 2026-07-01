@@ -17,6 +17,7 @@ from employee_scheduling_bench.loader import (
 )
 from employee_scheduling_bench.solver.solver import (
     AVAILABLE_METHODS,
+    DEFAULT_METHODS,
     create_solver,
     solver_versions,
 )
@@ -32,7 +33,7 @@ class EmployeeSchedulingSpec:
     category = "scalar_variable"
     default_time_limits = [1, 10, 60]
     available_solvers = AVAILABLE_METHODS
-    default_solvers = available_solvers
+    default_solvers = DEFAULT_METHODS
     native_columns = ["nurses", "weeks", "validator_model_delta", "score_drift"]
     solution_model = Solution
 
