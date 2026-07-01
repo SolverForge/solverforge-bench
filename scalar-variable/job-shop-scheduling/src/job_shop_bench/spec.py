@@ -8,6 +8,7 @@ from job_shop_bench.domain.models import Solution
 from job_shop_bench.loader import dataset_group_names, instance_metadata, load_instance
 from job_shop_bench.solver.solver import (
     AVAILABLE_METHODS,
+    DEFAULT_METHODS,
     create_solver,
     solver_versions,
 )
@@ -20,7 +21,7 @@ class JobShopSpec:
     category = "scalar_variable"
     default_time_limits = [1, 10, 60]
     available_solvers = AVAILABLE_METHODS
-    default_solvers = AVAILABLE_METHODS
+    default_solvers = DEFAULT_METHODS
     native_columns = [
         "num_jobs",
         "num_machines",

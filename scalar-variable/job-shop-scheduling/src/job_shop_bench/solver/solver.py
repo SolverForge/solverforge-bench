@@ -10,10 +10,12 @@ from solverforge_bench.solver_versions import (
     cargo_dependency_version,
     executable_version,
     maven_property_version,
+    python_distribution_version,
     versions_for_solvers,
 )
 
-AVAILABLE_METHODS = ["solverforge", "timefold", "ortools"]
+AVAILABLE_METHODS = ["solverforge", "solverforge-py", "timefold", "ortools"]
+DEFAULT_METHODS = ["solverforge", "timefold", "ortools"]
 _SOLVER_DIR = Path(__file__).resolve().parent
 
 
@@ -30,6 +32,11 @@ def create_solver(
 
         return solve_with_solverforge
 
+    if method == "solverforge-py":
+        from job_shop_bench.solver.solverforge_py import solve_with_solverforge_py
+
+        return solve_with_solverforge_py
+
     if method == "timefold":
         from job_shop_bench.solver.timefold import solve_with_timefold
 
@@ -43,6 +50,7 @@ def solver_versions(solvers: list[str]) -> dict[str, SolverVersion]:
         "solverforge": cargo_dependency_version(
             _SOLVER_DIR / "solverforge_jssp" / "Cargo.toml", "solverforge"
         ),
+        "solverforge-py": python_distribution_version("solverforge"),
         "timefold": maven_property_version(
             _SOLVER_DIR / "timefold" / "pom.xml", "timefold.version"
         ),
