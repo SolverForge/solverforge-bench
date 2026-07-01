@@ -15,16 +15,24 @@ See `WIREFRAME.md` for the current as-built repository map.
 - `list-variable/cvrp/` is the canonical CVRP comparison imported from
   `~/hack/cvrp_solver_comparison`. It compares commercially usable Python solver
   integrations, native VROOM, rustvrp, Timefold, and the SolverForge CVRP
-  list-variable runtime.
+  list-variable runtime. `solverforge` is the native Rust/PyO3 adapter and
+  `solverforge-py` is the public Python-binding model path.
 - `scalar-variable/employee-scheduling/` is the nurse rostering benchmark. It
-  uses the bundled INRC-II TXT corpus and compares `solverforge`,
-  `timefold`, and `ortools` on nurse-to-shift assignments.
+  uses the bundled INRC-II TXT corpus and compares `solverforge`, `timefold`,
+  and `ortools` on nurse-to-shift assignments. `solverforge-py` is available as
+  an opt-in Python-binding solver path for fair-start API coverage and public
+  scalar assignment-group coverage; it is not part of the default performance
+  set.
 - `scalar-variable/job-shop-scheduling/` is the job-shop scheduling benchmark. It
   uses the bundled classic JSPLIB corpus for machine scheduling with job
   precedence and disjunctive machine capacity constraints. It compares
   `solverforge`, `timefold`, and `ortools` on fixed-machine operation start
-  times. The SolverForge adapter is a Rust/PyO3 planning model, the Timefold
-  adapter is a Java fat JAR, and the OR-Tools adapter is a native C++ CP-SAT
+  times. `solverforge-py` is available as an opt-in Python-binding solver path.
+  It exercises list variables, owner hooks, precedence hooks, and the public
+  first-class list precedence/makespan constraint; it is not part of the default
+  performance set.
+  The SolverForge adapter is a Rust/PyO3 planning model, the Timefold adapter
+  is a Java fat JAR, and the OR-Tools adapter is a native C++ CP-SAT
   executable. The SolverForge adapter maps JSPLIB data into stock list
   variables and the upstream `ListPrecedenceMakespanConstraint`; it does not
   provide benchmark-local search helpers or warm-start schedules.
@@ -51,12 +59,18 @@ pip install -e .
 The root Makefile uses this same `.venv` for CVRP, employee scheduling,
 normalization, and nightly runs. `make install-python-deps` creates or refreshes
 it before benchmark builds and is the CI-safe entrypoint for scripts that
-bootstrap themselves through the repository virtualenv.
+bootstrap themselves through the repository virtualenv. When the sibling
+`../solverforge-py` checkout is present, that target also installs the public
+`solverforge` Python package from the sibling source tree into the same `.venv`
+so `solverforge-py` benchmark rows never depend on global Python packages.
 
 The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
 aligned to SolverForge `0.17.1` on the sibling local checkout at
 `../solverforge/crates/solverforge`. Keep CI or local bootstrap checkouts
 aligned to that Cargo path.
+The `solverforge-py` adapters use the installed `solverforge` Python
+distribution from `../solverforge-py` and report that distribution version in
+CSV and PostgreSQL rows.
 
 Benchmark run targets execute the shared harness through `taskset` with
 different default pinned cores: `CVRP_BENCH_CPU ?= 0`,
@@ -129,8 +143,9 @@ make bench-cvrp-solverforge-quick
 make bench-cvrp-solverforge-quick-db
 ```
 
-`bench-cvrp-quick` uses all registered CVRP solvers on three instances at `1`
-and `10` seconds. The `bench-cvrp-solverforge-*` targets keep the
+`bench-cvrp-quick` uses the default CVRP solvers on three instances at `1` and
+`10` seconds. `solverforge-py` is available as an opt-in solver ID through the
+unified harness. The `bench-cvrp-solverforge-*` targets keep the
 SolverForge-only development smoke path, with the `-db` variant applying
 migrations and persisting the same run to PostgreSQL.
 
@@ -181,8 +196,9 @@ make bench-employee-scheduling-solverforge-quick-db
 make bench-employee-scheduling
 ```
 
-The quick target runs `n005w4` for `solverforge`, `timefold`, and `ortools`
-at `1` and `10` seconds. The SolverForge-only quick target runs the same slice
+The quick target runs `n005w4` for `solverforge`, `timefold`, and `ortools` at
+`1` and `10` seconds. `solverforge-py` is available as an opt-in solver ID
+through the unified harness. The SolverForge-only quick target runs the same slice
 with only `solverforge`, and the `-db` variant applies migrations and persists
 the run.
 The canonical target uses the `canonical` group in
@@ -210,7 +226,8 @@ make bench-job-shop-scheduling
 ```
 
 The quick target runs the JSPLIB `quick` group for `solverforge`, `timefold`,
-and `ortools` at `1` and `10` seconds. The canonical target uses the
+and `ortools` at `1` and `10` seconds. `solverforge-py` is available as an
+opt-in solver ID through the unified harness. The canonical target uses the
 `canonical` group in
 `scalar-variable/job-shop-scheduling/data/jsplib/manifest.json`.
 In the current bundled manifest, `quick` contains `ft06` and `la01`, while

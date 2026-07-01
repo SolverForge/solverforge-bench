@@ -73,7 +73,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - `domain/models.py` defines Pydantic instance and solution contracts.
 - `domain/utils.py` validates route feasibility and cost.
 - `solver/solver.py` registers `pyvrp`, `ortools`, `vroom`, `timefold`,
-  `rustvrp`, `pyhygese`, and `solverforge`.
+  `rustvrp`, `pyhygese`, `solverforge`, and opt-in `solverforge-py`.
 - Native solver builds are rooted in `solver/ortools/`, `solver/rustvrp/`,
   `solver/vroom/`, `solver/timefold/`, and `solver/solverforge/`.
 - The SolverForge CVRP adapter is pinned to SolverForge `0.17.1` and resolves
@@ -87,6 +87,9 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - The SolverForge and Timefold CVRP list variables start from empty route lists;
   adapter-owned incumbents, route hints, and reference-solution reads are not
   part of solver input.
+- The `solverforge-py` CVRP adapter builds a public Python-binding list-variable
+  model from the same CVRPLIB instance, starts all route lists empty, and
+  reports the installed `solverforge` Python distribution version.
 - `solverforge/solver.toml` uses reproducible mode, seed `42`, a 60 second
   internal termination cap, list construction phases, and a local-search union
   of nearby list moves, reverse moves, k-opt, ruin, and limited-neighborhood
@@ -113,7 +116,8 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - `spec.py` exposes `--dataset-set` and `--datasets`, writes solution JSON
   artifacts for hard-feasible runs, and reports validator/model deltas through
   native columns.
-- `solver/solver.py` registers `solverforge`, `timefold`, and `ortools`.
+- `solver/solver.py` registers `solverforge`, opt-in `solverforge-py`,
+  `timefold`, and `ortools`.
 - The SolverForge NRP adapter is pinned to SolverForge `0.17.1` with `serde`
   enabled and resolves the sibling checkout at
   `../solverforge/crates/solverforge` from the repository root.
@@ -125,6 +129,12 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - SolverForge initializes each shift with `nurse_idx = None`, Timefold leaves
   each `nurse` planning variable unset, and OR-Tools performs one CP-SAT solve
   without adapter hints, hard seeds, warm starts, or fallback schedules.
+- The `solverforge-py` employee adapter builds a public Python-binding scalar
+  model with unassigned `nurse_idx` variables. It encodes hard feasibility,
+  public scalar assignment groups, indexed presence penalties, and shift-off
+  request penalties; the shared validator remains the source of result
+  feasibility and cost. This adapter is opt-in API coverage rather than a
+  default performance row.
 - The Python wrappers emit a witness before solving. SolverForge Rust counts
   preassigned scalar variables, Timefold Java counts preassigned `nurse`
   planning variables, and OR-Tools C++ inspects CP-SAT solution-hint fields in
@@ -146,7 +156,8 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - `spec.py` exposes `--dataset-set` and `--datasets`, reports JSPLIB family,
   size, known optimum, lower/upper bounds, and makespan gap through native
   columns.
-- `solver/solver.py` registers `solverforge`, `timefold`, and `ortools`.
+- `solver/solver.py` registers `solverforge`, opt-in `solverforge-py`,
+  `timefold`, and `ortools`.
 - The SolverForge JSSP adapter is pinned to SolverForge `0.17.1` and resolves
   the sibling checkout at `../solverforge/crates/solverforge`,
   `../solverforge/crates/solverforge-core`, and
@@ -167,13 +178,21 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - SolverForge and Timefold JSSP machine operation lists start empty. Known best
   bounds and validation data stay in specs and validators, not in solver-start
   incumbents.
+- The `solverforge-py` JSSP adapter builds a public Python-binding list model
+  with one empty machine sequence per machine and owner-constrained operation
+  elements. The public first-class list precedence/makespan constraint scores
+  operation ownership, assignment uniqueness, job precedence, machine order,
+  and makespan; the shared validator remains the source of returned schedule
+  feasibility and cost. This adapter is opt-in API coverage rather than a
+  default performance row.
 - The JSSP wrappers emit witnesses before solving. SolverForge Rust and
   Timefold Java count prefilled machine lists, and OR-Tools C++ records CP-SAT
   solution-hint counts from the model proto.
 
 ## Makefile Contract
 
-- `make install-python-deps` creates or refreshes the root `.venv`.
+- `make install-python-deps` creates or refreshes the root `.venv` and installs
+  the sibling `../solverforge-py` package into it when that checkout is present.
 - `make build-cvrp` builds Python dependencies plus CVRP Timefold, SolverForge,
   OR-Tools, rustvrp, and VROOM integrations.
 - `make build-employee-scheduling` builds Python dependencies plus employee

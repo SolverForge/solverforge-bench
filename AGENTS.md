@@ -39,9 +39,11 @@
   creates the single repository virtualenv used by all benchmark commands.
 - `make install-python-deps` creates or refreshes that root `.venv` from the
   Makefile.
-- The CVRP, employee-scheduling, and job-shop SolverForge adapters are pinned
-  to SolverForge `0.17.1` and use the sibling checkout at
-  `../solverforge/crates/solverforge`.
+- The CVRP, employee-scheduling, and job-shop native SolverForge adapters are
+  pinned to SolverForge `0.17.1` and use the sibling checkout at
+  `../solverforge/crates/solverforge`. The `solverforge-py` adapters use the
+  public `solverforge` Python package installed from sibling checkout
+  `../solverforge-py`.
 - Benchmark run targets pin the shared harness with per-suite CPU defaults:
   `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`, and
   `JOBSHOP_BENCH_CPU ?= 2`. They also set `OMP_NUM_THREADS=1`,
@@ -51,8 +53,9 @@
 - `make validate-cvrp` validates all bundled CVRP `.vrp`/`.sol` pairs.
 - `make build-cvrp` builds Python dependencies plus CVRP Timefold, SolverForge,
   OR-Tools, rustvrp, and VROOM integrations.
-- `make bench-cvrp-quick` builds CVRP native integrations and runs a small sample.
-  It uses all registered CVRP solvers.
+- `make bench-cvrp-quick` builds CVRP native integrations, installs the
+  SolverForge Python binding when available, and runs a small sample. It uses
+  the default CVRP solver set; `solverforge-py` is opt-in through `--solver`.
 - `make bench-cvrp-quick-db` does the same quick CVRP run, applies database
   migrations first, and persists the run to PostgreSQL.
 - `make bench-cvrp-solverforge-quick` runs only SolverForge CVRP on three instances with 1s and 10s limits.
