@@ -510,7 +510,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solverforge"
+name = "solverforge-cvrp"
 version = "0.1.0"
 dependencies = [
  "pyo3",
@@ -526,7 +526,7 @@ dependencies = [
  "solverforge-bridge",
  "solverforge-config",
  "solverforge-core",
- "solverforge-cvrp",
+ "solverforge-cvrp 0.17.1",
  "solverforge-macros",
  "solverforge-scoring",
  "solverforge-solver",

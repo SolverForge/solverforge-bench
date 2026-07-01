@@ -3,7 +3,7 @@ requires = ["maturin>=1,<2"]
 build-backend = "maturin"
 
 [project]
-name = "solverforge"
+name = "solverforge-cvrp"
 version = "0.1.0"
 requires-python = ">=3.14,<3.15"
 

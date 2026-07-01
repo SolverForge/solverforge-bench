@@ -1,5 +1,5 @@
 [package]
-name = "solverforge"
+name = "solverforge-cvrp"
 version = "0.1.0"
 edition = "2021"
 description = "SolverForge CVRP solver for benchmark comparison"
