@@ -14,7 +14,7 @@ from solverforge_bench.solver_versions import (
 
 SolverFn = Callable[[Instance, int], SolverResult]
 AVAILABLE_METHODS = ["solverforge", "solverforge-py", "timefold", "ortools"]
-DEFAULT_METHODS = ["solverforge", "timefold", "ortools"]
+DEFAULT_METHODS = ["solverforge", "solverforge-py", "timefold", "ortools"]
 _SOLVER_DIR = Path(__file__).resolve().parent
 
 

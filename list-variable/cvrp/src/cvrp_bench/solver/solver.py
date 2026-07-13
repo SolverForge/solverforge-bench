@@ -34,6 +34,7 @@ DEFAULT_METHODS = [
     "rustvrp",
     "pyhygese",
     "solverforge",
+    "solverforge-py",
 ]
 
 
