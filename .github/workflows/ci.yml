@@ -80,11 +80,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Checkout SolverForge path dependencies
-        run: |
-          rm -rf "$GITHUB_WORKSPACE/../solverforge"
-          git clone --depth 1 --branch main "${GITHUB_SERVER_URL:-https://github.com}/SolverForge/solverforge.git" "$GITHUB_WORKSPACE/../solverforge"
-
       - name: Set up Python
         uses: actions/setup-python@v6
         id: setup-python

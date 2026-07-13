@@ -23,7 +23,7 @@ HOST_PYTHON ?= python3.14
 VENV ?= $(CURDIR)/.venv
 PYTHON ?= $(VENV)/bin/python3
 PIP ?= $(VENV)/bin/pip
-SOLVERFORGE_PY_DIR ?= $(CURDIR)/../solverforge-py
+SOLVERFORGE_PY_REQUIREMENT := solverforge==0.6.1
 DATABASE_URL ?= $(if $(BENCH_DATABASE_URL),$(BENCH_DATABASE_URL),postgresql://postgres@localhost/solverforge_bench)
 SQLX ?= sqlx
 DB_RESET_FLAGS ?= -y -f
@@ -129,12 +129,8 @@ venv:
 	fi
 
 install-python-deps: banner venv
+	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install --force-reinstall --no-deps --only-binary=:all: "$(SOLVERFORGE_PY_REQUIREMENT)"
 	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install -e .
-	@if [ -d "$(SOLVERFORGE_PY_DIR)" ]; then \
-		PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install --force-reinstall "$(SOLVERFORGE_PY_DIR)"; \
-	else \
-		printf '%s\n' "solverforge-py sibling not found at $(SOLVERFORGE_PY_DIR); skipping Python binding package install."; \
-	fi
 
 db-check: banner
 	psql "$(DATABASE_URL)" -c "select current_user, current_database(), version();"

@@ -82,11 +82,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Checkout SolverForge path dependencies
-        run: |
-          rm -rf "$GITHUB_WORKSPACE/../solverforge"
-          git clone --depth 1 --branch main "${GITHUB_SERVER_URL:-http://vigilance:3002}/SolverForge/solverforge.git" "$GITHUB_WORKSPACE/../solverforge"
-
       - name: Install Python 3.14
         id: python
         run: |
