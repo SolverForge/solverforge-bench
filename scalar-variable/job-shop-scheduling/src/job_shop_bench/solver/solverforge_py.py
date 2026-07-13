@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
+from pathlib import Path
 from typing import Any
 
 from solverforge import (
@@ -26,6 +27,10 @@ from solverforge_bench.fair_start import (
     solver_result,
 )
 from solverforge_bench.model import SolverResult
+from solverforge_bench.solverforge_config import solver_config_for_time_limit
+
+
+_SOLVER_CONFIG_PATH = Path(__file__).with_name("solverforge_py.toml")
 
 
 def _operation_owner(solution: Any, operation_id: int) -> int:
@@ -264,52 +269,4 @@ def _add_edge(
 
 
 def _solver_config(time_limit: int) -> dict[str, Any]:
-    return {
-        "termination": {"seconds_spent_limit": max(1, int(time_limit))},
-        "phases": [
-            {
-                "type": "construction_heuristic",
-                "construction_heuristic_type": "list_regret_insertion",
-                "entity_class": "MachineSequence",
-                "variable_name": "operations",
-            },
-            {
-                "type": "local_search",
-                "acceptor": {"type": "late_acceptance", "late_acceptance_size": 200},
-                "forager": {"type": "accepted_count", "limit": 8},
-                "move_selector": {
-                    "type": "union_move_selector",
-                    "selection_order": "rotating_round_robin",
-                    "selectors": [
-                        {
-                            "type": "list_precedence_move_selector",
-                            "entity_class": "MachineSequence",
-                            "variable_name": "operations",
-                        },
-                        {
-                            "type": "list_permute_move_selector",
-                            "min_window_size": 2,
-                            "max_window_size": 4,
-                            "entity_class": "MachineSequence",
-                            "variable_name": "operations",
-                        },
-                        {
-                            "type": "list_change_move_selector",
-                            "entity_class": "MachineSequence",
-                            "variable_name": "operations",
-                        },
-                        {
-                            "type": "list_swap_move_selector",
-                            "entity_class": "MachineSequence",
-                            "variable_name": "operations",
-                        },
-                        {
-                            "type": "list_reverse_move_selector",
-                            "entity_class": "MachineSequence",
-                            "variable_name": "operations",
-                        },
-                    ],
-                },
-            },
-        ],
-    }
+    return solver_config_for_time_limit(_SOLVER_CONFIG_PATH, time_limit)

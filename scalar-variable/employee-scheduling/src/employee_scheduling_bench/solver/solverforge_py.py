@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from solverforge import (
@@ -26,6 +27,10 @@ from solverforge_bench.fair_start import (
     solver_result,
 )
 from solverforge_bench.model import SolverResult
+from solverforge_bench.solverforge_config import solver_config_for_time_limit
+
+
+_SOLVER_CONFIG_PATH = Path(__file__).with_name("solverforge_py.toml")
 
 
 def _nurse_candidates(shift: Any) -> list[int]:
@@ -728,20 +733,4 @@ def _shift_off_request_nurses(
 
 
 def _solver_config(time_limit: int) -> dict[str, Any]:
-    return {
-        "termination": {"seconds_spent_limit": max(1, int(time_limit))},
-        "phases": [
-            {
-                "type": "construction_heuristic",
-                "construction_heuristic_type": "first_fit",
-                "group_name": "shift_nurse_assignment",
-            },
-            {
-                "type": "local_search",
-                "move_selector": {
-                    "type": "grouped_scalar_move_selector",
-                    "group_name": "shift_nurse_assignment",
-                },
-            },
-        ],
-    }
+    return solver_config_for_time_limit(_SOLVER_CONFIG_PATH, time_limit)

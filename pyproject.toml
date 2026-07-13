@@ -21,3 +21,8 @@ where = [
     "scalar-variable/employee-scheduling/src",
     "scalar-variable/job-shop-scheduling/src",
 ]
+
+[tool.setuptools.package-data]
+"cvrp_bench.solver" = ["solverforge_py.toml"]
+"employee_scheduling_bench.solver" = ["solverforge_py.toml"]
+"job_shop_bench.solver" = ["solverforge_py.toml"]

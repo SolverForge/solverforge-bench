@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from solverforge import (
+    CapacityRouteFeasibility,
     ConstraintFactory,
     HardSoftScore,
+    ListRouteHooks,
+    ListSavingsHooks,
+    RowField,
     Solver,
     constraint_provider,
     planning_entity,
@@ -21,6 +26,10 @@ from solverforge_bench.fair_start import (
     solver_result,
 )
 from solverforge_bench.model import SolverResult
+from solverforge_bench.solverforge_config import solver_config_for_time_limit
+
+
+_SOLVER_CONFIG_PATH = Path(__file__).with_name("solverforge_py.toml")
 
 
 def _route_load(route: Any) -> int:
@@ -46,11 +55,25 @@ def _route_cost(route: Any) -> int:
 class Route:
     visits = planning_list_variable(
         element_collection="customer_values",
-        route_depot_field="depot",
-        route_metric_class_field="metric_class",
-        route_distance_matrix_field="distance_matrix",
-        route_capacity_field="capacity",
-        route_demand_field="demands",
+        route=ListRouteHooks(
+            depot=RowField("depot"),
+            distance=RowField("distance_matrix"),
+            feasible=CapacityRouteFeasibility(
+                capacity=RowField("capacity"),
+                demand=RowField("demands"),
+            ),
+        ),
+        savings=ListSavingsHooks(
+            depot=RowField("depot"),
+            metric_class=RowField("metric_class"),
+            distance=RowField("distance_matrix"),
+            feasible=CapacityRouteFeasibility(
+                capacity=RowField("capacity"),
+                demand=RowField("demands"),
+            ),
+        ),
+        cross_position_distance=RowField("distance_matrix"),
+        intra_position_distance=RowField("distance_matrix"),
     )
 
     def __init__(
@@ -146,57 +169,4 @@ def solve_with_solverforge_py(instance: Instance, time_limit: int) -> SolverResu
 
 
 def _solver_config(time_limit: int) -> dict[str, Any]:
-    return {
-        "termination": {"seconds_spent_limit": max(1, int(time_limit))},
-        "phases": [
-            {
-                "type": "construction_heuristic",
-                "construction_heuristic_type": "list_clarke_wright",
-                "entity_class": "Route",
-                "variable_name": "visits",
-            },
-            {
-                "type": "construction_heuristic",
-                "construction_heuristic_type": "list_k_opt",
-                "k": 2,
-                "entity_class": "Route",
-                "variable_name": "visits",
-            },
-            {
-                "type": "local_search",
-                "acceptor": {"type": "late_acceptance", "late_acceptance_size": 200},
-                "forager": {"type": "accepted_count", "limit": 4},
-                "move_selector": {
-                    "type": "union_move_selector",
-                    "selection_order": "rotating_round_robin",
-                    "selectors": [
-                        {
-                            "type": "nearby_list_change_move_selector",
-                            "max_nearby": 20,
-                            "entity_class": "Route",
-                            "variable_name": "visits",
-                        },
-                        {
-                            "type": "nearby_list_swap_move_selector",
-                            "max_nearby": 20,
-                            "entity_class": "Route",
-                            "variable_name": "visits",
-                        },
-                        {
-                            "type": "list_reverse_move_selector",
-                            "entity_class": "Route",
-                            "variable_name": "visits",
-                        },
-                        {
-                            "type": "k_opt_move_selector",
-                            "k": 3,
-                            "min_segment_len": 1,
-                            "max_nearby": 10,
-                            "entity_class": "Route",
-                            "variable_name": "visits",
-                        },
-                    ],
-                },
-            },
-        ],
-    }
+    return solver_config_for_time_limit(_SOLVER_CONFIG_PATH, time_limit)
