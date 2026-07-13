@@ -13,6 +13,7 @@ from typing import Any, Iterable
 
 from solverforge_bench.etl import benchmark_rows_to_postgres_frame
 from solverforge_bench.model import BenchmarkRow, SolverVersion
+from solverforge_bench.redaction import redact_sensitive_command_args
 from solverforge_bench.validation import (
     validate_solver_versions,
     validate_unique_solvers,
@@ -379,7 +380,7 @@ def make_postgres_config(
         solvers=list(solvers),
         solver_versions=solver_versions,
         time_limits_seconds=list(time_limits),
-        command_args=list(getattr(args, "argv", [])),
+        command_args=redact_sensitive_command_args(getattr(args, "argv", [])),
         repo_root=Path(args.repo_root),
         metadata={
             "dataset_set": getattr(args, "dataset_set", None),

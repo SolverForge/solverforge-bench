@@ -18,6 +18,7 @@ from solverforge_bench.config import (
     load_benchmark_config,
 )
 from solverforge_bench.registry import canonical_specs
+from solverforge_bench.redaction import redact_sensitive_command_args
 from solverforge_bench.runner import run_benchmark
 from solverforge_bench.validation import validate_unique_solvers
 
@@ -30,7 +31,7 @@ def main(
     argv = list(sys.argv[1:] if argv is None else argv)
     if default_benchmark and (not argv or argv[0].startswith("-")):
         argv = [default_benchmark, *argv]
-    command_args = list(argv)
+    command_args = redact_sensitive_command_args(argv)
 
     repo_root = Path(__file__).resolve().parents[2]
     specs = canonical_specs()
