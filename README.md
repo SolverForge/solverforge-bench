@@ -18,19 +18,17 @@ See `WIREFRAME.md` for the current as-built repository map.
   list-variable runtime. `solverforge` is the native Rust/PyO3 adapter and
   `solverforge-py` is the public Python-binding model path.
 - `scalar-variable/employee-scheduling/` is the nurse rostering benchmark. It
-  uses the bundled INRC-II TXT corpus and compares `solverforge`, `timefold`,
-  and `ortools` on nurse-to-shift assignments. `solverforge-py` is available as
-  an opt-in Python-binding solver path for fair-start API coverage and public
-  scalar assignment-group coverage; it is not part of the default performance
-  set.
+  uses the bundled INRC-II TXT corpus and compares `solverforge`,
+  `solverforge-py`, `timefold`, and `ortools` on nurse-to-shift assignments.
+  The Python-binding path is a first-class default row for public scalar
+  assignment-group coverage.
 - `scalar-variable/job-shop-scheduling/` is the job-shop scheduling benchmark. It
   uses the bundled classic JSPLIB corpus for machine scheduling with job
   precedence and disjunctive machine capacity constraints. It compares
-  `solverforge`, `timefold`, and `ortools` on fixed-machine operation start
-  times. `solverforge-py` is available as an opt-in Python-binding solver path.
-  It exercises list variables, owner hooks, precedence hooks, and the public
-  first-class list precedence/makespan constraint; it is not part of the default
-  performance set.
+  `solverforge`, `solverforge-py`, `timefold`, and `ortools` on fixed-machine
+  operation start times. The Python-binding path exercises list variables,
+  owner hooks, precedence hooks, and the public first-class list
+  precedence/makespan constraint as a default comparison row.
   The SolverForge adapter is a Rust/PyO3 planning model, the Timefold adapter
   is a Java fat JAR, and the OR-Tools adapter is a native C++ CP-SAT
   executable. The SolverForge adapter maps JSPLIB data into stock list
@@ -59,18 +57,26 @@ pip install -e .
 The root Makefile uses this same `.venv` for CVRP, employee scheduling,
 normalization, and nightly runs. `make install-python-deps` creates or refreshes
 it before benchmark builds and is the CI-safe entrypoint for scripts that
-bootstrap themselves through the repository virtualenv. When the sibling
-`../solverforge-py` checkout is present, that target also installs the public
-`solverforge` Python package from the sibling source tree into the same `.venv`
-so `solverforge-py` benchmark rows never depend on global Python packages.
+bootstrap themselves through the repository virtualenv. That target installs
+the exact published `solverforge==0.6.1` wheel into the same `.venv`, so
+`solverforge-py` benchmark rows never depend on global Python packages or a
+sibling checkout.
 
 The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
-aligned to SolverForge `0.17.1` on the sibling local checkout at
-`../solverforge/crates/solverforge`. Keep CI or local bootstrap checkouts
-aligned to that Cargo path.
-The `solverforge-py` adapters use the installed `solverforge` Python
-distribution from `../solverforge-py` and report that distribution version in
-CSV and PostgreSQL rows.
+aligned to the exact published SolverForge `0.18.0` crates and committed
+registry lockfiles. The `solverforge-py` adapters use the exact published
+`solverforge==0.6.1` distribution and report that distribution version in CSV
+and PostgreSQL rows.
+
+Each workload keeps two separate SolverForge configuration artifacts: the
+native adapter's `solver.toml` and the Python adapter's `solverforge_py.toml`.
+The files must parse to the same policy. CVRP uses the full qualified
+construction and seven-neighborhood local-search policy. Employee scheduling
+and JSSP intentionally leave phases unspecified so both bindings select the
+same model-aware SolverForge defaults. At runtime, both adapters change only
+the requested termination seconds. `make verify-solverforge-config-parity`
+rejects semantic drift and also rejects replacing both files with an equally
+weaker policy.
 
 Benchmark run targets execute the shared harness through `taskset` with
 different default pinned cores: `CVRP_BENCH_CPU ?= 0`,
@@ -108,6 +114,48 @@ SolverForge JSSP, CVRP, and employee smoke rows to stay hard-feasible with
 valid fair-start witnesses. Add `--require-jssp-win` through `GUARDRAIL_ARGS`
 when checking the final JSSP win condition.
 
+## SolverForge-Py Adapter Test Gate
+
+`solverforge-py` is part of the default quick, canonical, and nightly solver
+sets for every benchmark class. Before release work, public benchmark claims,
+or changes to the Python-binding solver paths, refresh the root `.venv` with
+`make install-python-deps`; that target force-refreshes the exact published
+`solverforge==0.6.1` wheel in the benchmark environment.
+
+Run the local/release guardrails explicitly:
+
+```sh
+make verify-solverforge-config-parity
+make verify-solverforge-py-guardrail-contract
+make verify-solverforge-py-smoke
+make verify-solverforge-py-comparison
+make verify-solverforge-py-release
+```
+
+The configuration gate is a prerequisite of every native SolverForge build and
+every native/Python guardrail. The guardrail-contract gate exercises exact
+matrix coverage and secret-redaction regressions without running a solver. The
+smoke gate remains a focused
+`solverforge-py` adapter check for CVRP,
+employee scheduling, and the JSSP quick group. The comparison gate runs paired
+native `solverforge` and `solverforge-py` rows, resolves every requested dataset
+selector before execution, requires every expected instance/time-limit/solver
+row exactly once, validates fair-start and row integrity, and writes a
+machine-readable summary under
+`build/solverforge-py-guardrails/summary.json`. The release gate combines
+compileall, validators, fair-start checks, native adapter builds, smoke, and
+comparison into one release-mode guardrail invocation and summary.
+
+The comparison gate does not bless a Python/native difference as expected.
+Ratio thresholds are reported by default and become failures when an explicit
+`--max-*-py-rust-ratio` is passed through
+`SOLVERFORGE_PY_GUARDRAIL_ARGS`. Treat its single matrix as a compatibility and
+quality guardrail, not as statistically qualified performance evidence.
+PostgreSQL persistence is disabled by default; pass `--save-postgres` only when
+you intentionally want warehouse rows. Database URLs are used for execution but
+their command-argument values are redacted from guardrail summaries, failure
+messages, and persisted benchmark run metadata.
+
 ## CI
 
 `.github/workflows/ci.yml` defines the GitHub-hosted workflow, and
@@ -116,14 +164,14 @@ workflows from `.forgejo/workflows`, so its runner labels stay separate from
 GitHub's `ubuntu-latest` jobs. The Python jobs set up Python 3.14, create the
 root `.venv` with `make install-python-deps HOST_PYTHON=...`, compile the
 source trees including job-shop scheduling, parse `benchmark*.toml`, run
-`make verify-fair-start`, run `make validate-cvrp`, and run
+`make verify-solverforge-py-guardrail-contract`, run `make verify-fair-start`,
+run `make validate-cvrp`, and run
 `make validate-employee-model-parity`. The parity script requires that root
 `.venv`, so CI must use the Makefile bootstrap instead of a detached
 `python -m pip install -e .`.
 
-The Rust jobs clone SolverForge `main` into
-`$GITHUB_WORKSPACE/../solverforge`, matching the active adapter `Cargo.toml`
-path dependencies. They set the PyO3 Python environment from
+The Rust jobs resolve the exact SolverForge `0.18.0` crates from the committed
+registry lockfiles. They set the PyO3 Python environment from
 `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
 for the CVRP SolverForge adapter, CVRP rustvrp adapter, employee scheduling
@@ -143,10 +191,10 @@ make bench-cvrp-solverforge-quick
 make bench-cvrp-solverforge-quick-db
 ```
 
-`bench-cvrp-quick` uses the default CVRP solvers on three instances at `1` and
-`10` seconds. `solverforge-py` is available as an opt-in solver ID through the
-unified harness. The `bench-cvrp-solverforge-*` targets keep the
-SolverForge-only development smoke path, with the `-db` variant applying
+`bench-cvrp-quick` uses the full default CVRP solver set on three instances at
+`1` and `10` seconds, including both native `solverforge` and
+`solverforge-py`. The `bench-cvrp-solverforge-*` targets keep the
+native-SolverForge-only development smoke path, with the `-db` variant applying
 migrations and persisting the same run to PostgreSQL.
 
 Run the full CVRP benchmark:
@@ -196,11 +244,10 @@ make bench-employee-scheduling-solverforge-quick-db
 make bench-employee-scheduling
 ```
 
-The quick target runs `n005w4` for `solverforge`, `timefold`, and `ortools` at
-`1` and `10` seconds. `solverforge-py` is available as an opt-in solver ID
-through the unified harness. The SolverForge-only quick target runs the same slice
-with only `solverforge`, and the `-db` variant applies migrations and persists
-the run.
+The quick target runs `n005w4` for `solverforge`, `solverforge-py`, `timefold`,
+and `ortools` at `1` and `10` seconds. The SolverForge-only quick target runs
+the same slice with only native `solverforge`, and the `-db` variant applies
+migrations and persists the run.
 The canonical target uses the `canonical` group in
 `scalar-variable/employee-scheduling/data/inrc2/manifest.json`.
 
@@ -225,10 +272,9 @@ make bench-job-shop-scheduling-quick
 make bench-job-shop-scheduling
 ```
 
-The quick target runs the JSPLIB `quick` group for `solverforge`, `timefold`,
-and `ortools` at `1` and `10` seconds. `solverforge-py` is available as an
-opt-in solver ID through the unified harness. The canonical target uses the
-`canonical` group in
+The quick target runs the JSPLIB `quick` group for `solverforge`,
+`solverforge-py`, `timefold`, and `ortools` at `1` and `10` seconds. The
+canonical target uses the `canonical` group in
 `scalar-variable/job-shop-scheduling/data/jsplib/manifest.json`.
 In the current bundled manifest, `quick` contains `ft06` and `la01`, while
 `canonical` contains all 162 classic JSPLIB instances from `tamy0612/JSPLIB`
@@ -452,7 +498,7 @@ make bench-employee-scheduling-quick
 make bench-employee-scheduling-quick-db
 make bench-job-shop-scheduling-quick
 make bench-job-shop-scheduling-quick-db
-make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.17.1"
+make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.18.0"
 make bench-cvrp-db BENCH_ARGS="--run-kind quick --nightly"
 make bench-nightly-db
 ```
@@ -477,7 +523,8 @@ CVRP, employee scheduling, and job-shop scheduling in parallel on their
 per-suite pinned cores. By default it uses `benchmark.nightly.example.toml`;
 set `BENCH_CONFIG` for a different nightly config, or append explicit child
 harness overrides with `NIGHTLY_ARGS`. It does not pass `--solver`, so each
-benchmark uses its full default solver set.
+benchmark uses its full problem-specific default solver set, including both
+native `solverforge` and `solverforge-py`.
 
 ## Result Schema
 

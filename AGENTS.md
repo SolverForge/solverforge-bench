@@ -8,10 +8,9 @@
   behavior or structure changes.
 - `.github/workflows/ci.yml` contains the GitHub-hosted CI workflow.
   `.forgejo/workflows/ci.yml` contains the local Forgejo CI workflow. Keep
-  sibling SolverForge checkout paths aligned with the active adapter
-  `Cargo.toml` path dependencies. The Rust jobs must clone SolverForge `main`
-  into `../solverforge` and run Cargo checks with `--locked`; the Python jobs
-  must create the root `.venv` with `make install-python-deps` before parity
+  the exact SolverForge registry versions and committed adapter lockfiles
+  aligned. The Rust jobs run Cargo checks with `--locked`; the Python jobs must
+  create the root `.venv` with `make install-python-deps` before parity
   validation.
 - `src/solverforge_bench/` contains the shared benchmark framework. CLI,
   TOML configuration, registry, run matrix, timing, overshoot calculation,
@@ -40,10 +39,8 @@
 - `make install-python-deps` creates or refreshes that root `.venv` from the
   Makefile.
 - The CVRP, employee-scheduling, and job-shop native SolverForge adapters are
-  pinned to SolverForge `0.17.1` and use the sibling checkout at
-  `../solverforge/crates/solverforge`. The `solverforge-py` adapters use the
-  public `solverforge` Python package installed from sibling checkout
-  `../solverforge-py`.
+  pinned to the published SolverForge `0.18.0` crates. The `solverforge-py`
+  adapters use the exact published `solverforge==0.6.1` Python wheel.
 - Benchmark run targets pin the shared harness with per-suite CPU defaults:
   `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`, and
   `JOBSHOP_BENCH_CPU ?= 2`. They also set `OMP_NUM_THREADS=1`,
@@ -53,9 +50,10 @@
 - `make validate-cvrp` validates all bundled CVRP `.vrp`/`.sol` pairs.
 - `make build-cvrp` builds Python dependencies plus CVRP Timefold, SolverForge,
   OR-Tools, rustvrp, and VROOM integrations.
-- `make bench-cvrp-quick` builds CVRP native integrations, installs the
-  SolverForge Python binding when available, and runs a small sample. It uses
-  the default CVRP solver set; `solverforge-py` is opt-in through `--solver`.
+- `make bench-cvrp-quick` builds CVRP native integrations, installs the exact
+  SolverForge Python binding release, and runs a small sample. It uses the
+  default CVRP solver set, including both native `solverforge` and
+  `solverforge-py`.
 - `make bench-cvrp-quick-db` does the same quick CVRP run, applies database
   migrations first, and persists the run to PostgreSQL.
 - `make bench-cvrp-solverforge-quick` runs only SolverForge CVRP on three instances with 1s and 10s limits.
@@ -76,7 +74,8 @@
 - `make build-job-shop-scheduling` builds the SolverForge JSSP Python extension,
   the Timefold JSSP fat JAR, and the native OR-Tools JSSP executable.
 - `make bench-job-shop-scheduling-quick` runs the JSPLIB quick group for
-  `solverforge`, `timefold`, and `ortools` at 1s and 10s limits.
+  `solverforge`, `solverforge-py`, `timefold`, and `ortools` at 1s and 10s
+  limits.
 - `make bench-job-shop-scheduling-quick-db` does the same quick
   job-shop-scheduling run, applies database migrations first, and persists the
   run to PostgreSQL.
@@ -141,8 +140,18 @@ adapter errors.
 
 For CI or documentation contract changes, also verify Python syntax with
 `python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src scripts`,
-run `make verify-fair-start`, and parse `benchmark*.toml` with `tomllib` or an
-equivalent TOML parser.
+run `make verify-fair-start`, run `make verify-solverforge-config-parity`, and
+parse `benchmark*.toml` with `tomllib` or an equivalent TOML parser.
+
+After changing `solverforge-py` adapters, Python-binding runtime behavior, or
+benchmark fairness logic, run `make install-python-deps`,
+`make verify-fair-start`, `make verify-solverforge-config-parity`, and
+`make verify-solverforge-py-guardrail-contract`, then
+`make verify-solverforge-py-smoke`. Before a release or public benchmark claim,
+also run
+`make verify-solverforge-py-comparison`. Do not run `make bench-nightly-db` for
+this gate unless explicitly requested, and do not commit generated guardrail
+CSV, log, summary, or solution artifact files.
 
 ## Commit & Pull Request Guidelines
 
@@ -176,6 +185,20 @@ evaluation. Run `make verify-fair-start` when editing solver adapters, solver
 specs, validators, benchmark CI, or benchmark architecture docs. For persisted
 smoke runs, also run `make verify-fair-start-rows RUN_ID=<uuid>` so PostgreSQL
 rows prove the runtime contract, not only the static source shape.
+
+Native and Python SolverForge adapters keep separate configuration files for
+each workload. Their parsed policies must remain semantically identical and
+must retain the qualified strongest-policy hash enforced by
+`make verify-solverforge-config-parity`; do not weaken one adapter to make a
+comparison look equal, and do not weaken both copies to satisfy parity. The
+only per-run mutation is the same termination-seconds overlay on both paths.
+
+SolverForge Python guardrails must fail before execution when any requested
+dataset selector resolves to no instance. Their CSV validation must require the
+exact requested instance/time-limit/solver matrix, including whole keys for
+which neither solver emitted a row. Commands stored in summaries, errors, or
+PostgreSQL run metadata must redact database URL values while execution still
+uses the real URL.
 
 Do not reintroduce `standard-variable`, `CoverageGroup`, `coverage_first_fit`,
 or benchmark-local scoring internals for employee scheduling. The active
