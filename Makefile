@@ -31,6 +31,8 @@ BENCH_ARGS ?=
 BENCH_CONFIG ?=
 NIGHTLY_ARGS ?=
 GUARDRAIL_ARGS ?=
+SOLVERFORGE_PY_GUARDRAIL_ARGS ?=
+SOLVERFORGE_PY_GUARDRAIL_OUTPUT_DIR ?= build/solverforge-py-guardrails
 BENCH_CONFIG_ARG = $(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",)
 NIGHTLY_CONFIG_ARG = $(if $(findstring --config,$(NIGHTLY_ARGS)),,$(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",--config "benchmark.nightly.example.toml"))
 BENCH_DB_ARGS := --postgres-url "$(DATABASE_URL)"
@@ -90,7 +92,9 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-job-shop-scheduling-solverforge bench-job-shop-scheduling-solverforge-db \
 	bench-job-shop-scheduling-solverforge-quick bench-job-shop-scheduling-solverforge-quick-db \
 	bench-nightly-db \
-	verify-fair-start verify-fair-start-rows verify-stock-solverforge-guardrails validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
+	verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
+	verify-solverforge-py-guardrail-contract verify-solverforge-py-smoke verify-solverforge-py-comparison verify-solverforge-py-release \
+	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
 	db-check db-create db-migrate db-reset normalize-results
 
 # ============== Default Target ==============
@@ -113,8 +117,28 @@ verify-fair-start-rows: banner venv
 	@test -n "$(RUN_ID)" || (echo "RUN_ID is required" >&2; exit 2)
 	"$(PYTHON)" scripts/verify_fair_start.py --run-id "$(RUN_ID)" --database-url "$(DATABASE_URL)"
 
-verify-stock-solverforge-guardrails: banner venv verify-fair-start build-job-shop-scheduling build-cvrp-solverforge build-employee-scheduling-solverforge
+verify-solverforge-config-parity: banner venv
+	"$(PYTHON)" scripts/verify_solverforge_config_parity.py
+
+verify-solverforge-py-guardrail-contract: banner venv
+	"$(PYTHON)" scripts/test_verify_solverforge_py_guardrails.py
+
+verify-stock-solverforge-guardrails: banner venv verify-fair-start verify-solverforge-config-parity build-job-shop-scheduling build-cvrp-solverforge build-employee-scheduling-solverforge
 	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/verify_stock_solverforge_guardrails.py $(GUARDRAIL_ARGS)
+
+verify-solverforge-py-smoke: banner install-python-deps verify-fair-start verify-solverforge-config-parity verify-solverforge-py-guardrail-contract build-cvrp-solverforge build-employee-scheduling-solverforge build-job-shop-scheduling-solverforge
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/verify_solverforge_py_guardrails.py --mode smoke --output-dir "$(SOLVERFORGE_PY_GUARDRAIL_OUTPUT_DIR)" $(SOLVERFORGE_PY_GUARDRAIL_ARGS)
+
+verify-solverforge-py-comparison: banner install-python-deps verify-fair-start verify-solverforge-config-parity verify-solverforge-py-guardrail-contract build-cvrp-solverforge build-employee-scheduling-solverforge build-job-shop-scheduling-solverforge
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/verify_solverforge_py_guardrails.py --mode comparison --output-dir "$(SOLVERFORGE_PY_GUARDRAIL_OUTPUT_DIR)" $(SOLVERFORGE_PY_GUARDRAIL_ARGS)
+
+verify-solverforge-py-release: banner install-python-deps verify-fair-start verify-solverforge-config-parity \
+	verify-solverforge-py-guardrail-contract \
+	validate-cvrp validate-employee-scheduling validate-employee-model-parity \
+	validate-job-shop-scheduling build-cvrp-solverforge \
+	build-employee-scheduling-solverforge build-job-shop-scheduling-solverforge
+	"$(PYTHON)" -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src scripts
+	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/verify_solverforge_py_guardrails.py --mode release --output-dir "$(SOLVERFORGE_PY_GUARDRAIL_OUTPUT_DIR)" $(SOLVERFORGE_PY_GUARDRAIL_ARGS)
 
 venv:
 	@if [ -x "$(PYTHON)" ]; then \
@@ -177,7 +201,7 @@ build-cvrp-vroom: banner $(VROOM_BINARY)
 	mkdir -p $(CVRP_VROOM_DIR)/target
 	cp $(VROOM_BINARY) $(CVRP_VROOM_DIR)/target/cvrp_vroom
 
-build-cvrp-solverforge: banner install-python-deps
+build-cvrp-solverforge: banner install-python-deps verify-solverforge-config-parity
 	cd $(CVRP_SOLVERFORGE_DIR) && PIP_DISABLE_PIP_VERSION_CHECK=1 maturin develop --release --locked --pip-path "$(PIP)"
 
 bench-cvrp: build-cvrp
@@ -218,7 +242,7 @@ build-employee-scheduling-ortools: banner $(ORTOOLS_ROOT)/lib64/cmake/ortools/or
 	mkdir -p $(EMPLOYEE_ORTOOLS_DIR)/target
 	cp build/employee-scheduling-ortools/employee_scheduling_ortools $(EMPLOYEE_ORTOOLS_DIR)/target/
 
-build-employee-scheduling-solverforge: banner install-python-deps
+build-employee-scheduling-solverforge: banner install-python-deps verify-solverforge-config-parity
 	cd $(EMPLOYEE_SOLVERFORGE_DIR) && maturin build --release --locked -i "$(PYTHON)"
 	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install --force-reinstall $$(ls -t $(EMPLOYEE_SOLVERFORGE_DIR)/target/wheels/*.whl | head -1)
 
@@ -273,7 +297,7 @@ normalize-results: banner
 
 build-job-shop-scheduling: banner install-python-deps build-job-shop-scheduling-solverforge build-job-shop-scheduling-timefold build-job-shop-scheduling-ortools
 
-build-job-shop-scheduling-solverforge: banner install-python-deps
+build-job-shop-scheduling-solverforge: banner install-python-deps verify-solverforge-config-parity
 	cd $(JOBSHOP_SOLVERFORGE_DIR) && maturin build --release --locked -i "$(PYTHON)"
 	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install --force-reinstall $$(ls -t $(JOBSHOP_SOLVERFORGE_DIR)/target/wheels/*.whl | head -1)
 

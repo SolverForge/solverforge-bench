@@ -50,6 +50,12 @@ jobs:
               print(f"valid TOML: {path}")
           PY
 
+      - name: Verify SolverForge configuration parity
+        run: make verify-solverforge-config-parity
+
+      - name: Verify SolverForge Python guardrail contract
+        run: make verify-solverforge-py-guardrail-contract
+
       - name: Verify fair-start witness contract
         run: make verify-fair-start
 
