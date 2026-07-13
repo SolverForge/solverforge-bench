@@ -1,0 +1,21 @@
+time_limits = [1, 10, 60]
+run_kind = "candidate"
+nightly = true
+wall_time_tolerance = 1.1
+watchdog_multiplier = 1.25
+watchdog_grace_seconds = 5.0
+
+[postgres]
+save = true
+url = "postgresql://postgres@localhost/solverforge_bench"
+
+[logging]
+level = "INFO"
+show_solver_output = true
+capture_solver_output = true
+
+[benchmarks.employee-scheduling]
+dataset_set = "canonical"
+
+[benchmarks.job-shop-scheduling]
+dataset_set = "canonical"
