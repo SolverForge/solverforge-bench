@@ -24,23 +24,23 @@ pub fn solve(
         .build()
         .map_err(|e| format!("Failed to create async runtime: {e}"))?;
 
-    let mut best = None;
+    let mut completed = None;
     let mut telemetry = None;
     let mut failure = None;
     rt.block_on(async {
         loop {
             match rx.recv().await {
-                Some(SolverEvent::BestSolution { metadata, solution }) => {
+                Some(SolverEvent::BestSolution { metadata, .. }) => {
                     telemetry = Some(metadata.telemetry);
-                    best = Some(solution);
                 }
                 Some(SolverEvent::Completed { metadata, solution }) => {
                     telemetry = Some(metadata.telemetry);
-                    best = Some(solution);
+                    completed = Some(solution);
                     break;
                 }
                 Some(SolverEvent::Cancelled { metadata }) => {
                     telemetry = Some(metadata.telemetry);
+                    failure = Some("SolverForge NRP job was cancelled".to_string());
                     break;
                 }
                 Some(SolverEvent::Failed { metadata, error }) => {
@@ -54,7 +54,11 @@ pub fn solve(
                 | Some(SolverEvent::Resumed { metadata }) => {
                     telemetry = Some(metadata.telemetry);
                 }
-                None => break,
+                None => {
+                    failure =
+                        Some("SolverForge NRP event stream closed before completion".to_string());
+                    break;
+                }
             }
         }
     });
@@ -62,6 +66,7 @@ pub fn solve(
     if let Some(error) = failure {
         return Err(error);
     }
-    best.map(|solution| (solution, telemetry))
+    completed
+        .map(|solution| (solution, telemetry))
         .ok_or_else(|| "SolverForge NRP job produced no solution".to_string())
 }

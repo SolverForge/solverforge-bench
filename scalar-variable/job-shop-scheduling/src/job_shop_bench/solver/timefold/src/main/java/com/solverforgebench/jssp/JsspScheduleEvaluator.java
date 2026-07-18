@@ -25,7 +25,8 @@ public final class JsspScheduleEvaluator {
         public int startFor(OperationAssignment operation) {
             int operationId = operation.getId();
             if (operationId < 0 || operationId >= starts.length || !startKnown[operationId]) {
-                return 0;
+                throw new IllegalStateException(
+                        "No start time for JSSP operation " + operationId);
             }
             return starts[operationId];
         }

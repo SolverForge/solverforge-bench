@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +26,7 @@ from solverforge_bench.fair_start import (
     make_fair_start_witness,
     solver_result,
 )
-from solverforge_bench.model import SolverResult
+from solverforge_bench.model import NoSolutionFoundError, SolverResult
 from solverforge_bench.solverforge_config import solver_config_for_time_limit
 
 
@@ -157,27 +157,75 @@ def solve_with_solverforge_py(
 def _scheduled_operations(
     machine_sequences: list[Any],
     operation_facts: list[Any],
-) -> tuple[list[ScheduledOperation], int | None]:
+) -> tuple[list[ScheduledOperation], int]:
+    expected_ids = set(range(len(operation_facts)))
+    assigned_ids: list[int] = []
+    machine_ids: set[int] = set()
+    for machine in machine_sequences:
+        machine_id = int(machine.machine_id)
+        if machine_id in machine_ids:
+            raise NoSolutionFoundError(
+                f"SolverForge Python returned duplicate JSSP machine {machine_id}"
+            )
+        machine_ids.add(machine_id)
+        for raw_operation_id in machine.operations:
+            operation_id = int(raw_operation_id)
+            if operation_id not in expected_ids:
+                raise NoSolutionFoundError(
+                    "SolverForge Python returned an unknown JSSP operation: "
+                    f"{operation_id}"
+                )
+            fact = operation_facts[operation_id]
+            if int(fact.operation_id) != operation_id:
+                raise NoSolutionFoundError(
+                    "SolverForge Python returned a mismatched JSSP operation id"
+                )
+            if int(fact.machine_id) != machine_id:
+                raise NoSolutionFoundError(
+                    "SolverForge Python returned a JSSP operation on the wrong "
+                    f"machine: operation {operation_id}, machine {machine_id}"
+                )
+            assigned_ids.append(operation_id)
+
+    assigned_counts = Counter(assigned_ids)
+    missing = sorted(expected_ids - assigned_counts.keys())
+    duplicates = sorted(
+        operation_id for operation_id, count in assigned_counts.items() if count > 1
+    )
+    if missing or duplicates:
+        raise NoSolutionFoundError(
+            "SolverForge Python returned an incomplete JSSP assignment: "
+            f"missing={missing}, duplicates={duplicates}"
+        )
+
     metrics = _schedule_metrics(machine_sequences, operation_facts)
+    if metrics["duplicate_penalty"] or metrics["cycle_penalty"]:
+        raise NoSolutionFoundError(
+            "SolverForge Python returned an invalid JSSP precedence graph: "
+            f"duplicates={metrics['duplicate_penalty']}, "
+            f"cycle_nodes={metrics['cycle_penalty']}"
+        )
     starts = metrics["starts"]
+    if set(starts) != expected_ids:
+        raise NoSolutionFoundError(
+            "SolverForge Python did not compute a start time for every JSSP "
+            "operation"
+        )
     output: list[ScheduledOperation] = []
     for machine in machine_sequences:
         for operation_id in machine.operations:
             operation_id = int(operation_id)
-            if not 0 <= operation_id < len(operation_facts):
-                continue
             fact = operation_facts[operation_id]
             output.append(
                 ScheduledOperation(
                     job_id=int(fact.job_id),
                     op_index=int(fact.op_index),
                     machine_id=int(machine.machine_id),
-                    start=int(starts.get(operation_id, 0)),
+                    start=int(starts[operation_id]),
                     duration=int(fact.duration),
                 )
             )
-    makespan = None if metrics["cycle_penalty"] else int(metrics["makespan"])
-    return output, makespan
+    return output, int(metrics["makespan"])
 
 
 def _schedule_metrics(

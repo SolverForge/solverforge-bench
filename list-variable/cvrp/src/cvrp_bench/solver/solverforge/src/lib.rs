@@ -14,6 +14,7 @@ solverforge::planning_model! {
 #[path = "lib_tests.rs"]
 mod tests;
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use pyo3::prelude::*;
@@ -91,6 +92,31 @@ fn build_plan(input: InstanceInput, time_limit_secs: u64) -> CvrpPlan {
     }
 }
 
+fn ensure_complete_customer_assignment(plan: &CvrpPlan) -> Result<(), String> {
+    let expected = plan.customer_values.iter().copied().fold(
+        BTreeMap::<usize, usize>::new(),
+        |mut counts, customer| {
+            *counts.entry(customer).or_default() += 1;
+            counts
+        },
+    );
+    let assigned = plan
+        .routes
+        .iter()
+        .flat_map(|route| &route.visits)
+        .copied()
+        .fold(BTreeMap::<usize, usize>::new(), |mut counts, customer| {
+            *counts.entry(customer).or_default() += 1;
+            counts
+        });
+    if assigned != expected {
+        return Err(format!(
+            "SolverForge CVRP returned an incomplete customer assignment: expected={expected:?}, assigned={assigned:?}"
+        ));
+    }
+    Ok(())
+}
+
 #[pyfunction]
 fn solve_cvrp(instance_json: &str, time_limit: u64) -> PyResult<String> {
     let input: InstanceInput = serde_json::from_str(instance_json)
@@ -148,6 +174,8 @@ fn solve_cvrp(instance_json: &str, time_limit: u64) -> PyResult<String> {
 
     let solved = solved?;
     delete_result?;
+    ensure_complete_customer_assignment(&solved)
+        .map_err(pyo3::exceptions::PyValueError::new_err)?;
     let routes = solved.materialized_routes();
     let cost = solved.total_cost();
 

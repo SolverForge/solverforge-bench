@@ -291,6 +291,18 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
 
     let (solved, telemetry) = solve(plan, time_limit)?;
 
+    let missing_required_shifts: Vec<_> = solved
+        .shifts
+        .iter()
+        .filter(|shift| shift.is_minimum && shift.nurse_idx.is_none())
+        .map(|shift| shift.id)
+        .collect();
+    if !missing_required_shifts.is_empty() {
+        return Err(format!(
+            "SolverForge NRP returned required shifts without a nurse: {missing_required_shifts:?}"
+        ));
+    }
+
     let score = solved
         .score
         .ok_or_else(|| "SolverForge NRP produced no score".to_string())?;

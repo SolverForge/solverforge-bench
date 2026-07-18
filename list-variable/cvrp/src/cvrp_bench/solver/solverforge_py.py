@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,7 @@ from solverforge_bench.fair_start import (
     make_fair_start_witness,
     solver_result,
 )
-from solverforge_bench.model import SolverResult
+from solverforge_bench.model import NoSolutionFoundError, SolverResult
 from solverforge_bench.solverforge_config import solver_config_for_time_limit
 
 
@@ -161,11 +162,29 @@ def solve_with_solverforge_py(instance: Instance, time_limit: int) -> SolverResu
     emit_fair_start_witness(witness)
     solved = Solver.solve(plan, config)
 
-    routes = [list(route.visits) for route in solved.routes if route.visits]
+    routes = _complete_routes(solved)
     solution = Solution(
         routes=routes, cost=calculate_cost(Solution(routes=routes, cost=0), instance)
     )
     return solver_result(solution, witness)
+
+
+def _complete_routes(solved: Any) -> list[list[int]]:
+    routes = [
+        [int(customer) for customer in route.visits]
+        for route in solved.routes
+        if route.visits
+    ]
+    expected = Counter(int(customer) for customer in solved.customer_values)
+    assigned = Counter(customer for route in routes for customer in route)
+    if assigned != expected:
+        missing = sorted((expected - assigned).elements())
+        unexpected = sorted((assigned - expected).elements())
+        raise NoSolutionFoundError(
+            "SolverForge Python returned an incomplete CVRP assignment: "
+            f"missing={missing}, unexpected_or_duplicate={unexpected}"
+        )
+    return routes
 
 
 def _solver_config(time_limit: int) -> dict[str, Any]:

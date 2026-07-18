@@ -26,7 +26,7 @@ from solverforge_bench.fair_start import (
     make_fair_start_witness,
     solver_result,
 )
-from solverforge_bench.model import SolverResult
+from solverforge_bench.model import NoSolutionFoundError, SolverResult
 from solverforge_bench.solverforge_config import solver_config_for_time_limit
 
 
@@ -651,6 +651,7 @@ def solve_with_solverforge_py(instance: Instance, time_limit: int) -> SolverResu
     fresh_score = Solver.analyze(solved)
     reported_cost = _soft_cost(solved.score)
     fresh_cost = _soft_cost(fresh_score)
+    _ensure_required_shift_assignments(solved.shifts)
 
     weekly: list[list[Assignment]] = [[] for _ in range(int(payload["num_weeks"]))]
     for shift in solved.shifts:
@@ -689,6 +690,19 @@ def solve_with_solverforge_py(instance: Instance, time_limit: int) -> SolverResu
         ),
         witness,
     )
+
+
+def _ensure_required_shift_assignments(shifts: list[Any]) -> None:
+    missing = sorted(
+        int(shift.shift_id)
+        for shift in shifts
+        if bool(shift.is_minimum) and shift.nurse_idx is None
+    )
+    if missing:
+        raise NoSolutionFoundError(
+            "SolverForge Python returned an incomplete employee-scheduling "
+            f"assignment: required shifts without a nurse={missing}"
+        )
 
 
 _ANY_SHIFT = 2**64 - 1

@@ -15,6 +15,7 @@ import com.solverforgebench.jssp.domain.OperationAssignment;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 public class Main {
 
@@ -50,7 +51,9 @@ public class Main {
             this.jobId = operation.getJobId();
             this.opIndex = operation.getOpIndex();
             this.machineId = operation.getMachineId();
-            this.start = operation.getStart() == null ? 0 : operation.getStart();
+            this.start = Objects.requireNonNull(
+                    operation.getStart(),
+                    "JSSP operation start must be present");
             this.duration = operation.getDuration();
         }
     }
@@ -143,6 +146,11 @@ public class Main {
         JsspSchedule solution = solver.solve(problem);
 
         JsspScheduleEvaluator.Evaluation evaluation = JsspScheduleEvaluator.evaluate(solution);
+        if (evaluation.hardPenalty() > 0) {
+            throw new IllegalStateException(
+                    "Timefold returned an incomplete or invalid JSSP schedule "
+                            + "(hard penalty: " + evaluation.hardPenalty() + ")");
+        }
         for (OperationAssignment operation : solution.getOperations()) {
             operation.setStart(evaluation.startFor(operation));
         }
