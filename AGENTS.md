@@ -13,7 +13,8 @@
   create the root `.venv` with `make install-python-deps` before parity
   validation.
 - `src/solverforge_bench/` contains the shared benchmark framework. CLI,
-  TOML configuration, registry, run matrix, timing, overshoot calculation,
+  TOML configuration, registry, exact run-matrix attestation, solver runtime
+  provenance, timing, overshoot calculation,
   watchdog containment, result rows, CSV writing, production logging, solver
   stdout/stderr capture, and optional PostgreSQL persistence belong here, not
   in problem-specific scripts.
@@ -140,12 +141,14 @@ adapter errors.
 
 For CI or documentation contract changes, also verify Python syntax with
 `python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src scripts`,
-run `make verify-fair-start`, run `make verify-solverforge-config-parity`, and
-parse `benchmark*.toml` with `tomllib` or an equivalent TOML parser.
+run `make verify-benchmark-contracts`, run `make verify-fair-start`, run
+`make verify-solverforge-config-parity`, and parse `benchmark*.toml` with
+`tomllib` or an equivalent TOML parser.
 
 After changing `solverforge-py` adapters, Python-binding runtime behavior, or
 benchmark fairness logic, run `make install-python-deps`,
-`make verify-fair-start`, `make verify-solverforge-config-parity`, and
+`make verify-benchmark-contracts`, `make verify-fair-start`,
+`make verify-solverforge-config-parity`, and
 `make verify-solverforge-py-guardrail-contract`, then
 `make verify-solverforge-py-smoke`. Before a release or public benchmark claim,
 also run
@@ -199,6 +202,22 @@ exact requested instance/time-limit/solver matrix, including whole keys for
 which neither solver emitted a row. Commands stored in summaries, errors, or
 PostgreSQL run metadata must redact database URL values while execution still
 uses the real URL.
+
+Every run must materialize a nonempty, duplicate-free
+case/solver/time-limit matrix before solver execution. PostgreSQL runs must
+persist that expected catalog, reject results outside it, and finish as
+`completed` only when the observed matrix matches it exactly. Solver version
+metadata must hash the actual invoked distribution, executable, native binary,
+or JAR; manifest declarations alone are not runtime provenance. Only rows from
+`publishable_benchmark_runs` and `publishable_benchmark_result_facts` have
+passed the clean-commit, exact-matrix, fair-start, and runtime-provenance gate.
+
+SolverForge adapters must reject a CVRP customer assignment that is not exact,
+an unassigned callback-required employee shift, and a JSSP operation that is
+missing, duplicated, wrong-owner, cyclic, or otherwise unassigned. They must
+not return a prior best after cancellation. Such output is a failed solver
+invocation, not a solution to send to the validator. Optional employee shifts
+may remain unassigned.
 
 Do not reintroduce `standard-variable`, `CoverageGroup`, `coverage_first_fit`,
 or benchmark-local scoring internals for employee scheduling. The active

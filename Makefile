@@ -92,7 +92,7 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-job-shop-scheduling-solverforge bench-job-shop-scheduling-solverforge-db \
 	bench-job-shop-scheduling-solverforge-quick bench-job-shop-scheduling-solverforge-quick-db \
 	bench-nightly-db \
-	verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
+	verify-benchmark-contracts verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
 	verify-solverforge-py-guardrail-contract verify-solverforge-py-smoke verify-solverforge-py-comparison verify-solverforge-py-release \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
 	db-check db-create db-migrate db-reset normalize-results
@@ -113,6 +113,10 @@ banner:
 verify-fair-start: banner venv
 	"$(PYTHON)" scripts/verify_fair_start.py
 
+verify-benchmark-contracts: banner venv
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_benchmark_contracts.py
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_solver_output_contracts.py
+
 verify-fair-start-rows: banner venv
 	@test -n "$(RUN_ID)" || (echo "RUN_ID is required" >&2; exit 2)
 	"$(PYTHON)" scripts/verify_fair_start.py --run-id "$(RUN_ID)" --database-url "$(DATABASE_URL)"
@@ -132,7 +136,7 @@ verify-solverforge-py-smoke: banner install-python-deps verify-fair-start verify
 verify-solverforge-py-comparison: banner install-python-deps verify-fair-start verify-solverforge-config-parity verify-solverforge-py-guardrail-contract build-cvrp-solverforge build-employee-scheduling-solverforge build-job-shop-scheduling-solverforge
 	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/verify_solverforge_py_guardrails.py --mode comparison --output-dir "$(SOLVERFORGE_PY_GUARDRAIL_OUTPUT_DIR)" $(SOLVERFORGE_PY_GUARDRAIL_ARGS)
 
-verify-solverforge-py-release: banner install-python-deps verify-fair-start verify-solverforge-config-parity \
+verify-solverforge-py-release: banner install-python-deps verify-benchmark-contracts verify-fair-start verify-solverforge-config-parity \
 	verify-solverforge-py-guardrail-contract \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity \
 	validate-job-shop-scheduling build-cvrp-solverforge \

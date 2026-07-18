@@ -3,11 +3,11 @@
 This repository is the official benchmark surface for SolverForge comparison work.
 It groups benchmarks by SolverForge solve shape and runs every problem through
 one shared framework: the framework owns the CLI, TOML configuration, benchmark
-registry, run matrix, timing, overshoot calculation, watchdog containment,
-result rows, CSV writing, production logging, solver stdout/stderr capture, and
-optional PostgreSQL persistence. Problem packages are adapters: they load/select
-cases, create solver callables, validate/evaluate returned solutions, and expose
-native fields.
+registry, exact run-matrix attestation, timing, overshoot calculation, watchdog
+containment, result rows, CSV writing, production logging, solver stdout/stderr
+capture, runtime provenance, and optional PostgreSQL persistence. Problem
+packages are adapters: they load/select cases, create solver callables,
+validate/evaluate returned solutions, and expose native fields.
 See `WIREFRAME.md` for the current as-built repository map.
 
 ## Benchmarks
@@ -126,6 +126,7 @@ Run the local/release guardrails explicitly:
 
 ```sh
 make verify-solverforge-config-parity
+make verify-benchmark-contracts
 make verify-solverforge-py-guardrail-contract
 make verify-solverforge-py-smoke
 make verify-solverforge-py-comparison
@@ -135,6 +136,9 @@ make verify-solverforge-py-release
 The configuration gate is a prerequisite of every native SolverForge build and
 every native/Python guardrail. The guardrail-contract gate exercises exact
 matrix coverage and secret-redaction regressions without running a solver. The
+shared benchmark-contract gate separately exercises the root runner's
+nonempty/unique/exact matrix contract, runtime artifact provenance, and
+SolverForge output-completeness boundaries across every benchmark. The
 smoke gate remains a focused
 `solverforge-py` adapter check for CVRP,
 employee scheduling, and the JSSP quick group. The comparison gate runs paired
@@ -363,6 +367,10 @@ files, or `--no-capture-solver-output` to disable per-solver output files.
 Solver exceptions are caught per solver/case/time-limit and become result rows
 with `run_error`; full tracebacks are kept in the stderr/run logs. Fatal output
 integrity errors, such as CSV or PostgreSQL write failures, still fail the run.
+The runner materializes the selected cases before execution, rejects empty or
+duplicate selections and nonpositive or duplicate time limits, and requires
+exactly one emitted row for every case/solver/time-limit key before a run can
+complete.
 
 ## TOML Configuration
 
@@ -536,14 +544,18 @@ problem fields are stable optional columns, for example `nurses`, `weeks`,
 
 PostgreSQL stores run-level catalog data in `benchmark_runs`, one solver-version
 row per solver involved in the run in `benchmark_solver_versions`, and one row
-per solver/case/time-limit result in `benchmark_results`. Each result references
-the corresponding solver-version row with a foreign key. The live persistence
-path uses a Polars DataFrame ETL boundary fed by in-memory `BenchmarkRow`
+per solver/case/time-limit result in `benchmark_results`.
+`benchmark_run_matrix_entries` stores every expected result key before the
+first solver starts. Each result references both the corresponding
+solver-version row and an expected matrix key with foreign keys. The live
+persistence path uses a Polars DataFrame ETL boundary fed by in-memory `BenchmarkRow`
 objects; generated CSV files are evidence artifacts, not the PostgreSQL source
 of truth. Core benchmark columns are typed columns. Benchmark-specific native
 fields are preserved in `native_fields`, and the complete emitted row is
-preserved in `row_payload`. Native solver versions are recorded from the built
-executables, not from Makefile default variables.
+preserved in `row_payload`. Solver provenance hashes the actual installed
+Python distribution, executable, native adapter binary, or shaded JAR. Cargo
+adapters additionally record the registry-backed locked dependency version and
+checksum; SolverForge adapters record the qualified semantic policy hash.
 Runs have an independent `nightly` flag and are catalogued as `running`,
 `completed`, or `failed`; each completed result row is persisted immediately, so
 interrupted runs keep their partial rows but are excluded from latest-run display
@@ -554,7 +566,14 @@ linked from `benchmark_results.solver_stdout_path` and
 PostgreSQL is the warehouse source of truth. Display consumers should read
 `benchmark_result_facts`, `latest_benchmark_runs`, or
 `latest_benchmark_result_facts` instead of reconstructing the run/result join
-themselves. The latest-run views keep normal and nightly runs separate.
+themselves for warehouse diagnostics. Public consumers must use
+`publishable_benchmark_runs`, `publishable_benchmark_result_facts`, or their
+`latest_publishable_*` counterparts. Those views admit only completed runs from
+a clean, identified commit with an exact expected/observed matrix, valid
+fair-start witnesses, and complete runtime provenance. Solver failure rows are
+allowed in an otherwise complete matrix; they reduce feasibility and never
+contribute a fabricated quality value. The latest-run views keep normal and
+nightly runs separate.
 
 For file-based loading, `scripts/normalize_results.py` normalizes generated
 global CSV artifacts through Polars:
@@ -564,8 +583,8 @@ make normalize-results INPUT=path/to/benchmark.csv OUTPUT=results/normalized.csv
 make normalize-results INPUT=path/to/benchmark.csv OUTPUT=results/normalized.ndjson ARGS="--format ndjson"
 ```
 
-If a filtered run produces no result rows, the CSV remains a valid schema-only
-artifact and normalizes to a schema-only output file.
+If a requested selector resolves to no cases, the harness fails before opening
+CSV or PostgreSQL output; an empty matrix is never a completed benchmark.
 
 The normalized rows use these columns:
 

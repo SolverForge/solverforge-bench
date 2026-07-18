@@ -41,11 +41,19 @@ def _load_timefold() -> SolverFn:
 def solver_versions(methods: Iterable[str]) -> dict[str, SolverVersion]:
     resolvers = {
         "solverforge": cargo_dependency_version(
-            _SOLVER_DIR / "solverforge_nrp" / "Cargo.toml", "solverforge"
+            _SOLVER_DIR / "solverforge_nrp" / "Cargo.toml",
+            "solverforge",
+            runtime_distribution="solverforge-nrp",
+            solver_config_path=(_SOLVER_DIR / "solverforge_nrp" / "solver.toml"),
         ),
-        "solverforge-py": python_distribution_version("solverforge"),
+        "solverforge-py": python_distribution_version(
+            "solverforge",
+            solver_config_path=_SOLVER_DIR / "solverforge_py.toml",
+        ),
         "timefold": maven_property_version(
-            _SOLVER_DIR / "timefold" / "pom.xml", "timefold.version"
+            _SOLVER_DIR / "timefold" / "pom.xml",
+            "timefold.version",
+            artifact=_SOLVER_DIR / "timefold" / "target" / "timefold-nrp.jar",
         ),
         "ortools": executable_version(
             _SOLVER_DIR / "ortools" / "target" / "employee_scheduling_ortools"

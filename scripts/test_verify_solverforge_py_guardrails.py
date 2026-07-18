@@ -13,6 +13,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import verify_solverforge_py_guardrails as guardrails
+from solverforge_bench.matrix import BenchmarkMatrix
+from solverforge_bench.model import BenchmarkCase, SolverVersion
 from solverforge_bench.postgres import make_postgres_config
 from solverforge_bench.redaction import (
     REDACTED_VALUE,
@@ -117,15 +119,48 @@ class CommandRedactionTests(unittest.TestCase):
             config=None,
         )
         spec = argparse.Namespace(name="cvrp", category="list_variable")
+        matrix = BenchmarkMatrix.build(
+            benchmark_name="cvrp",
+            cases=[
+                BenchmarkCase(
+                    dataset="test",
+                    dataset_set="quick",
+                    instance="one",
+                    instance_size=1,
+                    payload={},
+                )
+            ],
+            solvers=["test-solver"],
+            time_limits_seconds=[1],
+        )
+        solver_versions = {
+            "test-solver": SolverVersion(
+                solver="test-solver",
+                version="1.0.0",
+                source="test",
+                metadata={
+                    "provenance_schema_version": 1,
+                    "provenance_sha256": "a" * 64,
+                    "runtime_artifacts": [
+                        {
+                            "kind": "test",
+                            "sha256": "b" * 64,
+                            "size": 1,
+                        }
+                    ],
+                },
+            )
+        }
 
         config = make_postgres_config(
             args=args,
             spec=spec,
             output_path=Path("results.csv"),
             artifact_dir=Path("artifacts"),
-            solvers=[],
-            solver_versions={},
+            solvers=["test-solver"],
+            solver_versions=solver_versions,
             time_limits=[1],
+            matrix=matrix,
         )
 
         self.assertEqual(config.database_url, secret)

@@ -53,6 +53,9 @@ jobs:
       - name: Verify SolverForge configuration parity
         run: make verify-solverforge-config-parity
 
+      - name: Verify benchmark matrix and provenance contracts
+        run: make verify-benchmark-contracts
+
       - name: Verify SolverForge Python guardrail contract
         run: make verify-solverforge-py-guardrail-contract
 

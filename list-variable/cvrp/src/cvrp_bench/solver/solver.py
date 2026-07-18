@@ -77,16 +77,26 @@ def solver_versions(methods: Iterable[str]) -> dict[str, SolverVersion]:
         ),
         "vroom": executable_version(_SOLVER_DIR / "vroom" / "target" / "cvrp_vroom"),
         "timefold": maven_property_version(
-            _SOLVER_DIR / "timefold" / "pom.xml", "timefold.version"
+            _SOLVER_DIR / "timefold" / "pom.xml",
+            "timefold.version",
+            artifact=_SOLVER_DIR / "timefold" / "target" / "timefold-cvrp.jar",
         ),
         "rustvrp": cargo_dependency_version(
-            _SOLVER_DIR / "rustvrp" / "Cargo.toml", "vrp-cli"
+            _SOLVER_DIR / "rustvrp" / "Cargo.toml",
+            "vrp-cli",
+            runtime_paths=[_SOLVER_DIR / "rustvrp" / "target" / "cvrp_rustvrp"],
         ),
         "pyhygese": python_distribution_version("hygese"),
         "solverforge": cargo_dependency_version(
-            _SOLVER_DIR / "solverforge" / "Cargo.toml", "solverforge"
+            _SOLVER_DIR / "solverforge" / "Cargo.toml",
+            "solverforge",
+            runtime_distribution="solverforge-cvrp",
+            solver_config_path=(_SOLVER_DIR / "solverforge" / "solver.toml"),
         ),
-        "solverforge-py": python_distribution_version("solverforge"),
+        "solverforge-py": python_distribution_version(
+            "solverforge",
+            solver_config_path=_SOLVER_DIR / "solverforge_py.toml",
+        ),
     }
     return versions_for_solvers(methods, resolvers)
 

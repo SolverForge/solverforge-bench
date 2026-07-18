@@ -18,6 +18,7 @@ from solverforge_bench.logging import (
     solver_capture_dir,
     solver_output_paths,
 )
+from solverforge_bench.matrix import BenchmarkMatrix, BenchmarkMatrixTracker
 from solverforge_bench.model import BenchmarkRow, BenchmarkSpec, Evaluation
 from solverforge_bench.postgres import PostgresResultWriter, make_postgres_config
 from solverforge_bench.validation import (
@@ -42,6 +43,15 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
     args.log_path = log_path
     solvers = validate_unique_solvers(args.solver or spec.default_solvers)
     time_limits = args.time_limits or spec.default_time_limits
+    matrix = BenchmarkMatrix.build(
+        benchmark_name=spec.name,
+        cases=spec.cases(args),
+        solvers=solvers,
+        time_limits_seconds=time_limits,
+    )
+    matrix_tracker = BenchmarkMatrixTracker(matrix)
+    solvers = list(matrix.solvers)
+    time_limits = list(matrix.time_limits_seconds)
     solver_versions = spec.solver_versions(solvers)
     validate_solver_versions(solvers, solver_versions)
     solver_log_dir = solver_capture_dir(
@@ -54,7 +64,7 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
     LOGGER.info(
         "benchmark_start benchmark=%s category=%s solvers=%s time_limits=%s "
         "output=%s artifact_dir=%s log_path=%s run_kind=%s nightly=%s "
-        "solver_versions=%s",
+        "solver_versions=%s expected_result_count=%s matrix_sha256=%s",
         spec.name,
         spec.category,
         ",".join(solvers),
@@ -65,6 +75,8 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
         args.run_kind,
         args.nightly,
         {name: version.version for name, version in solver_versions.items()},
+        matrix.expected_count,
+        matrix.sha256,
     )
 
     lock_path = _benchmark_lock_path()
@@ -89,13 +101,14 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
                             solvers=solvers,
                             solver_versions=solver_versions,
                             time_limits=time_limits,
+                            matrix=matrix,
                         )
                     )
                 )
                 args.postgres_run_id = str(postgres_writer.run_id)
                 LOGGER.info("postgres_run_opened run_id=%s", args.postgres_run_id)
 
-            for case in spec.cases(args):
+            for case in matrix.cases:
                 case_input_hash = stable_input_hash(case.payload)
                 LOGGER.info(
                     "case_start dataset=%s dataset_set=%s instance=%s "
@@ -162,6 +175,7 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
                             solver_version=solver_versions[run.solver].version,
                             wall_time_tolerance=args.wall_time_tolerance,
                         )
+                        matrix_tracker.observe_row(row)
                         writer.write_row(row.as_dict())
                         if postgres_writer is not None:
                             postgres_writer.write_row(row)
@@ -177,6 +191,7 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
                             run.run_error,
                             evaluation.hard_feasible,
                         )
+            matrix_tracker.assert_complete()
     finally:
         if lock_handle is not None:
             _release_benchmark_lock(lock_handle)

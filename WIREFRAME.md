@@ -14,14 +14,17 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   native adapter builds, benchmark smoke/full runs, database helpers,
   normalization, the SolverForge banner, and CPU-pinned harness execution.
 - `src/solverforge_bench/` is the shared framework. It owns CLI parsing, TOML
-  loading, benchmark registry, run matrix construction, timed execution,
+  loading, benchmark registry, exact run matrix construction and hashing,
+  runtime artifact provenance, timed execution,
   watchdog containment, row construction, CSV writing, logging, solver output
   capture, solver-version collection, secret-safe command metadata, ETL, and
   optional PostgreSQL writes.
-- `scripts/run_benchmark.py`, `scripts/verify_solverforge_py_guardrails.py`,
-  `scripts/test_verify_solverforge_py_guardrails.py`, and benchmark-local
-  validation scripts bootstrap through
+- `scripts/run_benchmark.py`, `scripts/verify_solverforge_py_guardrails.py`, and
+  benchmark-local validation scripts bootstrap through
   `scripts/_venv_bootstrap.py` when they require the repository virtualenv.
+  `scripts/test_verify_solverforge_py_guardrails.py` and
+  `scripts/test_benchmark_contracts.py` and
+  `scripts/test_solver_output_contracts.py` run through their root Make targets.
 - `list-variable/cvrp/` is the list-variable benchmark package for CVRP.
 - `scalar-variable/employee-scheduling/` is the scalar-variable benchmark
   package for INRC-II nurse scheduling.
@@ -43,9 +46,11 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
    and passes the selected spec to `runner.py`.
 3. `registry.py` exposes the canonical benchmark specs: `cvrp`,
    `employee-scheduling`, and `job-shop-scheduling`.
-4. `runner.py` resolves cases, time limits, solvers, solver versions, output
-   paths, artifact paths, run logs, and solver output paths. It then iterates
-   `case -> time_limit -> solver`.
+4. `runner.py` materializes a nonempty, duplicate-free case list, positive
+   unique time limits, unique solvers, and the complete expected Cartesian
+   matrix. It resolves content-hashed runtime provenance before opening output,
+   then iterates `case -> time_limit -> solver` and refuses completion unless
+   every expected key was emitted exactly once.
 5. `execution.py` runs each solver in a child process. Only the instance payload
    and nominal time limit are passed to the solver callable; the nominal time
    limit is not the hard kill deadline. The watchdog only terminates runaway
@@ -204,6 +209,13 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - `solverforge_jssp/solver.toml` and the separate `solverforge_py.toml` both set
   `random_seed = 1` and omit explicit phases so native and Python use the same
   model-aware default construction and local-search profile.
+- SolverForge Rust, SolverForge Python, and Timefold reject incomplete,
+  duplicated, wrong-owner, or cyclic JSSP structure. They never replace an
+  unknown operation start with zero.
+- Both SolverForge CVRP adapters require every customer exactly once. Both
+  employee-scheduling adapters require every callback-required shift while
+  preserving optional unassigned shifts. Native adapters accept a solution
+  only from `Completed`, never from a prior best after cancellation.
 
 ## Makefile Contract
 
@@ -218,6 +230,9 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - `make verify-fair-start` enforces that active solver adapters start from
   unassigned scalar variables or empty list variables, emit runtime witnesses,
   and do not read reference solutions or inject adapter-owned incumbents.
+- `make verify-benchmark-contracts` exercises exact matrix completion, runtime
+  provenance, and all SolverForge output-completeness boundaries without
+  running a full benchmark suite.
 - `make verify-fair-start-rows RUN_ID=<uuid>` checks persisted PostgreSQL rows
   for valid fair-start witnesses after a DB smoke run.
 - `make verify-solverforge-config-parity` parses each separate native/Python
@@ -321,10 +336,14 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   `scalar-variable/employee-scheduling/data/artifacts/employee_scheduling_<stamp>/`.
 - Job-shop scheduling solution artifacts are written under
   `scalar-variable/job-shop-scheduling/data/artifacts/job_shop_scheduling_<stamp>/`.
-- PostgreSQL stores run catalog rows in `benchmark_runs`, solver-version rows in
+- PostgreSQL stores run catalog rows in `benchmark_runs`, expected keys in
+  `benchmark_run_matrix_entries`, solver-version rows in
   `benchmark_solver_versions`, and result rows in `benchmark_results`.
 - `benchmark_result_facts`, `latest_benchmark_runs`, and
-  `latest_benchmark_result_facts` are the display-facing warehouse views.
+  `latest_benchmark_result_facts` are diagnostic warehouse views.
+- `benchmark_run_publication_audit` explains every rejected run.
+  `publishable_benchmark_runs`, `publishable_benchmark_result_facts`, and the
+  `latest_publishable_*` views are the only public publication surface.
 - Completed result rows are written immediately. Interrupted runs keep partial
   rows but are excluded from latest-run views unless their run status is
   completed.
@@ -337,8 +356,9 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   runner labels in `.forgejo/workflows/ci.yml`.
 - Python CI uses Python 3.14, creates the root `.venv` through
   `make install-python-deps HOST_PYTHON=...`, compiles Python source, parses
-  benchmark TOML examples, verifies separate SolverForge config parity and the
-  Python guardrail regression contract, validates bundled CVRP instances, and
+  benchmark TOML examples, verifies separate SolverForge config parity, the
+  shared matrix/provenance contract, and the Python guardrail regression
+  contract, validates bundled CVRP instances, and
   validates employee model parity. GitHub uses `actions/setup-python@v6`;
   Forgejo uses
   a shell Python 3.14 bootstrap because the local Forgejo action mirror does

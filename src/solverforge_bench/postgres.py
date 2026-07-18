@@ -12,6 +12,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from solverforge_bench.etl import benchmark_rows_to_postgres_frame
+from solverforge_bench.matrix import (
+    BenchmarkMatrix,
+    BenchmarkMatrixKey,
+    BenchmarkMatrixTracker,
+)
 from solverforge_bench.model import BenchmarkRow, SolverVersion
 from solverforge_bench.redaction import redact_sensitive_command_args
 from solverforge_bench.validation import (
@@ -39,6 +44,7 @@ class PostgresConfig:
     solvers: list[str]
     solver_versions: dict[str, SolverVersion]
     time_limits_seconds: list[int]
+    matrix: BenchmarkMatrix
     command_args: list[str]
     repo_root: Path
     metadata: dict[str, Any]
@@ -46,6 +52,12 @@ class PostgresConfig:
     def __post_init__(self) -> None:
         validate_unique_solvers(self.solvers)
         validate_solver_versions(self.solvers, self.solver_versions)
+        if self.matrix.benchmark_name != self.benchmark_name:
+            raise ValueError("PostgreSQL matrix benchmark does not match run metadata")
+        if tuple(self.solvers) != self.matrix.solvers:
+            raise ValueError("PostgreSQL matrix solvers do not match run metadata")
+        if tuple(self.time_limits_seconds) != self.matrix.time_limits_seconds:
+            raise ValueError("PostgreSQL matrix time limits do not match run metadata")
 
 
 class PostgresResultWriter:
@@ -55,6 +67,7 @@ class PostgresResultWriter:
         self._conn = None
         self._row_index = 0
         self._solver_version_ids: dict[str, int] = {}
+        self._matrix_tracker = BenchmarkMatrixTracker(config.matrix)
 
     def __enter__(self) -> "PostgresResultWriter":
         psycopg, Jsonb = _load_psycopg()
@@ -64,6 +77,7 @@ class PostgresResultWriter:
         try:
             self._insert_run()
             run_inserted = True
+            self._insert_expected_matrix()
             self._insert_solver_versions()
         except BaseException as exc:
             if run_inserted:
@@ -82,6 +96,8 @@ class PostgresResultWriter:
         if self._conn is None:
             raise RuntimeError("PostgresResultWriter is not open")
 
+        key = BenchmarkMatrixKey.from_row(row)
+        self._matrix_tracker.ensure_can_observe(key)
         frame = benchmark_rows_to_postgres_frame(
             [row], run_id=self.run_id, row_offset=self._row_index
         )
@@ -89,6 +105,7 @@ class PostgresResultWriter:
         with self._conn.transaction():
             self._insert_result_frame(frame)
             self._update_result_count(next_row_index)
+        self._matrix_tracker.mark_observed(key)
         self._row_index = next_row_index
 
     def _insert_result_frame(self, frame) -> None:
@@ -232,6 +249,44 @@ class PostgresResultWriter:
                 inserted_id = cur.fetchone()[0]
                 self._solver_version_ids[solver] = inserted_id
 
+    def _insert_expected_matrix(self) -> None:
+        if self._conn is None:
+            raise RuntimeError("PostgresResultWriter is not open")
+
+        rows = [
+            {
+                "run_id": self.run_id,
+                "dataset": key.dataset,
+                "dataset_set": key.dataset_set,
+                "instance": key.instance,
+                "solver": key.solver,
+                "time_limit_seconds": key.time_limit_seconds,
+            }
+            for key in self.config.matrix.expected_keys
+        ]
+        with self._conn.transaction(), self._conn.cursor() as cur:
+            cur.executemany(
+                """
+                INSERT INTO benchmark_run_matrix_entries (
+                    run_id,
+                    dataset,
+                    dataset_set,
+                    instance,
+                    solver,
+                    time_limit_seconds
+                )
+                VALUES (
+                    %(run_id)s,
+                    %(dataset)s,
+                    %(dataset_set)s,
+                    %(instance)s,
+                    %(solver)s,
+                    %(time_limit_seconds)s
+                )
+                """,
+                rows,
+            )
+
     def _insert_run(self) -> None:
         if self._conn is None:
             raise RuntimeError("PostgresResultWriter is not open")
@@ -258,6 +313,8 @@ class PostgresResultWriter:
                     git_commit,
                     git_dirty,
                     python_version,
+                    expected_result_count,
+                    expected_matrix_sha256,
                     metadata
                 )
                 VALUES (
@@ -278,6 +335,8 @@ class PostgresResultWriter:
                     %(git_commit)s,
                     %(git_dirty)s,
                     %(python_version)s,
+                    %(expected_result_count)s,
+                    %(expected_matrix_sha256)s,
                     %(metadata)s
                 )
                 """,
@@ -301,6 +360,8 @@ class PostgresResultWriter:
                     "git_commit": git_commit,
                     "git_dirty": git_dirty,
                     "python_version": sys.version,
+                    "expected_result_count": self.config.matrix.expected_count,
+                    "expected_matrix_sha256": self.config.matrix.sha256,
                     "metadata": self._jsonb(_json_safe(self.config.metadata)),
                 },
             )
@@ -309,12 +370,18 @@ class PostgresResultWriter:
         if self._conn is None:
             raise RuntimeError("PostgresResultWriter is not open")
 
-        if exc_type is None:
-            status = "completed"
-            failure_error = None
-        else:
+        if exc_type is not None:
             status = "failed"
             failure_error = f"{exc_type.__name__}: {exc}"
+        else:
+            try:
+                self._matrix_tracker.assert_complete()
+            except ValueError as matrix_error:
+                status = "failed"
+                failure_error = f"ValueError: {matrix_error}"
+            else:
+                status = "completed"
+                failure_error = None
 
         with self._conn.cursor() as cur:
             cur.execute(
@@ -324,7 +391,8 @@ class PostgresResultWriter:
                     status = %(status)s,
                     completed_at = now(),
                     failure_error = %(failure_error)s,
-                    result_count = %(result_count)s
+                    result_count = %(result_count)s,
+                    observed_matrix_sha256 = %(observed_matrix_sha256)s
                 WHERE id = %(id)s
                 """,
                 {
@@ -332,6 +400,7 @@ class PostgresResultWriter:
                     "status": status,
                     "failure_error": failure_error,
                     "result_count": self._row_index,
+                    "observed_matrix_sha256": (self._matrix_tracker.observed_sha256),
                 },
             )
 
@@ -365,6 +434,7 @@ def make_postgres_config(
     solvers: Iterable[str],
     solver_versions: dict[str, SolverVersion],
     time_limits: Iterable[int],
+    matrix: BenchmarkMatrix,
 ) -> PostgresConfig:
     return PostgresConfig(
         database_url=database_url_from_args(args),
@@ -380,6 +450,7 @@ def make_postgres_config(
         solvers=list(solvers),
         solver_versions=solver_versions,
         time_limits_seconds=list(time_limits),
+        matrix=matrix,
         command_args=redact_sensitive_command_args(getattr(args, "argv", [])),
         repo_root=Path(args.repo_root),
         metadata={

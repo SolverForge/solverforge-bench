@@ -48,11 +48,19 @@ def create_solver(
 def solver_versions(solvers: list[str]) -> dict[str, SolverVersion]:
     resolvers = {
         "solverforge": cargo_dependency_version(
-            _SOLVER_DIR / "solverforge_jssp" / "Cargo.toml", "solverforge"
+            _SOLVER_DIR / "solverforge_jssp" / "Cargo.toml",
+            "solverforge",
+            runtime_distribution="solverforge-jssp",
+            solver_config_path=(_SOLVER_DIR / "solverforge_jssp" / "solver.toml"),
         ),
-        "solverforge-py": python_distribution_version("solverforge"),
+        "solverforge-py": python_distribution_version(
+            "solverforge",
+            solver_config_path=_SOLVER_DIR / "solverforge_py.toml",
+        ),
         "timefold": maven_property_version(
-            _SOLVER_DIR / "timefold" / "pom.xml", "timefold.version"
+            _SOLVER_DIR / "timefold" / "pom.xml",
+            "timefold.version",
+            artifact=_SOLVER_DIR / "timefold" / "target" / "timefold-jssp.jar",
         ),
         "ortools": executable_version(
             _SOLVER_DIR / "ortools" / "target" / "job_shop_scheduling_ortools"

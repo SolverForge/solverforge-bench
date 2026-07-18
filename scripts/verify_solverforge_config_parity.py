@@ -4,12 +4,16 @@
 from __future__ import annotations
 
 import difflib
-import hashlib
 import json
 import sys
 import tomllib
 from pathlib import Path
 from typing import Any
+
+from solverforge_bench.solverforge_config import (
+    load_solver_config,
+    solver_config_policy_sha256,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -47,18 +51,13 @@ QUALIFIED_POLICY_SHA256 = {
 
 
 def _load(path: Path) -> dict[str, Any]:
-    with path.open("rb") as config_file:
-        return tomllib.load(config_file)
+    return load_solver_config(path)
 
 
 def _canonical_json(config: dict[str, Any], *, pretty: bool = False) -> str:
     if pretty:
         return json.dumps(config, indent=2, sort_keys=True) + "\n"
     return json.dumps(config, separators=(",", ":"), sort_keys=True)
-
-
-def _policy_hash(config: dict[str, Any]) -> str:
-    return hashlib.sha256(_canonical_json(config).encode()).hexdigest()
 
 
 def verify_solverforge_config_parity() -> list[str]:
@@ -84,7 +83,7 @@ def verify_solverforge_config_parity() -> list[str]:
                 f"{benchmark}: native and Python SolverForge configs differ:\n{diff}"
             )
 
-        native_hash = _policy_hash(native_config)
+        native_hash = solver_config_policy_sha256(native_path)
         qualified_hash = QUALIFIED_POLICY_SHA256[benchmark]
         if native_hash != qualified_hash:
             failures.append(
