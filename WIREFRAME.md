@@ -85,7 +85,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   `rustvrp`, `pyhygese`, `solverforge`, and `solverforge-py`.
 - Native solver builds are rooted in `solver/ortools/`, `solver/rustvrp/`,
   `solver/vroom/`, `solver/timefold/`, and `solver/solverforge/`.
-- The SolverForge CVRP adapter is pinned to the published SolverForge `0.18.0`
+- The SolverForge CVRP adapter is pinned to the published SolverForge `0.19.0`
   crate and its committed registry lockfile.
 - The CVRP model uses public SolverForge CVRP list-variable hook bundles:
   `VrpSolution`, matrix distance meters, stock route hooks, stock savings
@@ -96,7 +96,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   adapter-owned incumbents, route hints, and reference-solution reads are not
   part of solver input.
 - The `solverforge-py` CVRP adapter builds a public Python-binding list-variable
-  model from the same CVRPLIB instance. Its canonical `0.6.1` declaration uses
+  model from the same CVRPLIB instance. Its canonical `0.6.2` declaration uses
   independent `ListRouteHooks` and `ListSavingsHooks`, explicit row-scoped
   capacity/demand/distance metadata, and explicit cross/intra-position distance
   sources. It starts all route lists empty and reports the installed
@@ -132,7 +132,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   native columns.
 - `solver/solver.py` registers `solverforge`, `solverforge-py`, `timefold`,
   and `ortools`.
-- The SolverForge NRP adapter is pinned to the published SolverForge `0.18.0`
+- The SolverForge NRP adapter is pinned to the published SolverForge `0.19.0`
   crate with `serde` enabled and a committed registry lockfile.
 - The SolverForge NRP model uses public scalar APIs: per-shift candidate
   values, unassigned scalar variables for optional slots, nearby value/entity
@@ -174,7 +174,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - `solver/solver.py` registers `solverforge`, `solverforge-py`, `timefold`,
   and `ortools`.
 - The SolverForge JSSP adapter is pinned to the published SolverForge,
-  SolverForge Core, and SolverForge Scoring `0.18.0` crates with a committed
+  SolverForge Core, and SolverForge Scoring `0.19.0` crates with a committed
   registry lockfile.
 - Its list model declares each operation's fixed machine owner with
   `element_owner_fn`; SolverForge construction and list neighborhoods must not
@@ -208,7 +208,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 ## Makefile Contract
 
 - `make install-python-deps` creates or refreshes the root `.venv` and installs
-  the exact published `solverforge==0.6.1` wheel into it.
+  the exact published `solverforge==0.6.2` wheel into it.
 - `make build-cvrp` builds Python dependencies plus CVRP Timefold, SolverForge,
   OR-Tools, rustvrp, and VROOM integrations.
 - `make build-employee-scheduling` builds Python dependencies plus employee
@@ -343,7 +343,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   Forgejo uses
   a shell Python 3.14 bootstrap because the local Forgejo action mirror does
   not provide that interpreter version.
-- Rust CI resolves the exact SolverForge `0.18.0` crates from the committed
+- Rust CI resolves the exact SolverForge `0.19.0` crates from the committed
   registry lockfiles. It checks formatting, runs
   `cargo clippy --locked --all-targets -- -D warnings`, and runs
   `cargo build --locked` for the CVRP SolverForge adapter, CVRP rustvrp

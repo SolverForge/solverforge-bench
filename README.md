@@ -58,14 +58,14 @@ The root Makefile uses this same `.venv` for CVRP, employee scheduling,
 normalization, and nightly runs. `make install-python-deps` creates or refreshes
 it before benchmark builds and is the CI-safe entrypoint for scripts that
 bootstrap themselves through the repository virtualenv. That target installs
-the exact published `solverforge==0.6.1` wheel into the same `.venv`, so
+the exact published `solverforge==0.6.2` wheel into the same `.venv`, so
 `solverforge-py` benchmark rows never depend on global Python packages or a
 sibling checkout.
 
 The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
-aligned to the exact published SolverForge `0.18.0` crates and committed
+aligned to the exact published SolverForge `0.19.0` crates and committed
 registry lockfiles. The `solverforge-py` adapters use the exact published
-`solverforge==0.6.1` distribution and report that distribution version in CSV
+`solverforge==0.6.2` distribution and report that distribution version in CSV
 and PostgreSQL rows.
 
 Each workload keeps two separate SolverForge configuration artifacts: the
@@ -120,7 +120,7 @@ when checking the final JSSP win condition.
 sets for every benchmark class. Before release work, public benchmark claims,
 or changes to the Python-binding solver paths, refresh the root `.venv` with
 `make install-python-deps`; that target force-refreshes the exact published
-`solverforge==0.6.1` wheel in the benchmark environment.
+`solverforge==0.6.2` wheel in the benchmark environment.
 
 Run the local/release guardrails explicitly:
 
@@ -170,7 +170,7 @@ run `make validate-cvrp`, and run
 `.venv`, so CI must use the Makefile bootstrap instead of a detached
 `python -m pip install -e .`.
 
-The Rust jobs resolve the exact SolverForge `0.18.0` crates from the committed
+The Rust jobs resolve the exact SolverForge `0.19.0` crates from the committed
 registry lockfiles. They set the PyO3 Python environment from
 `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
@@ -498,7 +498,7 @@ make bench-employee-scheduling-quick
 make bench-employee-scheduling-quick-db
 make bench-job-shop-scheduling-quick
 make bench-job-shop-scheduling-quick-db
-make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.18.0"
+make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.19.0"
 make bench-cvrp-db BENCH_ARGS="--run-kind quick --nightly"
 make bench-nightly-db
 ```
