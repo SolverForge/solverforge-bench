@@ -23,7 +23,7 @@ HOST_PYTHON ?= python3.14
 VENV ?= $(CURDIR)/.venv
 PYTHON ?= $(VENV)/bin/python3
 PIP ?= $(VENV)/bin/pip
-SOLVERFORGE_PY_REQUIREMENT := solverforge==0.6.1
+SOLVERFORGE_PY_REQUIREMENT := solverforge==0.6.2
 DATABASE_URL ?= $(if $(BENCH_DATABASE_URL),$(BENCH_DATABASE_URL),postgresql://postgres@localhost/solverforge_bench)
 SQLX ?= sqlx
 DB_RESET_FLAGS ?= -y -f
