@@ -119,7 +119,7 @@ name = "adapter"
 version = "0.1.0"
 
 [dependencies]
-solverforge = "0.19.0"
+solverforge = "0.19.2"
 """.strip()
                 + "\n",
                 encoding="utf-8",
@@ -130,7 +130,7 @@ version = 4
 
 [[package]]
 name = "solverforge"
-version = "0.19.0"
+version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 """.strip()
@@ -147,7 +147,7 @@ checksum = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             )("solverforge")
 
         validate_solver_versions(["solverforge"], {"solverforge": version})
-        self.assertEqual(version.version, "0.19.0")
+        self.assertEqual(version.version, "0.19.2")
         self.assertEqual(version.metadata["cargo_dependency"]["checksum"], "a" * 64)
         self.assertEqual(
             version.metadata["runtime_artifacts"][0]["kind"], "native_binary"
