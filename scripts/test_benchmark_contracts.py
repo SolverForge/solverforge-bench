@@ -7,9 +7,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from solverforge_bench.execution import run_solver
+from solverforge_bench.fair_start import (
+    emit_fair_start_witness,
+    make_fair_start_witness,
+    stable_input_hash,
+)
 from solverforge_bench.matrix import BenchmarkMatrix, BenchmarkMatrixTracker
 from solverforge_bench.model import (
     BenchmarkCase,
+    NoSolutionFoundError,
+    SolverExecutionError,
     SolverVersion,
 )
 from solverforge_bench.solver_versions import (
@@ -17,6 +25,35 @@ from solverforge_bench.solver_versions import (
     executable_version,
 )
 from solverforge_bench.validation import validate_solver_versions
+
+
+class _TestSolution:
+    def __init__(self, value: int) -> None:
+        self.value = value
+
+    def model_dump(self, *, mode: str) -> dict[str, int]:
+        del mode
+        return {"value": self.value}
+
+
+def _unknown_solver_factory(*, method: str, time_limit: int):
+    del time_limit
+
+    def solve(instance, _time_limit):
+        witness = make_fair_start_witness(
+            benchmark_name="test",
+            solver=method,
+            planning_state="empty",
+            solver_input=instance,
+        )
+        emit_fair_start_witness(witness)
+        raise NoSolutionFoundError(
+            "native solver returned UNKNOWN",
+            termination_status="no_incumbent",
+            native_fields={"native_solver_status": "UNKNOWN"},
+        )
+
+    return solve
 
 
 class BenchmarkMatrixTests(unittest.TestCase):
@@ -177,6 +214,33 @@ checksum = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
         with self.assertRaisesRegex(ValueError, "provenance is incomplete"):
             validate_solver_versions(["solver"], {"solver": version})
+
+
+class SolverExecutionOutcomeTests(unittest.TestCase):
+    def test_native_failure_fields_survive_process_boundary(self) -> None:
+        instance = {"instance": "one"}
+        run = run_solver(
+            benchmark_name="test",
+            solver_name="solver-a",
+            solver_factory=_unknown_solver_factory,
+            solution_model=_TestSolution,
+            instance=instance,
+            time_limit_seconds=1,
+            watchdog_seconds=5.0,
+            solver_input_hash=stable_input_hash(instance),
+            capture_solver_output=False,
+            show_solver_output=False,
+        )
+
+        self.assertIsNone(run.solution)
+        self.assertTrue(run.fair_start_valid)
+        self.assertIn("NoSolutionFoundError", run.run_error)
+        self.assertEqual(run.native_fields["termination_status"], "no_incumbent")
+        self.assertEqual(run.native_fields["native_solver_status"], "UNKNOWN")
+
+    def test_unknown_termination_status_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Unsupported solver termination"):
+            SolverExecutionError("bad status", termination_status="invented")
 
 
 if __name__ == "__main__":

@@ -119,6 +119,7 @@ def run_solver(
             exit_code=process.exitcode,
             solver_stdout_path=str(stdout_path) if stdout_path else None,
             solver_stderr_path=str(stderr_path) if stderr_path else None,
+            native_fields={"termination_status": "watchdog_timeout"},
         )
 
     message, fair_start_witness = _collect_child_messages(
@@ -149,6 +150,7 @@ def run_solver(
             exit_code=process.exitcode,
             solver_stdout_path=str(stdout_path) if stdout_path else None,
             solver_stderr_path=str(stderr_path) if stderr_path else None,
+            native_fields={"termination_status": "adapter_error"},
         )
 
     if message.get("fatal"):
@@ -174,6 +176,12 @@ def run_solver(
             exit_code=process.exitcode,
             solver_stdout_path=str(stdout_path) if stdout_path else None,
             solver_stderr_path=str(stderr_path) if stderr_path else None,
+            native_fields=dict(
+                message.get(
+                    "native_fields",
+                    {"termination_status": "solution_returned"},
+                )
+            ),
         )
 
     return SolverRun(
@@ -190,6 +198,12 @@ def run_solver(
         exit_code=process.exitcode,
         solver_stdout_path=str(stdout_path) if stdout_path else None,
         solver_stderr_path=str(stderr_path) if stderr_path else None,
+        native_fields=dict(
+            message.get(
+                "native_fields",
+                {"termination_status": "adapter_error"},
+            )
+        ),
     )
 
 
@@ -262,6 +276,9 @@ def _run_solver_child(
                     "solution": _solution_payload(solution),
                     "fair_start_witness": witness_to_payload(latest_witness),
                     "fair_start_error": None,
+                    "native_fields": {
+                        "termination_status": "solution_returned",
+                    },
                 }
             )
         except FairStartViolationError as exc:
@@ -288,12 +305,18 @@ def _run_solver_child(
                     }
                 )
                 return
+            native_fields = dict(getattr(exc, "native_fields", {}) or {})
+            native_fields.setdefault(
+                "termination_status",
+                getattr(exc, "termination_status", "adapter_error"),
+            )
             output_queue.put(
                 {
                     "ok": False,
                     "error": f"{exc.__class__.__name__}: {exc}",
                     "fair_start_witness": witness_to_payload(latest_witness),
                     "fair_start_error": None,
+                    "native_fields": native_fields,
                 }
             )
 

@@ -6,11 +6,13 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <optional>
 #include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -97,9 +99,18 @@ struct InstancePayload {
 };
 
 struct AssignmentVar {
-  int shift_idx;
+  int coverage_idx;
   int nurse_idx;
   sat::BoolVar var;
+};
+
+struct CoverageRequirement {
+  int week;
+  int day;
+  int shift_type_idx;
+  int skill_idx;
+  int minimum;
+  int optimal;
 };
 
 struct SolveResult {
@@ -132,13 +143,13 @@ const json::array& ArrayAt(const json::object& object, const char* key) {
   return object.at(key).as_array();
 }
 
-int GlobalDay(const Shift& shift) { return shift.week * 7 + shift.day; }
+int GlobalDay(int week, int day) { return week * 7 + day; }
 
-int64_t Key(int shift_idx, int nurse_idx, int num_nurses) {
-  return static_cast<int64_t>(shift_idx) * num_nurses + nurse_idx;
+int64_t Key(int coverage_idx, int nurse_idx, int num_nurses) {
+  return static_cast<int64_t>(coverage_idx) * num_nurses + nurse_idx;
 }
 
-int KeyShift(int64_t key, int num_nurses) {
+int KeyCoverage(int64_t key, int num_nurses) {
   return static_cast<int>(key / num_nurses);
 }
 
@@ -425,7 +436,70 @@ bool IsForbiddenSuccessor(const InstancePayload& payload, int preceding,
   return found->second.find(succeeding) != found->second.end();
 }
 
-json::object SolutionJson(const InstancePayload& payload,
+std::vector<CoverageRequirement> BuildCoverageRequirements(
+    const InstancePayload& payload) {
+  using CoverageKey = std::tuple<int, int, int, int>;
+  std::map<CoverageKey, std::pair<int, int>> counts;
+  for (const Shift& shift : payload.shifts) {
+    auto& [minimum, optimal] =
+        counts[{shift.week, shift.day, shift.shift_type_idx, shift.skill_idx}];
+    ++optimal;
+    if (shift.is_minimum) {
+      ++minimum;
+    }
+  }
+
+  std::vector<CoverageRequirement> requirements;
+  requirements.reserve(counts.size());
+  for (const auto& [key, counts_for_key] : counts) {
+    const auto& [week, day, shift_type_idx, skill_idx] = key;
+    const auto& [minimum, optimal] = counts_for_key;
+    if (minimum < 0 || optimal <= 0 || minimum > optimal) {
+      throw std::runtime_error("invalid employee coverage requirement");
+    }
+    requirements.push_back(
+        {week, day, shift_type_idx, skill_idx, minimum, optimal});
+  }
+  return requirements;
+}
+
+const char* CpSatStatusName(sat::CpSolverStatus status) {
+  switch (status) {
+    case sat::CpSolverStatus::UNKNOWN:
+      return "UNKNOWN";
+    case sat::CpSolverStatus::MODEL_INVALID:
+      return "MODEL_INVALID";
+    case sat::CpSolverStatus::FEASIBLE:
+      return "FEASIBLE";
+    case sat::CpSolverStatus::INFEASIBLE:
+      return "INFEASIBLE";
+    case sat::CpSolverStatus::OPTIMAL:
+      return "OPTIMAL";
+  }
+  return "UNRECOGNIZED";
+}
+
+void AddSolverMetadata(json::object* output,
+                       const sat::CpSolverResponse& response,
+                       const sat::CpModelProto& proto) {
+  output->emplace("native_solver_status",
+                  CpSatStatusName(response.status()));
+  output->emplace("cp_sat_wall_time_seconds", response.wall_time());
+  output->emplace("cp_sat_user_time_seconds", response.user_time());
+  output->emplace("cp_sat_num_conflicts", response.num_conflicts());
+  output->emplace("cp_sat_num_branches", response.num_branches());
+  output->emplace("cp_sat_model_variables", proto.variables_size());
+  output->emplace("cp_sat_model_constraints", proto.constraints_size());
+  if (response.status() == sat::CpSolverStatus::OPTIMAL ||
+      response.status() == sat::CpSolverStatus::FEASIBLE) {
+    output->emplace("cp_sat_objective", response.objective_value());
+    output->emplace("cp_sat_best_bound", response.best_objective_bound());
+  }
+}
+
+json::object SolutionJson(
+    const InstancePayload& payload,
+    const std::vector<CoverageRequirement>& coverage_requirements,
                           const std::unordered_set<int64_t>& assignment_keys,
                           std::optional<double> objective) {
   const int num_nurses = static_cast<int>(payload.nurses.size());
@@ -439,15 +513,17 @@ json::object SolutionJson(const InstancePayload& payload,
   }
 
   for (int64_t key : sorted_keys) {
-    const int shift_idx = KeyShift(key, num_nurses);
+    const int coverage_idx = KeyCoverage(key, num_nurses);
     const int nurse_idx = KeyNurse(key, num_nurses);
-    const Shift& shift = payload.shifts[shift_idx];
+    const CoverageRequirement& coverage =
+        coverage_requirements[coverage_idx];
     json::object assignment;
     assignment["nurse"] = payload.nurse_names[nurse_idx];
-    assignment["day"] = kDays[shift.day];
-    assignment["shiftType"] = payload.shift_type_names[shift.shift_type_idx];
-    assignment["skill"] = payload.skill_names[shift.skill_idx];
-    weeks[shift.week].as_array().emplace_back(std::move(assignment));
+    assignment["day"] = kDays[coverage.day];
+    assignment["shiftType"] =
+        payload.shift_type_names[coverage.shift_type_idx];
+    assignment["skill"] = payload.skill_names[coverage.skill_idx];
+    weeks[coverage.week].as_array().emplace_back(std::move(assignment));
   }
 
   json::object output;
@@ -462,6 +538,8 @@ SolveResult Solve(const InstancePayload& payload, double time_limit) {
   sat::CpModelBuilder model;
   const int num_nurses = static_cast<int>(payload.nurses.size());
   const int total_days = payload.num_weeks * 7;
+  const std::vector<CoverageRequirement> coverage_requirements =
+      BuildCoverageRequirements(payload);
 
   sat::LinearExpr objective(0);
   std::vector<AssignmentVar> assignment_vars;
@@ -476,39 +554,42 @@ SolveResult Solve(const InstancePayload& payload, double time_limit) {
               std::vector<std::vector<sat::BoolVar>>(
                   payload.shift_types.size())));
 
-  for (int shift_idx = 0; shift_idx < static_cast<int>(payload.shifts.size());
-       ++shift_idx) {
-    const Shift& shift = payload.shifts[shift_idx];
-    const int global_day = GlobalDay(shift);
+  for (int coverage_idx = 0;
+       coverage_idx < static_cast<int>(coverage_requirements.size());
+       ++coverage_idx) {
+    const CoverageRequirement& coverage =
+        coverage_requirements[coverage_idx];
+    const int global_day = GlobalDay(coverage.week, coverage.day);
     std::vector<sat::BoolVar> candidates;
     for (int nurse_idx = 0; nurse_idx < num_nurses; ++nurse_idx) {
       const Nurse& nurse = payload.nurses[nurse_idx];
-      if (nurse.skills.find(shift.skill_idx) == nurse.skills.end()) {
+      if (nurse.skills.find(coverage.skill_idx) == nurse.skills.end()) {
         continue;
       }
       const int history_last_shift =
           payload.histories[nurse_idx].last_shift_type_idx;
       if (global_day == 0 &&
           IsForbiddenSuccessor(payload, history_last_shift,
-                               shift.shift_type_idx)) {
+                               coverage.shift_type_idx)) {
         continue;
       }
       sat::BoolVar var =
-          model.NewBoolVar().WithName("assign_s" + std::to_string(shift_idx) +
+          model.NewBoolVar().WithName("assign_c" +
+                                      std::to_string(coverage_idx) +
                                       "_n" + std::to_string(nurse_idx));
       candidates.push_back(var);
-      assignment_vars.push_back({shift_idx, nurse_idx, var});
+      assignment_vars.push_back({coverage_idx, nurse_idx, var});
       vars_by_nurse[nurse_idx].push_back(var);
       vars_by_nurse_day[nurse_idx][global_day].push_back(var);
       vars_by_nurse_day_shift_type[nurse_idx][global_day]
-                                  [shift.shift_type_idx]
+                                  [coverage.shift_type_idx]
                                       .push_back(var);
 
       int request_count = 0;
       for (const ShiftOffRequest& request : payload.shift_off_requests) {
         if (request.nurse_idx == nurse_idx && request.global_day == global_day &&
             (request.shift_type_idx == kAnyShiftType ||
-             request.shift_type_idx == shift.shift_type_idx)) {
+             request.shift_type_idx == coverage.shift_type_idx)) {
           request_count += 1;
         }
       }
@@ -517,16 +598,15 @@ SolveResult Solve(const InstancePayload& payload, double time_limit) {
       }
     }
 
-    if (shift.is_minimum) {
-      model.AddEquality(BoolSum(candidates), 1);
-    } else {
-      model.AddLessOrEqual(BoolSum(candidates), 1);
-      sat::BoolVar unassigned =
-          model.NewBoolVar().WithName("optional_unassigned_s" +
-                                      std::to_string(shift_idx));
-      model.AddEquality(unassigned + BoolSum(candidates), 1);
-      AddObjectiveTerm(&objective, unassigned, 30);
-    }
+    const sat::LinearExpr assigned = BoolSum(candidates);
+    model.AddGreaterOrEqual(assigned, coverage.minimum);
+    model.AddLessOrEqual(assigned, coverage.optimal);
+    sat::IntVar uncovered =
+        model.NewIntVar(operations_research::Domain(0, coverage.optimal))
+            .WithName("optimal_uncovered_c" +
+                      std::to_string(coverage_idx));
+    model.AddEquality(uncovered + assigned, coverage.optimal);
+    AddObjectiveTerm(&objective, uncovered, 30);
   }
 
   std::vector<std::vector<sat::BoolVar>> work_by_nurse_day(
@@ -583,7 +663,7 @@ SolveResult Solve(const InstancePayload& payload, double time_limit) {
     const Contract& contract = payload.contracts[nurse.contract_idx];
     const NurseHistory& history = payload.histories[nurse_idx];
     const int total_assignment_upper =
-        history.num_assignments + static_cast<int>(payload.shifts.size());
+        history.num_assignments + total_days;
 
     const sat::LinearExpr assignment_count = BoolSum(vars_by_nurse[nurse_idx]);
     sat::IntVar under_assignments =
@@ -684,23 +764,26 @@ SolveResult Solve(const InstancePayload& payload, double time_limit) {
   const json::object fair_start_witness = FairStartWitness(proto);
   const sat::CpSolverResponse response =
       sat::SolveCpModel(proto, &solver_model);
+  json::object output;
+  output["fair_start_witness"] = fair_start_witness;
+  AddSolverMetadata(&output, response, proto);
   if (response.status() != sat::CpSolverStatus::OPTIMAL &&
       response.status() != sat::CpSolverStatus::FEASIBLE) {
-    json::object output;
-    output["fair_start_witness"] = fair_start_witness;
     return SolveResult{std::move(output), false};
   }
 
   std::unordered_set<int64_t> assignment_keys;
   for (const AssignmentVar& assignment_var : assignment_vars) {
     if (sat::SolutionBooleanValue(response, assignment_var.var)) {
-      assignment_keys.insert(Key(assignment_var.shift_idx,
+      assignment_keys.insert(Key(assignment_var.coverage_idx,
                                  assignment_var.nurse_idx, num_nurses));
     }
   }
   json::object solution =
-      SolutionJson(payload, assignment_keys, response.objective_value());
+      SolutionJson(payload, coverage_requirements, assignment_keys,
+                   response.objective_value());
   solution["fair_start_witness"] = fair_start_witness;
+  AddSolverMetadata(&solution, response, proto);
   return SolveResult{std::move(solution), true};
 }
 

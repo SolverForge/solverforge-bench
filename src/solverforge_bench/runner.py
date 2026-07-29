@@ -249,6 +249,7 @@ def _row(
     )
     native_fields = {}
     native_fields.update(case.native_fields)
+    native_fields.update(run.native_fields)
     native_fields.update(evaluation.native_fields)
     return BenchmarkRow(
         benchmark_name=spec.name,

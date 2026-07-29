@@ -54,6 +54,7 @@ BANNED_PATTERNS = [
     "read_solution(",
     "load_solution(",
     "reference_solution",
+    "set_stop_after_first_solution(true)",
 ]
 
 PYTHON_SOLVER_WRAPPERS = [
@@ -246,6 +247,22 @@ def check_runtime_witness_wrappers() -> list[Violation]:
             / "scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver/ortools/main.cc",
             "proto.solution_hint().vars_size()",
             "employee OR-Tools must inspect CP-SAT hint fields in native witness",
+        )
+    )
+    violations.extend(
+        require_contains(
+            REPO_ROOT
+            / "scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver/ortools/main.cc",
+            "parameters.set_num_search_workers(1)",
+            "employee OR-Tools must use one search worker",
+        )
+    )
+    violations.extend(
+        require_contains(
+            REPO_ROOT
+            / "scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver/ortools/main.cc",
+            "parameters.set_random_seed(1)",
+            "employee OR-Tools must use the shared deterministic seed",
         )
     )
     violations.extend(

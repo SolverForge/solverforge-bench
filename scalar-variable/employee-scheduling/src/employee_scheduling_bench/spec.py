@@ -34,7 +34,14 @@ class EmployeeSchedulingSpec:
     default_time_limits = [1, 10, 60]
     available_solvers = AVAILABLE_METHODS
     default_solvers = DEFAULT_METHODS
-    native_columns = ["nurses", "weeks", "validator_model_delta", "score_drift"]
+    native_columns = [
+        "nurses",
+        "weeks",
+        "validator_model_delta",
+        "score_drift",
+        "native_solver_status",
+        "solver_metadata",
+    ]
     solution_model = Solution
 
     def configure_parser(self, parser: argparse.ArgumentParser) -> None:
@@ -107,6 +114,7 @@ class EmployeeSchedulingSpec:
                 native_fields={
                     "validator_model_delta": None,
                     "score_drift": getattr(solution, "score_drift", None),
+                    **_solver_metadata_fields(solution),
                 },
             )
 
@@ -142,6 +150,7 @@ class EmployeeSchedulingSpec:
             native_fields={
                 "validator_model_delta": model_delta,
                 "score_drift": score_drift,
+                **_solver_metadata_fields(solution),
             },
         )
 
@@ -222,3 +231,13 @@ def _write_solution_artifact(
 
 
 SPEC = EmployeeSchedulingSpec()
+
+
+def _solver_metadata_fields(solution: Solution) -> dict[str, object]:
+    metadata = solution.solver_metadata
+    if not metadata:
+        return {}
+    return {
+        "native_solver_status": metadata.get("native_solver_status"),
+        "solver_metadata": metadata,
+    }

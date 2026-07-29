@@ -10,8 +10,9 @@ from cvrp_bench.solver.solverforge_py import _complete_routes
 from employee_scheduling_bench.solver.solverforge_py import (
     _ensure_required_shift_assignments,
 )
+from employee_scheduling_bench.solver.ortools import _raise_native_failure
 from job_shop_bench.solver.solverforge_py import _scheduled_operations
-from solverforge_bench.model import NoSolutionFoundError
+from solverforge_bench.model import NoSolutionFoundError, SolverExecutionError
 
 
 class JsspOutputCompletenessTests(unittest.TestCase):
@@ -106,6 +107,52 @@ class SolverForgeOutputCompletenessTests(unittest.TestCase):
             _ensure_required_shift_assignments(
                 [SimpleNamespace(shift_id=0, is_minimum=True, nurse_idx=None)]
             )
+
+
+class EmployeeOrToolsStatusTests(unittest.TestCase):
+    def test_unknown_is_an_observed_missing_incumbent(self) -> None:
+        with self.assertRaises(NoSolutionFoundError) as raised:
+            _raise_native_failure(
+                {"native_solver_status": "UNKNOWN"},
+                returncode=1,
+                stderr="OR-Tools CP-SAT found no feasible solution",
+            )
+
+        self.assertEqual(raised.exception.termination_status, "no_incumbent")
+        self.assertEqual(
+            raised.exception.native_fields["native_solver_status"], "UNKNOWN"
+        )
+
+    def test_infeasible_is_not_reported_as_unknown(self) -> None:
+        with self.assertRaises(NoSolutionFoundError) as raised:
+            _raise_native_failure(
+                {"native_solver_status": "INFEASIBLE"},
+                returncode=1,
+                stderr="",
+            )
+
+        self.assertEqual(raised.exception.termination_status, "proved_infeasible")
+
+    def test_invalid_model_is_an_adapter_failure(self) -> None:
+        with self.assertRaises(SolverExecutionError) as raised:
+            _raise_native_failure(
+                {"native_solver_status": "MODEL_INVALID"},
+                returncode=1,
+                stderr="",
+            )
+
+        self.assertNotIsInstance(raised.exception, NoSolutionFoundError)
+        self.assertEqual(raised.exception.termination_status, "model_invalid")
+
+    def test_unclassified_native_failure_stays_an_adapter_error(self) -> None:
+        with self.assertRaises(SolverExecutionError) as raised:
+            _raise_native_failure(
+                {"native_solver_status": "UNRECOGNIZED"},
+                returncode=9,
+                stderr="native failure",
+            )
+
+        self.assertEqual(raised.exception.termination_status, "adapter_error")
 
 
 if __name__ == "__main__":

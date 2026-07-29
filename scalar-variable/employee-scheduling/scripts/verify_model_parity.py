@@ -137,19 +137,20 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             "candidate domain excludes missing skills and initial forbidden successors",
             ortools,
             (
-                "nurse.skills.find(shift.skill_idx) == nurse.skills.end()",
+                "nurse.skills.find(coverage.skill_idx) == nurse.skills.end()",
                 "IsForbiddenSuccessor(payload, history_last_shift,",
             ),
         ),
         SourceCheck(
             "ortools",
-            "minimum slots must be assigned and optional slots may be unassigned with optimal coverage penalty",
+            "semantic coverage groups enforce minimum staffing and penalize each uncovered optimal position",
             ortools,
             (
-                "if (shift.is_minimum)",
-                "model.AddEquality(BoolSum(candidates), 1)",
-                "model.AddLessOrEqual(BoolSum(candidates), 1)",
-                "AddObjectiveTerm(&objective, unassigned, 30)",
+                "BuildCoverageRequirements(payload)",
+                "model.AddGreaterOrEqual(assigned, coverage.minimum)",
+                "model.AddLessOrEqual(assigned, coverage.optimal)",
+                "model.AddEquality(uncovered + assigned, coverage.optimal)",
+                "AddObjectiveTerm(&objective, uncovered, 30)",
             ),
         ),
         SourceCheck(

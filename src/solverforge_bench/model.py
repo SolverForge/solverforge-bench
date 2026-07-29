@@ -9,9 +9,56 @@ from typing import Any, Callable, Iterable, Protocol
 
 SolverFactory = Callable[..., Callable[[Any, int], "SolverResult"]]
 
+TERMINATION_STATUSES = frozenset(
+    {
+        "solution_returned",
+        "no_solution",
+        "no_incumbent",
+        "proved_infeasible",
+        "model_invalid",
+        "watchdog_timeout",
+        "adapter_error",
+    }
+)
 
-class NoSolutionFoundError(RuntimeError):
+
+class SolverExecutionError(RuntimeError):
+    """Raised when a solver invocation ends without a usable solution."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        termination_status: str = "adapter_error",
+        native_fields: dict[str, Any] | None = None,
+    ) -> None:
+        if termination_status not in TERMINATION_STATUSES:
+            raise ValueError(
+                f"Unsupported solver termination status: {termination_status!r}"
+            )
+        super().__init__(message)
+        self.termination_status = termination_status
+        self.native_fields = {
+            **dict(native_fields or {}),
+            "termination_status": termination_status,
+        }
+
+
+class NoSolutionFoundError(SolverExecutionError):
     """Raised when a solver finishes without a usable solution."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        termination_status: str = "no_solution",
+        native_fields: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(
+            message,
+            termination_status=termination_status,
+            native_fields=native_fields,
+        )
 
 
 @dataclass(frozen=True)
@@ -74,6 +121,7 @@ class SolverRun:
     exit_code: int | None
     solver_stdout_path: str | None = None
     solver_stderr_path: str | None = None
+    native_fields: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

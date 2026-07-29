@@ -15,11 +15,28 @@ from solverforge_bench.fair_start import (
 from solverforge_bench.model import (
     FairStartWitness,
     NoSolutionFoundError,
+    SolverExecutionError,
     SolverResult,
 )
 
 _BINARY_PATH = Path(__file__).parent / "target" / "employee_scheduling_ortools"
-_NO_SOLUTION_MESSAGE = "OR-Tools CP-SAT found no feasible solution"
+_STATUS_OUTCOMES = {
+    "UNKNOWN": (
+        NoSolutionFoundError,
+        "no_incumbent",
+        "OR-Tools CP-SAT returned no incumbent before the time limit",
+    ),
+    "INFEASIBLE": (
+        NoSolutionFoundError,
+        "proved_infeasible",
+        "OR-Tools CP-SAT proved the model infeasible",
+    ),
+    "MODEL_INVALID": (
+        SolverExecutionError,
+        "model_invalid",
+        "OR-Tools CP-SAT rejected the model as invalid",
+    ),
+}
 
 
 def solve_with_ortools(instance: Instance, time_limit: int) -> SolverResult:
@@ -44,17 +61,29 @@ def solve_with_ortools(instance: Instance, time_limit: int) -> SolverResult:
     )
     stderr = result.stderr.decode()
     if result.returncode != 0:
-        _, witness = _parse_native_output(result.stdout, instance_json)
-        emit_fair_start_witness(witness)
-        if stderr.strip() == _NO_SOLUTION_MESSAGE:
-            raise NoSolutionFoundError(_NO_SOLUTION_MESSAGE)
-        raise RuntimeError(
-            f"native OR-Tools solver failed (exit {result.returncode}):\n{stderr}"
+        if result.stdout:
+            output, witness = _parse_native_output(result.stdout, instance_json)
+            emit_fair_start_witness(witness)
+            _raise_native_failure(
+                output,
+                returncode=result.returncode,
+                stderr=stderr,
+            )
+        raise SolverExecutionError(
+            _native_process_error(result.returncode, stderr),
+            native_fields={"native_solver_status": "PROCESS_ERROR"},
         )
     if stderr:
         print(stderr, file=sys.stderr, end="")
 
     output, witness = _parse_native_output(result.stdout, instance_json)
+    native_fields = _native_fields(output)
+    native_status = native_fields.get("native_solver_status")
+    if native_status not in {"FEASIBLE", "OPTIMAL"}:
+        raise SolverExecutionError(
+            "native OR-Tools solver exited successfully without a feasible status",
+            native_fields=native_fields,
+        )
     weekly: list[list[Assignment]] = []
     for week_assignments in output["assignments"]:
         weekly.append(
@@ -78,6 +107,7 @@ def solve_with_ortools(instance: Instance, time_limit: int) -> SolverResult:
             fresh_cost=objective,
             score_delta=0 if objective is not None else None,
             score_drift=False if objective is not None else None,
+            solver_metadata=native_fields,
         ),
         witness,
     )
@@ -104,3 +134,38 @@ def _parse_native_output(
         solver_input=instance_json,
     )
     return output, witness
+
+
+def _raise_native_failure(
+    output: dict[str, object],
+    *,
+    returncode: int,
+    stderr: str,
+) -> None:
+    native_fields = _native_fields(output)
+    native_status = str(native_fields.get("native_solver_status", ""))
+    classification = _STATUS_OUTCOMES.get(native_status)
+    if classification is not None:
+        error_type, termination_status, message = classification
+        raise error_type(
+            message,
+            termination_status=termination_status,
+            native_fields=native_fields,
+        )
+    raise SolverExecutionError(
+        _native_process_error(returncode, stderr),
+        native_fields=native_fields,
+    )
+
+
+def _native_fields(output: dict[str, object]) -> dict[str, object]:
+    return {
+        key: value
+        for key, value in output.items()
+        if key not in {"assignments", "fair_start_witness", "objective"}
+    }
+
+
+def _native_process_error(returncode: int, stderr: str) -> str:
+    detail = stderr.strip() or "no stderr output"
+    return f"native OR-Tools solver failed (exit {returncode}): {detail}"
