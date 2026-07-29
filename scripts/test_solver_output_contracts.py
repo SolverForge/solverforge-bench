@@ -5,12 +5,17 @@ from __future__ import annotations
 
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from cvrp_bench.solver.solverforge_py import _complete_routes
+from employee_scheduling_bench.domain.models import Solution
+from employee_scheduling_bench.solver.ortools import (
+    _apply_fresh_score,
+    _raise_native_failure,
+)
 from employee_scheduling_bench.solver.solverforge_py import (
     _ensure_required_shift_assignments,
 )
-from employee_scheduling_bench.solver.ortools import _raise_native_failure
 from job_shop_bench.solver.solverforge_py import _scheduled_operations
 from solverforge_bench.model import NoSolutionFoundError, SolverExecutionError
 
@@ -110,6 +115,23 @@ class SolverForgeOutputCompletenessTests(unittest.TestCase):
 
 
 class EmployeeOrToolsStatusTests(unittest.TestCase):
+    def test_fresh_validator_score_preserves_native_score_drift(self) -> None:
+        solution = Solution(assignments=[], reported_cost=420)
+        instance = SimpleNamespace()
+
+        with patch(
+            "employee_scheduling_bench.solver.ortools.validate",
+            return_value=400,
+        ) as validator:
+            _apply_fresh_score(solution, instance=instance)
+
+        validator.assert_called_once_with(solution=solution, instance=instance)
+        self.assertEqual(solution.cost, 400)
+        self.assertEqual(solution.fresh_cost, 400)
+        self.assertEqual(solution.reported_cost, 420)
+        self.assertEqual(solution.score_delta, 20)
+        self.assertTrue(solution.score_drift)
+
     def test_unknown_is_an_observed_missing_incumbent(self) -> None:
         with self.assertRaises(NoSolutionFoundError) as raised:
             _raise_native_failure(

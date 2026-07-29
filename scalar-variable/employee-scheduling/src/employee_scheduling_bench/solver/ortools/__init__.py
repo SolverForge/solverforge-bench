@@ -5,6 +5,7 @@ from pathlib import Path
 
 from employee_scheduling_bench.domain.models import Assignment, Instance, Solution
 from employee_scheduling_bench.solver.instance_json import serialize_instance
+from employee_scheduling_bench.validation import validate
 from solverforge_bench.fair_start import (
     FairStartViolationError,
     emit_fair_start_witness,
@@ -99,17 +100,31 @@ def solve_with_ortools(instance: Instance, time_limit: int) -> SolverResult:
         )
 
     objective = output.get("objective")
+    solution = Solution(
+        assignments=weekly,
+        reported_cost=objective,
+        solver_metadata=native_fields,
+    )
+    _apply_fresh_score(solution, instance=instance)
     return solver_result(
-        Solution(
-            assignments=weekly,
-            cost=objective,
-            reported_cost=objective,
-            fresh_cost=objective,
-            score_delta=0 if objective is not None else None,
-            score_drift=False if objective is not None else None,
-            solver_metadata=native_fields,
-        ),
+        solution,
         witness,
+    )
+
+
+def _apply_fresh_score(solution: Solution, *, instance: Instance) -> None:
+    fresh_cost = validate(solution=solution, instance=instance)
+    solution.cost = fresh_cost
+    solution.fresh_cost = fresh_cost
+    solution.score_delta = (
+        solution.reported_cost - fresh_cost
+        if solution.reported_cost is not None
+        else None
+    )
+    solution.score_drift = (
+        solution.reported_cost != fresh_cost
+        if solution.reported_cost is not None
+        else None
     )
 
 

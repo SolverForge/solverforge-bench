@@ -34,16 +34,11 @@ _SOLVER_CONFIG_PATH = Path(__file__).with_name("solverforge_py.toml")
 
 
 def _nurse_candidates(shift: Any) -> list[int]:
-    return [
-        nurse_idx
-        for nurse_idx, has_skill in enumerate(shift.nurse_has_skill)
-        if bool(has_skill)
-        and (int(shift.global_day) != 0 or bool(shift.history_allows[nurse_idx]))
-    ]
+    return shift.nurse_candidates
 
 
 def _nearby_nurse_candidates(shift: Any) -> list[int]:
-    return _nurse_candidates(shift)
+    return shift.nurse_candidates
 
 
 def _nearby_shift_candidates(shift: Any) -> list[int]:
@@ -66,51 +61,6 @@ def _shift_to_shift_distance(left: Any, right: Any) -> float:
         0 if int(left.shift_type_idx) == int(right.shift_type_idx) else 2
     )
     return float(day_distance + skill_distance + shift_type_distance)
-
-
-def _shift_assignment_required(solution: Any, entity_index: int) -> bool:
-    return bool(solution.shifts[int(entity_index)].is_minimum)
-
-
-def _shift_nurse_day_capacity_key(
-    solution: Any, entity_index: int, nurse_idx: int
-) -> int:
-    shift = solution.shifts[int(entity_index)]
-    return int(nurse_idx) * int(solution.total_days) + int(shift.global_day)
-
-
-def _shift_assignment_rule(
-    solution: Any,
-    left_entity: int,
-    left_nurse: int,
-    right_entity: int,
-    right_nurse: int,
-) -> bool:
-    if int(left_nurse) != int(right_nurse):
-        return True
-    left = solution.shifts[int(left_entity)]
-    right = solution.shifts[int(right_entity)]
-    left_day = int(left.global_day)
-    right_day = int(right.global_day)
-    if left_day + 1 == right_day:
-        return int(left.shift_type_idx) not in set(right.forbidden_predecessors)
-    if right_day + 1 == left_day:
-        return int(right.shift_type_idx) not in set(left.forbidden_predecessors)
-    return True
-
-
-def _shift_position_key(solution: Any, entity_index: int) -> int:
-    shift = solution.shifts[int(entity_index)]
-    return (
-        int(shift.global_day) * 10_000
-        + int(shift.shift_type_idx) * 100
-        + int(shift.skill_idx)
-    )
-
-
-def _shift_nurse_sequence_key(solution: Any, entity_index: int, nurse_idx: int) -> int:
-    del nurse_idx
-    return int(solution.shifts[int(entity_index)].global_day)
 
 
 NurseSoftKey = tuple[
@@ -168,6 +118,9 @@ class NrpShift:
         is_minimum: bool,
         nurse_has_skill: list[bool],
         history_allows: list[bool],
+        nurse_candidates: list[int],
+        nurse_day_capacity_keys: list[int],
+        assignment_position_key: int,
         forbidden_predecessors: list[int],
         shift_off_request_nurses: list[int],
         nurse_soft_keys: list[NurseSoftKey],
@@ -183,7 +136,11 @@ class NrpShift:
         self.is_minimum = is_minimum
         self.nurse_has_skill = nurse_has_skill
         self.history_allows = history_allows
+        self.nurse_candidates = nurse_candidates
+        self.nurse_day_capacity_keys = nurse_day_capacity_keys
+        self.assignment_position_key = assignment_position_key
         self.forbidden_predecessors = forbidden_predecessors
+        self.forbidden_predecessor_set = set(forbidden_predecessors)
         self.shift_off_request_nurses = shift_off_request_nurses
         self.shift_off_request_nurse_set = set(shift_off_request_nurses)
         self.nurse_soft_keys = nurse_soft_keys
@@ -222,9 +179,9 @@ def _forbidden_pair(left: Any, right: Any) -> bool:
     left_day = int(left.global_day)
     right_day = int(right.global_day)
     if left_day + 1 == right_day:
-        return int(left.shift_type_idx) in set(right.forbidden_predecessors)
+        return int(left.shift_type_idx) in right.forbidden_predecessor_set
     if right_day + 1 == left_day:
-        return int(right.shift_type_idx) in set(left.forbidden_predecessors)
+        return int(right.shift_type_idx) in left.forbidden_predecessor_set
     return False
 
 
@@ -516,11 +473,10 @@ def _nrp_constraints(factory: ConstraintFactory) -> list[object]:
             "shift_nurse_assignment",
             entity_class="NrpShift",
             variable_name="nurse_idx",
-            required_entity=_shift_assignment_required,
-            capacity_key=_shift_nurse_day_capacity_key,
-            assignment_rule=_shift_assignment_rule,
-            position_key=_shift_position_key,
-            sequence_key=_shift_nurse_sequence_key,
+            required_entity_field="is_minimum",
+            capacity_key_field="nurse_day_capacity_keys",
+            position_key_field="assignment_position_key",
+            sequence_key_field="global_day",
             sync_solution_before_callbacks=False,
             limits=ScalarGroupLimits(max_augmenting_depth=4, max_rematch_size=8),
         )
@@ -540,6 +496,32 @@ class NrpPythonPlan:
         request_nurses = _shift_off_request_nurses(payload["shift_off_requests"])
         self.nurse_indices = list(range(len(nurses)))
         self.total_days = int(payload["num_weeks"]) * 7
+        nurse_skill_sets = [
+            {int(skill_idx) for skill_idx in nurse["skills"]} for nurse in nurses
+        ]
+        nurse_has_skill_by_skill = [
+            [skill_idx in nurse_skills for nurse_skills in nurse_skill_sets]
+            for skill_idx in range(len(payload["skill_names"]))
+        ]
+        history_allows_by_shift_type = [
+            [
+                _successor_allowed(
+                    history_by_nurse[nurse_idx]["last_shift_type_idx"],
+                    shift_type_idx,
+                    forbidden_successors,
+                )
+                for nurse_idx in range(len(nurses))
+            ]
+            for shift_type_idx in range(len(payload["shift_types"]))
+        ]
+        forbidden_predecessors_by_shift_type = [
+            [
+                int(preceding)
+                for preceding, successors in forbidden_successors.items()
+                if shift_type_idx in successors
+            ]
+            for shift_type_idx in range(len(payload["shift_types"]))
+        ]
         nurse_soft_keys: list[NurseSoftKey] = []
         self.nurse_soft_facts = []
         for nurse_idx, nurse in enumerate(nurses):
@@ -593,10 +575,13 @@ class NrpPythonPlan:
             shift_type_run_keys.append(keys_for_shift_type)
 
         self.shifts = []
+        nearby_shift_indices = list(range(len(payload["shifts"])))
         for shift_id, shift in enumerate(payload["shifts"]):
             shift_type_idx = int(shift["shift_type_idx"])
             skill_idx = int(shift["skill_idx"])
             global_day = int(shift["week"]) * 7 + int(shift["day"])
+            nurse_has_skill = nurse_has_skill_by_skill[skill_idx]
+            history_allows = history_allows_by_shift_type[shift_type_idx]
             self.shifts.append(
                 NrpShift(
                     shift_id=shift_id,
@@ -605,22 +590,22 @@ class NrpPythonPlan:
                     shift_type_idx=shift_type_idx,
                     skill_idx=skill_idx,
                     is_minimum=bool(shift["is_minimum"]),
-                    nurse_has_skill=[
-                        skill_idx in [int(skill) for skill in nurse["skills"]]
-                        for nurse in nurses
+                    nurse_has_skill=nurse_has_skill,
+                    history_allows=history_allows,
+                    nurse_candidates=[
+                        nurse_idx
+                        for nurse_idx, has_skill in enumerate(nurse_has_skill)
+                        if has_skill and (global_day != 0 or history_allows[nurse_idx])
                     ],
-                    history_allows=[
-                        _successor_allowed(
-                            history_by_nurse[nurse_idx]["last_shift_type_idx"],
-                            shift_type_idx,
-                            forbidden_successors,
-                        )
+                    nurse_day_capacity_keys=[
+                        nurse_idx * self.total_days + global_day
                         for nurse_idx in range(len(nurses))
                     ],
-                    forbidden_predecessors=[
-                        int(preceding)
-                        for preceding, successors in forbidden_successors.items()
-                        if shift_type_idx in successors
+                    assignment_position_key=(
+                        global_day * 10_000 + shift_type_idx * 100 + skill_idx
+                    ),
+                    forbidden_predecessors=forbidden_predecessors_by_shift_type[
+                        shift_type_idx
                     ],
                     shift_off_request_nurses=request_nurses.get(
                         (global_day, shift_type_idx), []
@@ -628,7 +613,7 @@ class NrpPythonPlan:
                     + request_nurses.get((global_day, _ANY_SHIFT), []),
                     nurse_soft_keys=nurse_soft_keys,
                     shift_type_run_keys=shift_type_run_keys[shift_type_idx],
-                    nearby_shift_indices=list(range(len(payload["shifts"]))),
+                    nearby_shift_indices=nearby_shift_indices,
                 )
             )
         self.score = None

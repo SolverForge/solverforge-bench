@@ -141,10 +141,15 @@ nonempty/unique/exact matrix contract, runtime artifact provenance, and
 SolverForge output-completeness boundaries across every benchmark. The
 smoke gate remains a focused
 `solverforge-py` adapter check for CVRP,
-employee scheduling, and the JSSP quick group. The comparison gate runs paired
+employee scheduling, and the JSSP quick group. Employee rows check fair-start,
+runtime, version, and score-reporting integrity while accepting an honest
+infeasible or no-incumbent outcome. A canonical-size one-second employee probe
+exercises the same contract without imposing feasibility, ranking, or score
+thresholds. The comparison gate runs paired
 native `solverforge` and `solverforge-py` rows, resolves every requested dataset
 selector before execution, requires every expected instance/time-limit/solver
-row exactly once, validates fair-start and row integrity, and writes a
+row exactly once, validates fair-start and execution integrity without turning
+employee feasibility into a gate, and writes a
 machine-readable summary under
 `build/solverforge-py-guardrails/summary.json`. The release gate combines
 compileall, validators, fair-start checks, native adapter builds, smoke, and

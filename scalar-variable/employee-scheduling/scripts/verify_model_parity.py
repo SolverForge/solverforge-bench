@@ -159,7 +159,8 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
             ortools,
             (
                 "model.AddLessOrEqual(BoolSum(vars_by_nurse_day[nurse_idx][day]), 1)",
-                "model.AddLessOrEqual(left + right, 1)",
+                "shift_type_by_nurse_day[nurse_idx][day][preceding] +",
+                "shift_type_by_nurse_day[nurse_idx][day + 1][succeeding]",
             ),
         ),
         SourceCheck(

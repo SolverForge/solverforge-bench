@@ -32,6 +32,8 @@ COMPARISON_CVRP_TIME_LIMITS = (1, 10)
 COMPARISON_EMPLOYEE_TIME_LIMITS = (10, 60)
 COMPARISON_JSSP_TIME_LIMITS = (1, 10)
 SMOKE_EMPLOYEE_DATASETS = ("n005w4",)
+CONSTRUCTION_EMPLOYEE_DATASETS = ("n030w4",)
+CONSTRUCTION_EMPLOYEE_TIME_LIMITS = (1,)
 COMPARISON_EMPLOYEE_DATASETS = ("n005w4", "n012w8", "n021w4")
 COMPARISON_JSSP_DATASETS = ("ft06", "la01", "abz5", "ft10")
 JSSP_QUICK_COST_INSTANCES = {"ft06", "la01"}
@@ -382,6 +384,13 @@ def run_smoke_guardrails(
             time_limits=time_limits,
             requested_dataset_selectors=employee_datasets,
         ),
+        "employee-construction": MatrixExpectation(
+            benchmark_name="employee-scheduling",
+            instances=resolve_employee_instances(CONSTRUCTION_EMPLOYEE_DATASETS),
+            solvers=("solverforge-py",),
+            time_limits=CONSTRUCTION_EMPLOYEE_TIME_LIMITS,
+            requested_dataset_selectors=CONSTRUCTION_EMPLOYEE_DATASETS,
+        ),
         "job-shop-scheduling": MatrixExpectation(
             benchmark_name="job-shop-scheduling",
             instances=(
@@ -433,6 +442,27 @@ def run_smoke_guardrails(
         ],
         run_records=run_records,
     )
+    employee_construction = run_benchmark(
+        args,
+        phase="smoke",
+        benchmark="employee-scheduling",
+        label="employee solverforge-py canonical construction probe",
+        output_name="smoke_employee_solverforge_py_canonical_construction.csv",
+        benchmark_args=[
+            "employee-scheduling",
+            "--run-kind",
+            "candidate",
+            "--solver",
+            "solverforge-py",
+            "--dataset-set",
+            "canonical",
+            "--datasets",
+            *CONSTRUCTION_EMPLOYEE_DATASETS,
+            "--time-limits",
+            *command_values(CONSTRUCTION_EMPLOYEE_TIME_LIMITS),
+        ],
+        run_records=run_records,
+    )
     jssp_args = [
         "job-shop-scheduling",
         "--run-kind",
@@ -475,11 +505,37 @@ def run_smoke_guardrails(
     for expectation, label, path in smoke_runs:
         rows = read_rows(path)
         row_counts[label] = len(rows)
-        failures.extend(validate_common_rows(rows, label, installed_version))
-        failures.extend(validate_smoke_rows(rows, label, expectation.benchmark_name))
+        if expectation.benchmark_name == "employee-scheduling":
+            failures.extend(
+                validate_employee_execution_rows(rows, label, installed_version)
+            )
+        else:
+            failures.extend(validate_common_rows(rows, label, installed_version))
+            failures.extend(
+                validate_smoke_rows(rows, label, expectation.benchmark_name)
+            )
         coverage, coverage_failures = validate_matrix_coverage(rows, label, expectation)
         coverage_summaries[label] = coverage
         failures.extend(coverage_failures)
+
+    construction_expectation = expectations["employee-construction"]
+    construction_label = "employee solverforge-py canonical construction probe"
+    construction_rows = read_rows(employee_construction)
+    row_counts[construction_label] = len(construction_rows)
+    failures.extend(
+        validate_employee_execution_rows(
+            construction_rows,
+            construction_label,
+            installed_version,
+        )
+    )
+    coverage, coverage_failures = validate_matrix_coverage(
+        construction_rows,
+        construction_label,
+        construction_expectation,
+    )
+    coverage_summaries[construction_label] = coverage
+    failures.extend(coverage_failures)
 
 
 def run_comparison_guardrails(
@@ -609,7 +665,17 @@ def run_comparison_guardrails(
     for expectation, label, path, max_cost_ratio in comparison_runs:
         rows = read_rows(path)
         row_counts[label] = len(rows)
-        failures.extend(validate_common_rows(rows, label, installed_version))
+        if expectation.benchmark_name == "employee-scheduling":
+            failures.extend(
+                validate_employee_execution_rows(
+                    rows,
+                    label,
+                    installed_version,
+                    expected_solvers=expectation.solvers,
+                )
+            )
+        else:
+            failures.extend(validate_common_rows(rows, label, installed_version))
         coverage, coverage_failures = validate_matrix_coverage(rows, label, expectation)
         coverage_summaries[label] = coverage
         failures.extend(coverage_failures)
@@ -782,6 +848,48 @@ def validate_smoke_rows(
     return failures
 
 
+def validate_employee_execution_rows(
+    rows: list[dict[str, str]],
+    label: str,
+    installed_version: object,
+    *,
+    expected_solvers: tuple[str, ...] = ("solverforge-py",),
+) -> list[str]:
+    if not rows:
+        return [f"{label} produced no rows"]
+    failures = []
+    for row in rows:
+        row_label = (
+            f"{label} {row.get('instance', '')} "
+            f"{row.get('time_limit_seconds', '')}s"
+        )
+        if row.get("solver") not in expected_solvers:
+            failures.append(f"{row_label} has unexpected solver {row.get('solver')}")
+        if not is_true(row.get("fair_start_valid", "")):
+            failures.append(f"{row_label} fair-start witness invalid")
+        if is_true(row.get("watchdog_killed", "")):
+            failures.append(f"{row_label} watchdog killed solver")
+        termination_status = row.get("termination_status", "")
+        if termination_status == "solution_returned":
+            if row.get("run_error", ""):
+                failures.append(f"{row_label} run_error={row['run_error']}")
+            if row.get("reported_cost", "") == "" or row.get("fresh_cost", "") == "":
+                failures.append(f"{row_label} returned an unscored schedule")
+        elif termination_status not in {"no_solution", "no_incumbent"}:
+            failures.append(f"{row_label} termination_status={termination_status!r}")
+            if row.get("run_error", ""):
+                failures.append(f"{row_label} run_error={row['run_error']}")
+        if (
+            row.get("solver") == "solverforge-py"
+            and row.get("solver_version") != installed_version
+        ):
+            failures.append(
+                f"{row_label} solver_version={row.get('solver_version')!r} "
+                f"does not match installed solverforge {installed_version!r}"
+            )
+    return failures
+
+
 def summarize_comparison_rows(
     rows: list[dict[str, str]], label: str
 ) -> dict[str, object]:
@@ -799,7 +907,7 @@ def summarize_comparison_rows(
     cost_ratios: list[float] = []
     wall_time_ratios: list[float] = []
     valid_pair_count = 0
-    invalid_python_row_count = 0
+    noncomparable_python_row_count = 0
 
     for key, group_rows in sorted(grouped.items()):
         native_rows = [row for row in group_rows if row.get("solver") == "solverforge"]
@@ -821,7 +929,7 @@ def summarize_comparison_rows(
         native = native_rows[0]
         python = python_rows[0]
         if not is_valid_python_row(python):
-            invalid_python_row_count += 1
+            noncomparable_python_row_count += 1
         native_cost = parse_float(native.get("cost", ""))
         python_cost = parse_float(python.get("cost", ""))
         native_time = parse_float(native.get("actual_time_seconds", ""))
@@ -847,7 +955,7 @@ def summarize_comparison_rows(
         "python_rust_median_cost_ratio": median(cost_ratios),
         "python_rust_average_cost_ratio": average(cost_ratios),
         "python_rust_median_wall_time_ratio": median(wall_time_ratios),
-        "invalid_python_row_count": invalid_python_row_count,
+        "noncomparable_python_row_count": noncomparable_python_row_count,
     }
 
 
@@ -862,7 +970,8 @@ def print_comparison_summary(label: str, summary: dict[str, object]) -> None:
         f"{format_optional_ratio(summary['python_rust_average_cost_ratio'])} "
         f"python_rust_median_wall_time_ratio="
         f"{format_optional_ratio(summary['python_rust_median_wall_time_ratio'])} "
-        f"invalid_python_row_count={summary['invalid_python_row_count']}"
+        "noncomparable_python_row_count="
+        f"{summary['noncomparable_python_row_count']}"
     )
 
 

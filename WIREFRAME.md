@@ -147,11 +147,15 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 - SolverForge initializes each shift with `nurse_idx = None`, Timefold leaves
   each `nurse` planning variable unset, and OR-Tools performs one CP-SAT solve
   without adapter hints, hard seeds, warm starts, or fallback schedules.
+  OR-Tools uses a deterministic coverage-order, round-robin assignment
+  strategy within that single solve and the shared time limit.
 - The `solverforge-py` employee adapter builds a public Python-binding scalar
-  model with unassigned `nurse_idx` variables. It encodes hard feasibility,
-  public scalar assignment groups, indexed presence penalties, and shift-off
-  request penalties; the shared validator remains the source of result
-  feasibility and cost. This adapter is a first-class default performance row.
+  model with unassigned `nurse_idx` variables. Immutable required, capacity,
+  position, and sequence metadata stays in native row fields, while hard
+  feasibility, indexed presence penalties, and shift-off request penalties
+  remain in the constraint model; the shared validator remains the source of
+  result feasibility and cost. This adapter is a first-class default
+  performance row.
 - The Python wrappers emit a witness before solving. SolverForge Rust counts
   preassigned scalar variables, Timefold Java counts preassigned `nurse`
   planning variables, and OR-Tools C++ inspects CP-SAT solution-hint fields in
@@ -248,12 +252,16 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   row.
 - `make verify-solverforge-py-smoke` builds the native SolverForge adapters,
   verifies fair-start source checks, runs `solverforge-py` smoke rows through
-  the shared harness, and parses the generated CSVs.
+  the shared harness, and parses the generated CSVs. Employee rows check
+  fair-start, runtime, version, and score-reporting integrity while accepting
+  an honest infeasible or no-incumbent result. Its canonical-size construction
+  probe imposes no feasibility, ranking, or score threshold.
 - `make verify-solverforge-py-guardrail-contract` runs the focused exact-matrix
   and command-redaction regression suite without invoking solvers.
 - `make verify-solverforge-py-comparison` runs paired native `solverforge` and
   `solverforge-py` rows through the shared harness and records parsable
-  quality and wall-time summaries without PostgreSQL by default.
+  quality and wall-time summaries without PostgreSQL by default. Employee
+  infeasible and no-incumbent rows remain honest outcomes, not gate failures.
 - `make verify-solverforge-py-release` combines compileall, benchmark
   validators, fair-start checks, native adapter builds, smoke, and paired
   comparison into one release-mode guardrail invocation and summary.

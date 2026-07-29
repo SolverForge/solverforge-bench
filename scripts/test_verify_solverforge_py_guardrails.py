@@ -243,5 +243,89 @@ class MatrixCoverageTests(unittest.TestCase):
         ]
 
 
+class EmployeeExecutionProbeTests(unittest.TestCase):
+    def test_infeasible_scored_schedule_is_not_a_probe_failure(self) -> None:
+        rows = [self._row()]
+
+        failures = guardrails.validate_employee_execution_rows(
+            rows,
+            "employee construction probe",
+            "0.6.5",
+        )
+
+        self.assertEqual(failures, [])
+
+    def test_no_incumbent_is_not_a_probe_failure(self) -> None:
+        row = self._row()
+        row["termination_status"] = "no_incumbent"
+        row["run_error"] = "NoSolutionFoundError: no incumbent within time limit"
+        row["reported_cost"] = ""
+        row["fresh_cost"] = ""
+
+        failures = guardrails.validate_employee_execution_rows(
+            [row],
+            "employee construction probe",
+            "0.6.5",
+        )
+
+        self.assertEqual(failures, [])
+
+    def test_native_infeasible_row_is_accepted_in_paired_execution(self) -> None:
+        row = self._row()
+        row["solver"] = "solverforge"
+        row["solver_version"] = "0.19.3"
+
+        failures = guardrails.validate_employee_execution_rows(
+            [row],
+            "employee comparison",
+            "0.6.5",
+            expected_solvers=("solverforge", "solverforge-py"),
+        )
+
+        self.assertEqual(failures, [])
+
+    def test_runtime_failure_and_unscored_return_are_probe_failures(self) -> None:
+        row = self._row()
+        row["run_error"] = "NativeSolverError: construction incomplete"
+        row["termination_status"] = "adapter_error"
+        row["reported_cost"] = ""
+
+        failures = guardrails.validate_employee_execution_rows(
+            [row],
+            "employee construction probe",
+            "0.6.5",
+        )
+
+        self.assertTrue(any("run_error=" in failure for failure in failures))
+        self.assertTrue(any("termination_status=" in failure for failure in failures))
+
+        row["termination_status"] = "solution_returned"
+        failures = guardrails.validate_employee_execution_rows(
+            [row],
+            "employee construction probe",
+            "0.6.5",
+        )
+        self.assertTrue(
+            any("returned an unscored schedule" in failure for failure in failures)
+        )
+
+    @staticmethod
+    def _row() -> dict[str, str]:
+        return {
+            "instance": "n030w4_H0_WD0-1-2-3",
+            "solver": "solverforge-py",
+            "solver_version": "0.6.5",
+            "time_limit_seconds": "1",
+            "fair_start_valid": "true",
+            "run_error": "",
+            "watchdog_killed": "false",
+            "termination_status": "solution_returned",
+            "hard_feasible": "false",
+            "validation_error": "ForbiddenSuccessionViolation",
+            "reported_cost": "20000",
+            "fresh_cost": "20000",
+        }
+
+
 if __name__ == "__main__":
     unittest.main()
