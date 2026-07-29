@@ -19,6 +19,7 @@ from solverforge_bench.fair_start import (
     witness_from_native_output,
 )
 from solverforge_bench.model import SolverResult
+from solverforge_bench.solverforge_failures import classify_solverforge_failure
 
 SOLVERFORGE_CRATE_DIR = Path(__file__).resolve().parent / "solverforge_jssp"
 
@@ -36,7 +37,16 @@ def solve_with_solverforge(instance: JobShopInstance, time_limit: int) -> Solver
     os.chdir(SOLVERFORGE_CRATE_DIR)
     try:
         emit_fair_start_witness(witness)
-        result_json = solverforge_jssp.solve_jssp(instance_json, time_limit)
+        try:
+            result_json = solverforge_jssp.solve_jssp(instance_json, time_limit)
+        except Exception as exc:
+            classified = classify_solverforge_failure(
+                exc,
+                solver_name="SolverForge Rust",
+            )
+            if classified is not None:
+                raise classified from exc
+            raise
     finally:
         os.chdir(prev_cwd)
 

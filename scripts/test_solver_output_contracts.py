@@ -18,6 +18,7 @@ from employee_scheduling_bench.solver.solverforge_py import (
 )
 from job_shop_bench.solver.solverforge_py import _scheduled_operations
 from solverforge_bench.model import NoSolutionFoundError, SolverExecutionError
+from solverforge_bench.solverforge_failures import classify_solverforge_failure
 
 
 class JsspOutputCompletenessTests(unittest.TestCase):
@@ -84,6 +85,41 @@ class JsspOutputCompletenessTests(unittest.TestCase):
 
 
 class SolverForgeOutputCompletenessTests(unittest.TestCase):
+    def test_incomplete_construction_is_an_observed_no_solution(self) -> None:
+        native_error = ValueError(
+            "runtime execution failed: configured solve stopped with mandatory "
+            "planning work incomplete: assignment group has 2 unassigned rows"
+        )
+
+        classified = classify_solverforge_failure(
+            native_error,
+            solver_name="SolverForge Rust",
+        )
+
+        self.assertIsInstance(classified, NoSolutionFoundError)
+        assert classified is not None
+        self.assertEqual(classified.termination_status, "no_solution")
+        self.assertIn("ended without a complete solution", str(classified))
+        self.assertTrue(classified.native_fields["mandatory_construction_incomplete"])
+        self.assertEqual(
+            classified.native_fields["native_failure_type"],
+            "ValueError",
+        )
+        self.assertEqual(
+            classified.native_fields["native_failure_message"],
+            str(native_error),
+        )
+
+    def test_unknown_solverforge_failure_is_not_reclassified(self) -> None:
+        native_error = ValueError("unrelated adapter defect")
+
+        classified = classify_solverforge_failure(
+            native_error,
+            solver_name="SolverForge Rust",
+        )
+
+        self.assertIsNone(classified)
+
     def test_cvrp_customer_assignment_must_be_exact(self) -> None:
         complete = SimpleNamespace(
             customer_values=[1, 2, 3],

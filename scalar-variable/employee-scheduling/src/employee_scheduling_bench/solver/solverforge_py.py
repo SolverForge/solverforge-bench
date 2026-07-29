@@ -28,6 +28,7 @@ from solverforge_bench.fair_start import (
 )
 from solverforge_bench.model import NoSolutionFoundError, SolverResult
 from solverforge_bench.solverforge_config import solver_config_for_time_limit
+from solverforge_bench.solverforge_failures import classify_solverforge_failure
 
 
 _SOLVER_CONFIG_PATH = Path(__file__).with_name("solverforge_py.toml")
@@ -632,7 +633,16 @@ def solve_with_solverforge_py(instance: Instance, time_limit: int) -> SolverResu
     config = _solver_config(time_limit)
 
     emit_fair_start_witness(witness)
-    solved = Solver.solve(plan, config)
+    try:
+        solved = Solver.solve(plan, config)
+    except Exception as exc:
+        classified = classify_solverforge_failure(
+            exc,
+            solver_name="SolverForge Python",
+        )
+        if classified is not None:
+            raise classified from exc
+        raise
     fresh_score = Solver.analyze(solved)
     reported_cost = _soft_cost(solved.score)
     fresh_cost = _soft_cost(fresh_score)

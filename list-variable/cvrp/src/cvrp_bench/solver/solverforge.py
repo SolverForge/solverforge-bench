@@ -10,6 +10,7 @@ from solverforge_bench.fair_start import (
     witness_from_native_output,
 )
 from solverforge_bench.model import SolverResult
+from solverforge_bench.solverforge_failures import classify_solverforge_failure
 
 
 def solve_with_solverforge(instance: Instance, time_limit: int) -> SolverResult:
@@ -45,7 +46,16 @@ def solve_with_solverforge(instance: Instance, time_limit: int) -> SolverResult:
         solver_input=instance_json,
     )
     emit_fair_start_witness(witness)
-    result_json = solverforge_cvrp.solve_cvrp(instance_json, time_limit)
+    try:
+        result_json = solverforge_cvrp.solve_cvrp(instance_json, time_limit)
+    except Exception as exc:
+        classified = classify_solverforge_failure(
+            exc,
+            solver_name="SolverForge Rust",
+        )
+        if classified is not None:
+            raise classified from exc
+        raise
 
     # 3 transform: routes are already depot-excluded lists of customer indices
     result = json.loads(result_json)

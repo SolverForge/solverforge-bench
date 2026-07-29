@@ -61,7 +61,9 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
    solver starts.
 7. Solver exceptions, including `NoSolutionFoundError`, become result rows with
    `run_error`. CSV or PostgreSQL write failures remain fatal output-integrity
-   failures.
+   failures. A SolverForge mandatory-construction stop at the requested time
+   limit is a `no_solution` row with no objective and preserved native failure
+   details; unrecognized SolverForge exceptions remain `adapter_error`.
 8. `scripts/verify_solverforge_py_guardrails.py` is a release/local wrapper
    over the same root harness. It runs fixed `solverforge-py` smoke slices and
    paired native/Python comparison slices. Before execution it resolves every

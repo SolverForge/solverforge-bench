@@ -372,6 +372,10 @@ files, or `--no-capture-solver-output` to disable per-solver output files.
 Solver exceptions are caught per solver/case/time-limit and become result rows
 with `run_error`; full tracebacks are kept in the stderr/run logs. Fatal output
 integrity errors, such as CSV or PostgreSQL write failures, still fail the run.
+When SolverForge reaches the requested time limit before mandatory construction
+is complete, the row records `termination_status=no_solution`, no objective,
+and the original native exception type and message. Other SolverForge
+exceptions remain `adapter_error`.
 The runner materializes the selected cases before execution, rejects empty or
 duplicate selections and nonpositive or duplicate time limits, and requires
 exactly one emitted row for every case/solver/time-limit key before a run can
