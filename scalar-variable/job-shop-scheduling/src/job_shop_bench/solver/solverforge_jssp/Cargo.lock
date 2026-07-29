@@ -352,9 +352,9 @@ checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
 name = "solverforge"
-version = "0.19.2"
+version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3b3748b5ebb726d01a514ce1fa482f627b4688792c16d715a7b26fc26808b8e"
+checksum = "15d0a5dfb480a56ec3ee9aa048fd54bba3e65b04866bde610c1a956b89b4da80"
 dependencies = [
  "solverforge-bridge",
  "solverforge-config",
@@ -367,9 +367,9 @@ dependencies = [
 
 [[package]]
 name = "solverforge-bridge"
-version = "0.19.2"
+version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "873efcf43f5def486ec5c17a6fa6907104a777252a793f907995acef694461c0"
+checksum = "c78f964f79318c3c0ee3161ed3004c708f04c4a751f784fe7d0ccc908194aaa3"
 dependencies = [
  "solverforge-config",
  "solverforge-core",
@@ -379,9 +379,9 @@ dependencies = [
 
 [[package]]
 name = "solverforge-config"
-version = "0.19.2"
+version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94ef71f259fdc7044df5ff33c02a67a7d78d484ce6dffa0b85c85a538566e3ba"
+checksum = "27d4cb13eb5097514c5d18eeddb0f88521e3f3d8d402a0d22ffbbdcd08c90c21"
 dependencies = [
  "serde",
  "serde_yaml",
@@ -392,18 +392,18 @@ dependencies = [
 
 [[package]]
 name = "solverforge-core"
-version = "0.19.2"
+version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "054e5d842862f0d6b01985aa6b18b53bd949e9dbf0e9884f34e0538a9fa20b3c"
+checksum = "e6118e7d98c3c8ef58646b2779603dd1ab6f9dc9f25481cb104402cbcd06be46"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "solverforge-cvrp"
-version = "0.19.2"
+version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59aff7eafda17a568bcfd53fa6cdbe67f6b9f8c51d51ade090f3baba3ab12567"
+checksum = "554c12afb5908f396833688be18e649eee5967df8c41c0e4f20f0a10445ff651"
 dependencies = [
  "solverforge-solver",
 ]
@@ -422,9 +422,9 @@ dependencies = [
 
 [[package]]
 name = "solverforge-macros"
-version = "0.19.2"
+version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1958521835c7d319ec2074f5c11986e4fa71792eb13680b05090487d3bf8456"
+checksum = "22c15f305806b185fc4815f8da0ec73acb9acbba5de3583433ab7b6bb2eeffa4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -433,9 +433,9 @@ dependencies = [
 
 [[package]]
 name = "solverforge-scoring"
-version = "0.19.2"
+version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a31bb6c3c7defe9d16bfff25a35e79c98d2a1dd6081fdf8a5c81b0681cf0a251"
+checksum = "3ddf9f9af52b0d2525f581f921e41fac8352dc2f6f1deb7f9100aff9cfedba25"
 dependencies = [
  "solverforge-core",
  "thiserror",
@@ -443,9 +443,9 @@ dependencies = [
 
 [[package]]
 name = "solverforge-solver"
-version = "0.19.2"
+version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3102fa53507af1c9acb41d3d0d4a52f5534fcb1b5d52c825355f2ab9120a9d35"
+checksum = "19d30aece798a48d08edc630734a181dd2d9bcc1e806de7ec27701f9885989a6"
 dependencies = [
  "rand",
  "rand_chacha",
