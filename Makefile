@@ -92,6 +92,7 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-job-shop-scheduling-solverforge bench-job-shop-scheduling-solverforge-db \
 	bench-job-shop-scheduling-solverforge-quick bench-job-shop-scheduling-solverforge-quick-db \
 	bench-nightly-db \
+	reaudit-legacy-publication \
 	verify-benchmark-contracts verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
 	verify-solverforge-py-guardrail-contract verify-solverforge-py-smoke verify-solverforge-py-comparison verify-solverforge-py-release \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
@@ -116,10 +117,14 @@ verify-fair-start: banner venv
 verify-benchmark-contracts: banner venv
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_benchmark_contracts.py
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_solver_output_contracts.py
+	PYTHONPATH=. "$(PYTHON)" scripts/test_reaudit_legacy_publication.py
 
 verify-fair-start-rows: banner venv
 	@test -n "$(RUN_ID)" || (echo "RUN_ID is required" >&2; exit 2)
 	"$(PYTHON)" scripts/verify_fair_start.py --run-id "$(RUN_ID)" --database-url "$(DATABASE_URL)"
+
+reaudit-legacy-publication: banner venv
+	"$(PYTHON)" scripts/reaudit_legacy_publication.py --database-url "$(DATABASE_URL)"
 
 verify-solverforge-config-parity: banner venv
 	"$(PYTHON)" scripts/verify_solverforge_config_parity.py
