@@ -15,6 +15,7 @@ from employee_scheduling_bench.solver.ortools import (
 )
 from employee_scheduling_bench.solver.solverforge_py import (
     _ensure_required_shift_assignments,
+    _same_value_conflicts,
 )
 from job_shop_bench.solver.solverforge_py import _scheduled_operations
 from solverforge_bench.model import NoSolutionFoundError, SolverExecutionError
@@ -85,6 +86,22 @@ class JsspOutputCompletenessTests(unittest.TestCase):
 
 
 class SolverForgeOutputCompletenessTests(unittest.TestCase):
+    def test_employee_forbidden_successions_compile_to_symmetric_conflicts(
+        self,
+    ) -> None:
+        shifts = [
+            {"week": 0, "day": 0, "shift_type_idx": 0},
+            {"week": 0, "day": 0, "shift_type_idx": 1},
+            {"week": 0, "day": 1, "shift_type_idx": 1},
+            {"week": 0, "day": 2, "shift_type_idx": 0},
+            {"week": 0, "day": 6, "shift_type_idx": 0},
+            {"week": 1, "day": 0, "shift_type_idx": 1},
+        ]
+
+        conflicts = _same_value_conflicts(shifts, [[], [0]])
+
+        self.assertEqual(conflicts, [[2], [], [0], [], [5], [4]])
+
     def test_incomplete_construction_is_an_observed_no_solution(self) -> None:
         native_error = ValueError(
             "runtime execution failed: configured solve stopped with mandatory "

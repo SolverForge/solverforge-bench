@@ -95,6 +95,7 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
     solverforge_lib = solverforge / "lib.rs"
     solverforge_domain = solverforge / "domain.rs"
     solverforge_constraints = solverforge / "constraints.rs"
+    solverforge_py = employee_src / "solver" / "solverforge_py.py"
 
     return [
         SourceCheck(
@@ -282,6 +283,28 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
                 "30,",
                 "15,",
                 "complete_weekend_cost",
+            ),
+        ),
+        SourceCheck(
+            "solverforge-py",
+            "candidate domain excludes missing skills and initial forbidden successors",
+            solverforge_py,
+            (
+                "if has_skill and (global_day != 0 or history_allows[nurse_idx])",
+                "candidate_values=_nurse_candidates",
+            ),
+        ),
+        SourceCheck(
+            "solverforge-py",
+            "minimum slots, nurse/day capacity, and adjacent forbidden successions use native assignment metadata",
+            solverforge_py,
+            (
+                'required_entity_field="is_minimum"',
+                'capacity_key_field="nurse_day_capacity_keys"',
+                'same_value_conflict_field="same_value_conflict_shift_indices"',
+                'sequence_key_field="global_day"',
+                "same_value_conflicts = _same_value_conflicts(",
+                "if left_type not in forbidden_predecessors",
             ),
         ),
     ]

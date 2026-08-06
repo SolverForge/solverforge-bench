@@ -153,11 +153,16 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   strategy within that single solve and the shared time limit.
 - The `solverforge-py` employee adapter builds a public Python-binding scalar
   model with unassigned `nurse_idx` variables. Immutable required, capacity,
-  position, and sequence metadata stays in native row fields, while hard
-  feasibility, indexed presence penalties, and shift-off request penalties
-  remain in the constraint model; the shared validator remains the source of
-  result feasibility and cost. This adapter is a first-class default
-  performance row.
+  position, sequence, and same-nurse forbidden-succession conflict metadata
+  stays in native row fields. The static conflict graph gives the assignment
+  engine the same adjacency rule as the native Rust adapter without a Python
+  callback on each candidate edge. Per-shift nurse candidates remain the native
+  legality boundary for construction, swaps, and rematches, so an assignment
+  cannot migrate onto a shift whose skill or initial-history domain excludes
+  that nurse. Hard feasibility, indexed presence penalties, and shift-off
+  request penalties remain in the constraint model; the shared validator
+  remains the source of result feasibility and cost. This adapter is a
+  first-class default performance row.
 - The Python wrappers emit a witness before solving. SolverForge Rust counts
   preassigned scalar variables, Timefold Java counts preassigned `nurse`
   planning variables, and OR-Tools C++ inspects CP-SAT solution-hint fields in

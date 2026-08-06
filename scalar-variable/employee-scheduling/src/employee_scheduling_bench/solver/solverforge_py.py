@@ -121,6 +121,7 @@ class NrpShift:
         history_allows: list[bool],
         nurse_candidates: list[int],
         nurse_day_capacity_keys: list[int],
+        same_value_conflict_shift_indices: list[int],
         assignment_position_key: int,
         forbidden_predecessors: list[int],
         shift_off_request_nurses: list[int],
@@ -139,6 +140,7 @@ class NrpShift:
         self.history_allows = history_allows
         self.nurse_candidates = nurse_candidates
         self.nurse_day_capacity_keys = nurse_day_capacity_keys
+        self.same_value_conflict_shift_indices = same_value_conflict_shift_indices
         self.assignment_position_key = assignment_position_key
         self.forbidden_predecessors = forbidden_predecessors
         self.forbidden_predecessor_set = set(forbidden_predecessors)
@@ -476,6 +478,7 @@ def _nrp_constraints(factory: ConstraintFactory) -> list[object]:
             variable_name="nurse_idx",
             required_entity_field="is_minimum",
             capacity_key_field="nurse_day_capacity_keys",
+            same_value_conflict_field="same_value_conflict_shift_indices",
             position_key_field="assignment_position_key",
             sequence_key_field="global_day",
             sync_solution_before_callbacks=False,
@@ -523,6 +526,9 @@ class NrpPythonPlan:
             ]
             for shift_type_idx in range(len(payload["shift_types"]))
         ]
+        same_value_conflicts = _same_value_conflicts(
+            payload["shifts"], forbidden_predecessors_by_shift_type
+        )
         nurse_soft_keys: list[NurseSoftKey] = []
         self.nurse_soft_facts = []
         for nurse_idx, nurse in enumerate(nurses):
@@ -602,6 +608,7 @@ class NrpPythonPlan:
                         nurse_idx * self.total_days + global_day
                         for nurse_idx in range(len(nurses))
                     ],
+                    same_value_conflict_shift_indices=same_value_conflicts[shift_id],
                     assignment_position_key=(
                         global_day * 10_000 + shift_type_idx * 100 + skill_idx
                     ),
@@ -719,6 +726,29 @@ def _forbidden_successors(
         int(item["preceding"]): {int(value) for value in item["succeeding"]}
         for item in forbidden
     }
+
+
+def _same_value_conflicts(
+    shifts: list[dict[str, Any]],
+    forbidden_predecessors_by_shift_type: list[list[int]],
+) -> list[list[int]]:
+    shifts_by_day: dict[int, list[int]] = {}
+    for shift_id, shift in enumerate(shifts):
+        global_day = int(shift["week"]) * 7 + int(shift["day"])
+        shifts_by_day.setdefault(global_day, []).append(shift_id)
+
+    conflicts = [set[int]() for _ in shifts]
+    for right_id, right in enumerate(shifts):
+        right_day = int(right["week"]) * 7 + int(right["day"])
+        right_type = int(right["shift_type_idx"])
+        forbidden_predecessors = set(forbidden_predecessors_by_shift_type[right_type])
+        for left_id in shifts_by_day.get(right_day - 1, []):
+            left_type = int(shifts[left_id]["shift_type_idx"])
+            if left_type not in forbidden_predecessors:
+                continue
+            conflicts[left_id].add(right_id)
+            conflicts[right_id].add(left_id)
+    return [sorted(items) for items in conflicts]
 
 
 def _successor_allowed(

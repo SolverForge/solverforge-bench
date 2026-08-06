@@ -237,6 +237,10 @@ employee-scheduling adapters encode the same mathematical model contract:
 optimal/minimum coverage slot generation, hard feasibility clauses, candidate
 domains, and soft objective weights. It also re-validates bundled reference
 solution costs through the shared Python validator.
+The Python-binding adapter keeps skill and initial-history exclusions in each
+shift's native candidate domain and supplies adjacent forbidden successions as
+native same-value conflict rows, so construction and grouped local search use
+the same hard assignment boundary.
 
 Build employee-scheduling native integrations without running a benchmark:
 
