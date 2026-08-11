@@ -66,8 +66,10 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
    details; unrecognized SolverForge exceptions remain `adapter_error`.
 8. `scripts/verify_solverforge_py_guardrails.py` is a release/local wrapper
    over the same root harness. It runs fixed `solverforge-py` smoke slices and
-   paired native/Python comparison slices. Before execution it resolves every
-   requested dataset selector; afterward it requires the exact
+   paired native/Python comparison slices. Its one-second employee feasibility
+   probe covers `n030w4`, `n050w8`, and `n080w8` and requires hard-feasible
+   returned schedules. Before execution it resolves every requested dataset
+   selector; afterward it requires the exact
    instance/time-limit/solver matrix, then writes
    `build/solverforge-py-guardrails/summary.json`. Database URL values are
    redacted from recorded commands and persisted run metadata.
@@ -103,7 +105,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   adapter-owned incumbents, route hints, and reference-solution reads are not
   part of solver input.
 - The `solverforge-py` CVRP adapter builds a public Python-binding list-variable
-  model from the same CVRPLIB instance. Its canonical `0.6.5` declaration uses
+  model from the same CVRPLIB instance. Its canonical `0.6.6` declaration uses
   independent `ListRouteHooks` and `ListSavingsHooks`, explicit row-scoped
   capacity/demand/distance metadata, and explicit cross/intra-position distance
   sources. It starts all route lists empty and reports the installed
@@ -231,7 +233,7 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
 ## Makefile Contract
 
 - `make install-python-deps` creates or refreshes the root `.venv` and installs
-  the exact published `solverforge==0.6.5` wheel into it.
+  the exact published `solverforge==0.6.6` wheel into it.
 - `make build-cvrp` builds Python dependencies plus CVRP Timefold, SolverForge,
   OR-Tools, rustvrp, and VROOM integrations.
 - `make build-employee-scheduling` builds Python dependencies plus employee
@@ -261,8 +263,9 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   verifies fair-start source checks, runs `solverforge-py` smoke rows through
   the shared harness, and parses the generated CSVs. Employee rows check
   fair-start, runtime, version, and score-reporting integrity while accepting
-  an honest infeasible or no-incumbent result. Its canonical-size construction
-  probe imposes no feasibility, ranking, or score threshold.
+  an honest infeasible or no-incumbent result. Its production-scale one-second
+  feasibility probe covers `n030w4`, `n050w8`, and `n080w8` and requires every
+  row to return a hard-feasible schedule without a validation error.
 - `make verify-solverforge-py-guardrail-contract` runs the focused exact-matrix
   and command-redaction regression suite without invoking solvers.
 - `make verify-solverforge-py-comparison` runs paired native `solverforge` and

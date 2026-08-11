@@ -58,14 +58,14 @@ The root Makefile uses this same `.venv` for CVRP, employee scheduling,
 normalization, and nightly runs. `make install-python-deps` creates or refreshes
 it before benchmark builds and is the CI-safe entrypoint for scripts that
 bootstrap themselves through the repository virtualenv. That target installs
-the exact published `solverforge==0.6.5` wheel into the same `.venv`, so
+the exact published `solverforge==0.6.6` wheel into the same `.venv`, so
 `solverforge-py` benchmark rows never depend on global Python packages or a
 sibling checkout.
 
 The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
 aligned to the exact published SolverForge `0.19.3` crates and committed
 registry lockfiles. The `solverforge-py` adapters use the exact published
-`solverforge==0.6.5` distribution and report that distribution version in CSV
+`solverforge==0.6.6` distribution and report that distribution version in CSV
 and PostgreSQL rows.
 
 Each workload keeps two separate SolverForge configuration artifacts: the
@@ -120,7 +120,7 @@ when checking the final JSSP win condition.
 sets for every benchmark class. Before release work, public benchmark claims,
 or changes to the Python-binding solver paths, refresh the root `.venv` with
 `make install-python-deps`; that target force-refreshes the exact published
-`solverforge==0.6.5` wheel in the benchmark environment.
+`solverforge==0.6.6` wheel in the benchmark environment.
 
 Run the local/release guardrails explicitly:
 
@@ -143,9 +143,9 @@ smoke gate remains a focused
 `solverforge-py` adapter check for CVRP,
 employee scheduling, and the JSSP quick group. Employee rows check fair-start,
 runtime, version, and score-reporting integrity while accepting an honest
-infeasible or no-incumbent outcome. A canonical-size one-second employee probe
-exercises the same contract without imposing feasibility, ranking, or score
-thresholds. The comparison gate runs paired
+infeasible or no-incumbent outcome. A one-second production-scale employee
+probe covers `n030w4`, `n050w8`, and `n080w8` and requires every row to return
+a hard-feasible schedule without a validation error. The comparison gate runs paired
 native `solverforge` and `solverforge-py` rows, resolves every requested dataset
 selector before execution, requires every expected instance/time-limit/solver
 row exactly once, validates fair-start and execution integrity without turning

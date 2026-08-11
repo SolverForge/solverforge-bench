@@ -41,7 +41,7 @@
   Makefile.
 - The CVRP, employee-scheduling, and job-shop native SolverForge adapters are
   pinned to the published SolverForge `0.19.3` crates. The `solverforge-py`
-  adapters use the exact published `solverforge==0.6.5` Python wheel.
+  adapters use the exact published `solverforge==0.6.6` Python wheel.
 - Benchmark run targets pin the shared harness with per-suite CPU defaults:
   `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`, and
   `JOBSHOP_BENCH_CPU ?= 2`. They also set `OMP_NUM_THREADS=1`,
@@ -201,7 +201,9 @@ dataset selector resolves to no instance. Their CSV validation must require the
 exact requested instance/time-limit/solver matrix, including whole keys for
 which neither solver emitted a row. Commands stored in summaries, errors, or
 PostgreSQL run metadata must redact database URL values while execution still
-uses the real URL.
+uses the real URL. The production-scale employee feasibility probe must cover
+`n030w4`, `n050w8`, and `n080w8` at one second and reject missing,
+no-solution, invalid, or hard-infeasible rows.
 
 Every run must materialize a nonempty, duplicate-free
 case/solver/time-limit matrix before solver execution. PostgreSQL runs must
