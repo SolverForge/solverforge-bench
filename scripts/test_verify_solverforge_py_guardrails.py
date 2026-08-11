@@ -244,6 +244,37 @@ class MatrixCoverageTests(unittest.TestCase):
 
 
 class EmployeeExecutionProbeTests(unittest.TestCase):
+    def test_production_feasibility_probe_requires_a_valid_solution(self) -> None:
+        row = self._row()
+
+        failures = guardrails.validate_employee_feasibility_rows(
+            [row], "employee production feasibility probe"
+        )
+
+        self.assertTrue(any("infeasible" in failure for failure in failures))
+        self.assertTrue(any("validation_error=" in failure for failure in failures))
+
+        row["termination_status"] = "no_solution"
+        row["hard_feasible"] = ""
+        row["validation_error"] = ""
+        failures = guardrails.validate_employee_feasibility_rows(
+            [row], "employee production feasibility probe"
+        )
+        self.assertTrue(
+            any("did not return a solution" in failure for failure in failures)
+        )
+
+    def test_production_feasibility_probe_accepts_a_valid_solution(self) -> None:
+        row = self._row()
+        row["hard_feasible"] = "true"
+        row["validation_error"] = ""
+
+        failures = guardrails.validate_employee_feasibility_rows(
+            [row], "employee production feasibility probe"
+        )
+
+        self.assertEqual(failures, [])
+
     def test_infeasible_scored_schedule_is_not_a_probe_failure(self) -> None:
         rows = [self._row()]
 

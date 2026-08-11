@@ -20,7 +20,6 @@ from pathlib import Path
 from _venv_bootstrap import ensure_repo_venv
 from verify_solverforge_config_parity import verify_solverforge_config_parity
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ensure_repo_venv(REPO_ROOT)
 
@@ -32,7 +31,7 @@ COMPARISON_CVRP_TIME_LIMITS = (1, 10)
 COMPARISON_EMPLOYEE_TIME_LIMITS = (10, 60)
 COMPARISON_JSSP_TIME_LIMITS = (1, 10)
 SMOKE_EMPLOYEE_DATASETS = ("n005w4",)
-CONSTRUCTION_EMPLOYEE_DATASETS = ("n030w4",)
+CONSTRUCTION_EMPLOYEE_DATASETS = ("n030w4", "n050w8", "n080w8")
 CONSTRUCTION_EMPLOYEE_TIME_LIMITS = (1,)
 COMPARISON_EMPLOYEE_DATASETS = ("n005w4", "n012w8", "n021w4")
 COMPARISON_JSSP_DATASETS = ("ft06", "la01", "abz5", "ft10")
@@ -446,8 +445,8 @@ def run_smoke_guardrails(
         args,
         phase="smoke",
         benchmark="employee-scheduling",
-        label="employee solverforge-py canonical construction probe",
-        output_name="smoke_employee_solverforge_py_canonical_construction.csv",
+        label="employee solverforge-py production-scale feasibility probe",
+        output_name="smoke_employee_solverforge_py_production_feasibility.csv",
         benchmark_args=[
             "employee-scheduling",
             "--run-kind",
@@ -519,7 +518,7 @@ def run_smoke_guardrails(
         failures.extend(coverage_failures)
 
     construction_expectation = expectations["employee-construction"]
-    construction_label = "employee solverforge-py canonical construction probe"
+    construction_label = "employee solverforge-py production-scale feasibility probe"
     construction_rows = read_rows(employee_construction)
     row_counts[construction_label] = len(construction_rows)
     failures.extend(
@@ -528,6 +527,9 @@ def run_smoke_guardrails(
             construction_label,
             installed_version,
         )
+    )
+    failures.extend(
+        validate_employee_feasibility_rows(construction_rows, construction_label)
     )
     coverage, coverage_failures = validate_matrix_coverage(
         construction_rows,
@@ -887,6 +889,25 @@ def validate_employee_execution_rows(
                 f"{row_label} solver_version={row.get('solver_version')!r} "
                 f"does not match installed solverforge {installed_version!r}"
             )
+    return failures
+
+
+def validate_employee_feasibility_rows(
+    rows: list[dict[str, str]], label: str
+) -> list[str]:
+    failures = []
+    for row in rows:
+        row_label = (
+            f"{label} {row.get('instance', '')} "
+            f"{row.get('time_limit_seconds', '')}s"
+        )
+        if row.get("termination_status", "") != "solution_returned":
+            failures.append(f"{row_label} did not return a solution")
+            continue
+        if not is_true(row.get("hard_feasible", "")):
+            failures.append(f"{row_label} infeasible")
+        if row.get("validation_error", ""):
+            failures.append(f"{row_label} validation_error={row['validation_error']}")
     return failures
 
 
