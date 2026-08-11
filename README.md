@@ -58,18 +58,15 @@ The root Makefile uses this same `.venv` for CVRP, employee scheduling,
 normalization, and nightly runs. `make install-python-deps` creates or refreshes
 it before benchmark builds and is the CI-safe entrypoint for scripts that
 bootstrap themselves through the repository virtualenv. That target installs
-the exact `solverforge==0.6.6` wheel into the same `.venv`, so `solverforge-py`
-benchmark rows never depend on global Python packages or a sibling checkout.
-The wheel is not yet published; `make install-python-deps` and every runtime
-gate that depends on it remain blocked until the PyPI release exists.
+the exact published `solverforge==0.6.6` wheel into the same `.venv`, so
+`solverforge-py` benchmark rows never depend on global Python packages or a
+sibling checkout.
 
 The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
-prepared against SolverForge `0.19.4` in their manifests. Because those crates
-are not yet published, the three committed registry lockfiles intentionally
-remain at the last resolvable `0.19.3` base; regenerate them from crates.io
-before any `--locked` build. The `solverforge-py` adapters require the exact
+aligned to the exact published SolverForge `0.19.4` crates and committed
+registry lockfiles. The `solverforge-py` adapters require the exact published
 `solverforge==0.6.6` distribution and report that installed distribution
-version in CSV and PostgreSQL rows once it is published.
+version in CSV and PostgreSQL rows.
 
 Each workload keeps two separate SolverForge configuration artifacts: the
 native adapter's `solver.toml` and the Python adapter's `solverforge_py.toml`.
@@ -182,10 +179,9 @@ run `make validate-cvrp`, and run
 `.venv`, so CI must use the Makefile bootstrap instead of a detached
 `python -m pip install -e .`.
 
-The Rust jobs keep `--locked` resolution strict. Their manifests target
-SolverForge `0.19.4`, but the committed registry lockfiles remain at `0.19.3`
-until the new crates are published and the locks are regenerated. The jobs set
-the PyO3 Python environment from `actions/setup-python`, then run formatting,
+The Rust jobs keep `--locked` resolution strict. Their manifests and committed
+registry lockfiles target SolverForge `0.19.4`. The jobs set the PyO3 Python
+environment from `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
 for the CVRP SolverForge adapter, CVRP rustvrp adapter, employee scheduling
 SolverForge adapter, and job-shop scheduling SolverForge adapter. GitHub uses
