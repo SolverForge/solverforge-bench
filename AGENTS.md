@@ -39,9 +39,12 @@
   creates the single repository virtualenv used by all benchmark commands.
 - `make install-python-deps` creates or refreshes that root `.venv` from the
   Makefile.
-- The CVRP, employee-scheduling, and job-shop native SolverForge adapters are
-  pinned to the published SolverForge `0.19.3` crates. The `solverforge-py`
-  adapters use the exact published `solverforge==0.6.6` Python wheel.
+- The CVRP, employee-scheduling, and job-shop native SolverForge manifests
+  target SolverForge `0.19.4`. Until those crates are published, their
+  committed registry lockfiles intentionally remain at `0.19.3`; regenerate
+  them from crates.io before locked builds. The `solverforge-py` adapters
+  target the exact `solverforge==0.6.6` Python wheel, which must be published
+  before `make install-python-deps` and the runtime gates can pass.
 - Benchmark run targets pin the shared harness with per-suite CPU defaults:
   `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`, and
   `JOBSHOP_BENCH_CPU ?= 2`. They also set `OMP_NUM_THREADS=1`,
