@@ -553,7 +553,8 @@ Benchmark runs now write one global snake_case CSV schema directly. Native
 problem fields are stable optional columns, for example `nurses`, `weeks`,
 `validator_model_delta`, `score_drift`, `num_jobs`, `num_machines`,
 `num_operations`, `source_family`, `known_best_makespan`,
-`lower_bound_makespan`, `upper_bound_makespan`, and `makespan_gap_to_best`.
+`lower_bound_makespan`, `upper_bound_makespan`, `makespan_gap_to_best`,
+`makespan_gap_to_reference`, and `reference_kind`.
 
 PostgreSQL stores run-level catalog data in `benchmark_runs`, one solver-version
 row per solver involved in the run in `benchmark_solver_versions`, and one row
@@ -610,5 +611,13 @@ solver_stderr_path, hard_feasible, cost, reported_cost, fresh_cost,
 reference_cost, quality_ratio, validation_error, solution_artifact, nurses,
 weeks, validator_model_delta, score_drift, num_jobs, num_machines,
 num_operations, source_family, known_best_makespan, lower_bound_makespan,
-upper_bound_makespan, makespan_gap_to_best, source_file
+upper_bound_makespan, makespan_gap_to_best, makespan_gap_to_reference,
+reference_kind, source_file
 ```
+
+Job-shop reference metrics use the pinned official ScheduleOpt JSPLIB
+best-known-solutions catalog in
+`scalar-variable/job-shop-scheduling/data/jsplib/best_known_solutions.json`.
+Closed instances are labelled `known_optimum`; open instances use the official
+best-known upper bound and are labelled `best_known_upper_bound`. The latter is
+a reference solution value, not a proof of optimality.

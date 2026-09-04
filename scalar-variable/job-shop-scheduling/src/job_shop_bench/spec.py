@@ -6,6 +6,7 @@ from typing import Iterable
 
 from job_shop_bench.domain.models import Solution
 from job_shop_bench.loader import dataset_group_names, instance_metadata, load_instance
+from job_shop_bench.references import reference_for
 from job_shop_bench.solver.solver import (
     AVAILABLE_METHODS,
     DEFAULT_METHODS,
@@ -31,6 +32,8 @@ class JobShopSpec:
         "lower_bound_makespan",
         "upper_bound_makespan",
         "makespan_gap_to_best",
+        "makespan_gap_to_reference",
+        "reference_kind",
     ]
     solution_model = Solution
 
@@ -54,6 +57,13 @@ class JobShopSpec:
             instance = load_instance(
                 data_dir / m["path"], name=name, family=m["family"]
             )
+            reference = reference_for(data_dir, name)
+            reference_cost = reference["upper_bound"]
+            reference_kind = (
+                "known_optimum"
+                if reference["status"] == "closed"
+                else "best_known_upper_bound"
+            )
             yield BenchmarkCase(
                 dataset="JSPLIB",
                 dataset_set=dataset_set,
@@ -65,9 +75,12 @@ class JobShopSpec:
                     "num_machines": instance.num_machines,
                     "num_operations": sum(len(j) for j in instance.operations_by_job),
                     "source_family": instance.family,
-                    "known_best_makespan": m.get("known_best_makespan"),
-                    "lower_bound_makespan": m.get("lower_bound_makespan"),
-                    "upper_bound_makespan": m.get("upper_bound_makespan"),
+                    "known_best_makespan": (
+                        reference_cost if reference_kind == "known_optimum" else None
+                    ),
+                    "lower_bound_makespan": reference["lower_bound"],
+                    "upper_bound_makespan": reference_cost,
+                    "reference_kind": reference_kind,
                 },
             )
 
@@ -80,18 +93,30 @@ class JobShopSpec:
     def evaluate(
         self, *, case: BenchmarkCase, run: SolverRun, artifact_dir: Path
     ) -> Evaluation:
+        reference_cost = case.native_fields.get("upper_bound_makespan")
         try:
             makespan = validate(case.payload, run.solution)
         except ValidationError as exc:
-            return Evaluation(hard_feasible=False, validation_error=str(exc))
+            return Evaluation(
+                hard_feasible=False,
+                reference_cost=reference_cost,
+                validation_error=str(exc),
+            )
         best = case.native_fields.get("known_best_makespan")
-        gap = ((makespan - best) / best) if best else None
+        reference_gap = (
+            (makespan - reference_cost) / reference_cost if reference_cost else None
+        )
         return Evaluation(
             hard_feasible=True,
             cost=makespan,
             reported_cost=getattr(run.solution, "reported_makespan", None),
+            reference_cost=reference_cost,
+            quality_ratio=(makespan / reference_cost if reference_cost else None),
             validation_error="",
-            native_fields={"makespan_gap_to_best": gap},
+            native_fields={
+                "makespan_gap_to_best": ((makespan - best) / best if best else None),
+                "makespan_gap_to_reference": reference_gap,
+            },
         )
 
     def output_path(self, args: argparse.Namespace, run_stamp: str) -> Path:
