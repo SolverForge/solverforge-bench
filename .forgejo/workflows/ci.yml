@@ -27,15 +27,39 @@ jobs:
       - name: Install Python 3.14
         id: python
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          "$HOME/.local/bin/uv" python install 3.14
+          set -o pipefail
+          uv_ready=false
+          for attempt in 1 2 3; do
+            if curl -LsSf https://astral.sh/uv/install.sh | sh; then
+              uv_ready=true
+              break
+            fi
+            echo "uv installer attempt ${attempt} failed (transient network); retrying in 30s"
+            sleep 30
+          done
+          [ "${uv_ready}" = true ]
+          for attempt in 1 2 3; do
+            if "$HOME/.local/bin/uv" python install 3.14; then
+              break
+            fi
+            echo "python install attempt ${attempt} failed (transient network); retrying in 30s"
+            sleep 30
+          done
           python_path="$("$HOME/.local/bin/uv" python find 3.14)"
           echo "python-path=${python_path}" >> "$GITHUB_OUTPUT"
           dirname "${python_path}" >> "$GITHUB_PATH"
           "${python_path}" --version
 
       - name: Install Python dependencies
-        run: make install-python-deps HOST_PYTHON="${{ steps.python.outputs.python-path }}"
+        run: |
+          for attempt in 1 2 3; do
+            if make install-python-deps HOST_PYTHON="${{ steps.python.outputs.python-path }}"; then
+              exit 0
+            fi
+            echo "dependency install attempt ${attempt} failed (transient network); retrying in 30s"
+            sleep 30
+          done
+          exit 1
 
       - name: Check Python syntax
         run: .venv/bin/python3 -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src scripts
@@ -94,8 +118,24 @@ jobs:
       - name: Install Python 3.14
         id: python
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          "$HOME/.local/bin/uv" python install 3.14
+          set -o pipefail
+          uv_ready=false
+          for attempt in 1 2 3; do
+            if curl -LsSf https://astral.sh/uv/install.sh | sh; then
+              uv_ready=true
+              break
+            fi
+            echo "uv installer attempt ${attempt} failed (transient network); retrying in 30s"
+            sleep 30
+          done
+          [ "${uv_ready}" = true ]
+          for attempt in 1 2 3; do
+            if "$HOME/.local/bin/uv" python install 3.14; then
+              break
+            fi
+            echo "python install attempt ${attempt} failed (transient network); retrying in 30s"
+            sleep 30
+          done
           python_path="$("$HOME/.local/bin/uv" python find 3.14)"
           echo "python-path=${python_path}" >> "$GITHUB_OUTPUT"
           dirname "${python_path}" >> "$GITHUB_PATH"
@@ -108,8 +148,29 @@ jobs:
 
       - name: Install Rust toolchain
         run: |
-          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-          rustup default stable
+          rust_ready=false
+          for attempt in 1 2 3; do
+            if rustup toolchain install stable --profile minimal --component rustfmt --component clippy \
+              && rustup default stable; then
+              rust_ready=true
+              break
+            fi
+            echo "rustup attempt ${attempt} failed (transient network); retrying in 30s"
+            sleep 30
+          done
+          [ "${rust_ready}" = true ]
+
+      - name: Fetch locked crates
+        working-directory: ${{ matrix.crate }}
+        run: |
+          for attempt in 1 2 3 4; do
+            if cargo fetch --locked; then
+              exit 0
+            fi
+            echo "cargo fetch attempt ${attempt} failed (transient network); retrying in $((attempt * 20))s"
+            sleep $((attempt * 20))
+          done
+          exit 1
 
       - name: Check formatting
         working-directory: ${{ matrix.crate }}
