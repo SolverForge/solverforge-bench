@@ -113,7 +113,7 @@ class CvrpSpec:
             fresh_cost=solution.cost,
             reference_cost=reference_cost,
             quality_ratio=quality_ratio,
-            validation_error="",
+            validation_error=None,
         )
 
     def output_path(self, args: argparse.Namespace, run_stamp: str) -> Path:

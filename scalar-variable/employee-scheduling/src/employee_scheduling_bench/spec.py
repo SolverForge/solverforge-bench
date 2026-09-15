@@ -145,7 +145,7 @@ class EmployeeSchedulingSpec:
             quality_ratio=(
                 float(validator_cost / reference_cost) if reference_cost else None
             ),
-            validation_error="",
+            validation_error=None,
             solution_artifact=artifact_path,
             native_fields={
                 "validator_model_delta": model_delta,

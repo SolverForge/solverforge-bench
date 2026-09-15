@@ -112,7 +112,7 @@ class JobShopSpec:
             reported_cost=getattr(run.solution, "reported_makespan", None),
             reference_cost=reference_cost,
             quality_ratio=(makespan / reference_cost if reference_cost else None),
-            validation_error="",
+            validation_error=None,
             native_fields={
                 "makespan_gap_to_best": ((makespan - best) / best if best else None),
                 "makespan_gap_to_reference": reference_gap,
