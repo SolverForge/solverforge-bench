@@ -1,0 +1,331 @@
+<% content_for :title, "Benchmarks" %>
+<% content_for :description, "SolverForge performance results across real planning workloads." %>
+
+<div class="dashboard-shell">
+  <% if @dashboard_error.present? %>
+    <section class="dashboard-error">
+      <p class="eyebrow">Results source</p>
+      <h1>SolverForge results are unavailable</h1>
+      <p><%= @dashboard_error.class.name %>: <%= @dashboard_error.message %></p>
+      <p>Set <code>BENCH_DATABASE_URL</code> to the results database, or use the local default <code>postgresql://postgres@localhost/solverforge_bench</code>.</p>
+    </section>
+  <% else %>
+    <% summary = @snapshot.summary %>
+
+    <section class="hero-band">
+      <div>
+        <p class="eyebrow">SolverForge performance</p>
+        <h1>Benchmarks</h1>
+        <p class="hero-copy">
+          Live solver performance across <%= pluralize(summary.benchmark_count.to_i, "planning domain") %>,
+          <%= pluralize(summary.solver_count.to_i, "solver") %>, and
+          <%= pluralize(summary.instance_count.to_i, "instance") %>.
+        </p>
+      </div>
+
+      <%= form_with url: root_path, method: :get, class: "filter-bar" do |form| %>
+        <label>
+          Run kind
+          <%= form.select :run_kind, @snapshot.options.run_kinds.map { |kind| [ kind.humanize, kind ] }, selected: @snapshot.filters.run_kind %>
+        </label>
+
+        <label>
+          Domain
+          <%= form.select :benchmark_name,
+            [[ "All domains", Benchmark::DashboardFilters::ALL ]] + @snapshot.options.benchmark_names.map { |name| [ name.humanize, name ] },
+            selected: @snapshot.filters.benchmark_name %>
+        </label>
+
+        <label>
+          Dataset
+          <%= form.select :dataset_set,
+            [[ "All datasets", Benchmark::DashboardFilters::ALL ]] + @snapshot.options.dataset_sets.map { |set| [ set.humanize, set ] },
+            selected: @snapshot.filters.dataset_set %>
+        </label>
+
+        <label>
+          Time limit
+          <%= form.select :time_limit_seconds,
+            [[ "All limits", Benchmark::DashboardFilters::ALL ]] + @snapshot.options.time_limits.map { |seconds| [ "#{seconds}s", seconds.to_s ] },
+            selected: @snapshot.filters.time_limit_seconds %>
+        </label>
+
+        <label>
+          Solver
+          <%= form.select :solver,
+            [[ "All solvers", Benchmark::DashboardFilters::ALL ]] + @snapshot.options.solvers.map { |solver| [ solver_label(solver), solver ] },
+            selected: @snapshot.filters.solver %>
+        </label>
+
+        <label>
+          Feasibility
+          <%= form.select :feasibility,
+            [
+              [ "All outcomes", "all" ],
+              [ "Hard feasible", "feasible" ],
+              [ "Not feasible", "infeasible" ],
+              [ "Errors only", "errors" ]
+            ],
+            selected: @snapshot.filters.feasibility %>
+        </label>
+
+        <label>
+          Instance
+          <%= form.text_field :instance_query,
+            value: @snapshot.filters.instance_query,
+            placeholder: "Name contains" %>
+        </label>
+
+        <label>
+          Min size
+          <%= form.number_field :min_instance_size,
+            value: @snapshot.filters.min_instance_size,
+            placeholder: @snapshot.options.size_bounds.first %>
+        </label>
+
+        <label>
+          Max size
+          <%= form.number_field :max_instance_size,
+            value: @snapshot.filters.max_instance_size,
+            placeholder: @snapshot.options.size_bounds.last %>
+        </label>
+
+        <div class="filter-actions">
+          <%= form.submit "Apply" %>
+          <%= link_to "Reset", root_path, class: "filter-reset" %>
+        </div>
+      <% end %>
+    </section>
+
+    <section class="kpi-grid competition-grid" aria-label="Results summary">
+      <% @snapshot.competition_cards.each do |card| %>
+        <article class="kpi competition-card" style="<%= card.solver ? "--solver-color: #{solver_color(card.solver)}" : nil %>">
+          <span><%= card.label %></span>
+          <strong><%= card.solver ? solver_label(card.value) : card.value %></strong>
+          <small><%= card.note %></small>
+        </article>
+      <% end %>
+    </section>
+
+    <section class="analysis-grid competition-grid">
+      <div class="competition-stack">
+        <section class="panel solver-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Solver standings</p>
+              <h2>Current Standings</h2>
+            </div>
+            <span><%= @snapshot.filters.run_kind.humanize %></span>
+          </div>
+
+          <div class="solver-bars">
+            <% @snapshot.standings.each do |row| %>
+              <% rate = row.ranked_rows.to_i.zero? ? 0 : row.feasible_count.to_f / row.ranked_rows.to_f %>
+              <div class="solver-row">
+                <div class="solver-name">
+                  <i style="--solver-color: <%= solver_color(row.solver) %>"></i>
+                  <span><%= solver_label(row.solver) %></span>
+                </div>
+                <div class="bar-track" aria-label="<%= solver_label(row.solver) %> feasible rows <%= whole_number(row.feasible_count) %>">
+                  <span style="width: <%= (rate * 100).round(2) %>%; --solver-color: <%= solver_color(row.solver) %>"></span>
+                </div>
+                <div class="solver-meta">
+                  <strong><%= whole_number(row.feasible_count) %> feasible</strong>
+                  <small><%= percent(rate) %> · <%= whole_number(row.wins) %> best results · <%= metric_number(row.avg_rank, precision: 2) %> avg rank</small>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Field quality</p>
+              <h2>Feasibility by Solver</h2>
+            </div>
+          </div>
+
+          <% @snapshot.metric_profiles.each do |profile| %>
+            <div class="metric-domain">
+              <div class="metric-domain-heading">
+                <h3><%= profile.benchmark_name.humanize %></h3>
+                <span><%= profile.description %></span>
+              </div>
+              <div class="metric-table-wrap metric-table-wrap--fit">
+                <table class="metric-table compact">
+                  <thead>
+                    <tr>
+                      <th>Solver</th>
+                      <th>Rows</th>
+                      <th>Hard feasible</th>
+                      <th><%= profile.label %></th>
+                      <th>Avg runtime</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% @snapshot.solver_summaries_by_benchmark.fetch(profile.benchmark_name, []).each do |row| %>
+                      <% rate = row.result_count.to_i.zero? ? 0 : row.feasible_count.to_f / row.result_count.to_f %>
+                      <tr>
+                        <td><span class="solver-pill" style="--solver-color: <%= solver_color(row.solver) %>"><%= solver_label(row.solver) %></span></td>
+                        <td><%= whole_number(row.result_count) %></td>
+                        <td>
+                          <div class="table-bar"><span style="width: <%= (rate * 100).round(2) %>%; --solver-color: <%= solver_color(row.solver) %>"></span></div>
+                          <%= percent(rate) %>
+                        </td>
+                        <td><%= metric_number(@snapshot.quality_metric_value(row, profile.benchmark_name), precision: 3) %></td>
+                        <td><%= metric_number(row.avg_actual_time_seconds, precision: 2) %>s</td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          <% end %>
+        </section>
+      </div>
+
+      <section class="panel race-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Over time</p>
+            <h2>Performance Over Time</h2>
+          </div>
+          <span><%= @snapshot.focus_time_limit %>s</span>
+        </div>
+
+        <% @snapshot.metric_profiles.each do |profile| %>
+          <% points = @snapshot.overtime_points_by_benchmark.fetch(profile.benchmark_name, []) %>
+          <section class="race-domain">
+            <div class="metric-domain-heading">
+              <h3><%= profile.benchmark_name.humanize %></h3>
+              <span><%= profile.description %></span>
+            </div>
+            <div class="race-chart-grid">
+              <article class="race-chart">
+                <h3>Feasibility Trend</h3>
+                <%= timeline_chart(points, metric: :feasibility, compact: true) %>
+              </article>
+
+              <article class="race-chart">
+                <h3><%= profile.label %> Trend <span>lower is better</span></h3>
+                <%= timeline_chart(points, metric: profile.metric, compact: true) %>
+              </article>
+            </div>
+
+            <div class="legend-list">
+              <% points.map(&:solver).uniq.each do |solver| %>
+                <span><i style="--solver-color: <%= solver_color(solver) %>"></i><%= solver_label(solver) %></span>
+              <% end %>
+            </div>
+          </section>
+        <% end %>
+      </section>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Time-limit view</p>
+          <h2>Time-limit Results</h2>
+        </div>
+      </div>
+
+      <div class="metric-table-wrap">
+        <table class="metric-table">
+          <thead>
+            <tr>
+              <th>Limit</th>
+              <th>Solver</th>
+              <th>Feasible</th>
+              <th>Best results</th>
+              <th>Podiums</th>
+              <th>Avg rank</th>
+              <th>Rows</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @snapshot.leaderboard.each do |row| %>
+              <tr>
+                <td><%= row.time_limit_seconds %>s</td>
+                <td><span class="solver-pill" style="--solver-color: <%= solver_color(row.solver) %>"><%= solver_label(row.solver) %></span></td>
+                <td><%= whole_number(row.feasible_count) %></td>
+                <td><%= whole_number(row.wins) %></td>
+                <td><%= whole_number(row.podiums) %></td>
+                <td><%= metric_number(row.avg_rank, precision: 2) %></td>
+                <td><%= whole_number(row.ranked_rows) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="analysis-grid detail-grid">
+      <section class="panel" id="recent-runs">
+        <% runs_page = @snapshot.recent_runs_page %>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Recent activity</p>
+            <h2>Recent Runs</h2>
+          </div>
+          <span><%= runs_page.summary_label %></span>
+        </div>
+
+        <div class="run-list">
+          <% runs_page.entries.each do |run| %>
+            <article class="run-row">
+              <div>
+                <strong><%= run.benchmark_name.humanize %></strong>
+                <span><%= run.run_kind.humanize %> · <%= run.status.humanize %> · <%= whole_number(run.result_count) %> rows</span>
+              </div>
+              <time><%= l(run.completed_at || run.created_at, format: :short) %></time>
+            </article>
+          <% end %>
+        </div>
+
+        <% if runs_page.total_pages > 1 %>
+          <nav class="panel-pager" aria-label="Recent runs pages">
+            <% if runs_page.previous_page %>
+              <%= link_to "Previous", root_path(@snapshot.filters.to_query.merge(recent_runs_page: runs_page.previous_page, anchor: "recent-runs")), class: "pager-link" %>
+            <% else %>
+              <span class="pager-link is-disabled">Previous</span>
+            <% end %>
+
+            <span class="pager-status">Page <%= runs_page.current_page %> of <%= runs_page.total_pages %></span>
+
+            <% if runs_page.next_page %>
+              <%= link_to "Next", root_path(@snapshot.filters.to_query.merge(recent_runs_page: runs_page.next_page, anchor: "recent-runs")), class: "pager-link" %>
+            <% else %>
+              <span class="pager-link is-disabled">Next</span>
+            <% end %>
+          </nav>
+        <% end %>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Solver details</p>
+            <h2>Versions</h2>
+          </div>
+        </div>
+
+        <div class="version-grid">
+          <% @snapshot.solver_versions.each do |version| %>
+            <article class="version-row">
+              <span class="solver-pill" style="--solver-color: <%= solver_color(version.solver) %>"><%= solver_label(version.solver) %></span>
+              <strong><%= version.solver_version %></strong>
+              <small title="<%= version.version_source %>">
+                <%= pluralize(version.run_count.to_i, "run") %>
+                <% if version.source_count.to_i > 1 %>
+                  · <%= pluralize(version.source_count.to_i, "build") %>
+                <% end %>
+              </small>
+            </article>
+          <% end %>
+        </div>
+      </section>
+    </section>
+  <% end %>
+</div>

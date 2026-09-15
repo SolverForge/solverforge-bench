@@ -27,3 +27,9 @@ scalar-variable/employee-scheduling/data/benchmark*.csv
 scalar-variable/employee-scheduling/data/artifacts/
 scalar-variable/job-shop-scheduling/data/benchmark*.csv
 scalar-variable/job-shop-scheduling/data/artifacts/
+
+# Dashboard runtime state (Rails metadata SQLite, logs, temp files, secrets)
+dash/storage/
+dash/log/
+dash/tmp/
+dash/config/master.key

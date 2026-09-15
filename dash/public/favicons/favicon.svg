@@ -1,0 +1,31 @@
+<svg width="64" height="64" viewBox="-20 -26 40 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="snakeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Hexagonal body -->
+  <path d="M0 -16 L11 -8 L13 0 L11 11 L0 16 L-11 11 L-13 0 L-11 -8 Z"
+    stroke="url(#snakeGrad)" stroke-width="3" fill="none" stroke-linejoin="miter"/>
+
+  <!-- Angular head -->
+  <path d="M0 -16 L-2 -19 L-1 -18 L0 -19 L1 -18 L2 -19 Z"
+    fill="url(#snakeGrad)" stroke="#000000" stroke-width="0.3"/>
+  <circle cx="-0.6" cy="-18" r="0.4" fill="#000000"/>
+  <circle cx="0.6" cy="-18" r="0.4" fill="#000000"/>
+
+  <!-- Tail -->
+  <path d="M0 -16 L0 -10" stroke="url(#snakeGrad)" stroke-width="2.2"/>
+
+  <!-- Center target -->
+  <path d="M-4 0 L-2 0 M4 0 L2 0 M0 -4 L0 -2 M0 4 L0 2" stroke="#000000" stroke-width="0.6" stroke-linecap="round"/>
+  <circle cx="0" cy="0" r="1.5" fill="none" stroke="#000000" stroke-width="0.6"/>
+  <circle cx="0" cy="0" r="0.8" fill="#10b981"/>
+
+  <!-- Corner brackets -->
+  <path d="M-3 -3 L-3.5 -3 L-3.5 -3.5 M3 -3 L3.5 -3 L3.5 -3.5 M3 3 L3.5 3 L3.5 3.5 M-3 3 L-3.5 3 L-3.5 3.5"
+    stroke="#10b981" stroke-width="0.5" stroke-linecap="round"/>
+</svg>
