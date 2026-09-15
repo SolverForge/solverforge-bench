@@ -65,6 +65,7 @@ JOBSHOP_ROOT := scalar-variable/job-shop-scheduling
 JOBSHOP_SOLVERFORGE_DIR := $(JOBSHOP_ROOT)/src/job_shop_bench/solver/solverforge_jssp
 JOBSHOP_TIMEFOLD_POM := $(JOBSHOP_ROOT)/src/job_shop_bench/solver/timefold/pom.xml
 JOBSHOP_ORTOOLS_DIR := $(JOBSHOP_ROOT)/src/job_shop_bench/solver/ortools
+DASH_ROOT := dash
 ORTOOLS_VERSION ?= 9.15.6755
 ORTOOLS_ARCHIVE ?= or-tools_amd64_opensuse-leap_cpp_v$(ORTOOLS_VERSION).tar.gz
 ORTOOLS_URL ?= https://github.com/google/or-tools/releases/download/v9.15/$(ORTOOLS_ARCHIVE)
@@ -96,7 +97,8 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	verify-benchmark-contracts verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
 	verify-solverforge-py-guardrail-contract verify-solverforge-py-smoke verify-solverforge-py-comparison verify-solverforge-py-release \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
-	db-check db-create db-migrate db-reset normalize-results
+	db-check db-create db-migrate db-reset normalize-results \
+	dash-setup dash-server dash-warehouse-check dash-smoke dash-test
 
 # ============== Default Target ==============
 .DEFAULT_GOAL := venv
@@ -345,3 +347,23 @@ bench-job-shop-scheduling-solverforge-quick-db: build-job-shop-scheduling-solver
 
 validate-job-shop-scheduling: banner
 	cd $(JOBSHOP_ROOT) && PYTHONPATH=../../src:src "$(PYTHON)" scripts/validate_all.py
+
+# ============== Dashboard ==============
+# Read-only Rails dashboard over the benchmark warehouse. Rails keeps its own
+# framework metadata in dash/storage SQLite files; it never writes benchmark
+# rows and never runs warehouse migrations.
+
+dash-setup: banner
+	"$(MAKE)" -C $(DASH_ROOT) BENCH_DATABASE_URL="$(DATABASE_URL)" setup
+
+dash-server: banner
+	"$(MAKE)" -C $(DASH_ROOT) BENCH_DATABASE_URL="$(DATABASE_URL)" server
+
+dash-warehouse-check: banner
+	"$(MAKE)" -C $(DASH_ROOT) BENCH_DATABASE_URL="$(DATABASE_URL)" warehouse-check
+
+dash-smoke: banner
+	"$(MAKE)" -C $(DASH_ROOT) BENCH_DATABASE_URL="$(DATABASE_URL)" smoke
+
+dash-test: banner
+	"$(MAKE)" -C $(DASH_ROOT) BENCH_DATABASE_URL="$(DATABASE_URL)" test
