@@ -734,29 +734,6 @@ SolveResult Solve(const InstancePayload &payload, double time_limit) {
     AddObjectiveTerm(&objective, over_weekends, 30);
   }
 
-  std::vector<AssignmentVar> ordered_assignment_vars = assignment_vars;
-  std::sort(
-      ordered_assignment_vars.begin(), ordered_assignment_vars.end(),
-      [num_nurses](const AssignmentVar &left, const AssignmentVar &right) {
-        if (left.coverage_idx != right.coverage_idx) {
-          return left.coverage_idx < right.coverage_idx;
-        }
-        const int left_rotation =
-            (left.nurse_idx - left.coverage_idx % num_nurses + num_nurses) %
-            num_nurses;
-        const int right_rotation =
-            (right.nurse_idx - right.coverage_idx % num_nurses + num_nurses) %
-            num_nurses;
-        return left_rotation < right_rotation;
-      });
-  std::vector<sat::BoolVar> assignment_decisions;
-  assignment_decisions.reserve(ordered_assignment_vars.size());
-  for (const AssignmentVar &assignment_var : ordered_assignment_vars) {
-    assignment_decisions.push_back(assignment_var.var);
-  }
-  model.AddDecisionStrategy(assignment_decisions,
-                            sat::DecisionStrategyProto::CHOOSE_FIRST,
-                            sat::DecisionStrategyProto::SELECT_MAX_VALUE);
   model.Minimize(objective);
 
   sat::Model solver_model;
@@ -764,7 +741,6 @@ SolveResult Solve(const InstancePayload &payload, double time_limit) {
   parameters.set_max_time_in_seconds(std::max(0.1, time_limit));
   parameters.set_num_search_workers(1);
   parameters.set_random_seed(1);
-  parameters.set_search_branching(sat::SatParameters::FIXED_SEARCH);
   parameters.set_log_search_progress(false);
   solver_model.Add(sat::NewSatParameters(parameters));
   const sat::CpModelProto proto = model.Build();
