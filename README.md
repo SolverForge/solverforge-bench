@@ -44,6 +44,31 @@ See `WIREFRAME.md` for the current as-built repository map.
 - `archive/README.md` marks archived reports and standalone scripts as
   historical material only.
 
+## Dashboard
+
+- `dash/` is a read-only Rails 8 dashboard over the benchmark PostgreSQL
+  warehouse. It renders KPIs, standings, timelines, and recent runs from the
+  warehouse's own reporting views (`latest_benchmark_runs`,
+  `benchmark_result_facts`, `latest_benchmark_result_facts`) and never writes
+  benchmark rows or runs warehouse migrations.
+- Rails keeps its own framework metadata (cache, queue, cable) in local SQLite
+  files under `dash/storage/`. Those files, `dash/log/`, `dash/tmp/`, and
+  `dash/config/master.key` are runtime state and are never committed.
+- The warehouse connection defaults to
+  `postgresql://postgres@localhost/solverforge_bench`; set `BENCH_DATABASE_URL`
+  (root Makefile) or pass `DATABASE_URL` overrides through the dash targets.
+
+```sh
+make dash-setup            # bundle install + prepare the Rails metadata DB
+make dash-server           # serve the dashboard (default http://127.0.0.1:3001)
+make dash-warehouse-check  # verify the warehouse connection
+make dash-smoke            # load a dashboard snapshot from the warehouse
+make dash-test             # run the Rails test suite
+```
+
+`make dash-*` targets delegate to `dash/Makefile`, which keeps the full Rails
+workflow (`lint`, `security`, `console`, `routes`, deployment via Kamal).
+
 ## Setup
 
 Create the repository virtualenv and install every benchmark dependency into it:

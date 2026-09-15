@@ -30,6 +30,12 @@ persistence, or CI changes, update this file with `README.md` and `AGENTS.md`.
   package for INRC-II nurse scheduling.
 - `scalar-variable/job-shop-scheduling/` is the scalar-variable benchmark
   package for classic JSPLIB job-shop scheduling.
+- `dash/` is the read-only Rails 8 benchmark dashboard. Its models map directly
+  onto the warehouse reporting views (`latest_benchmark_runs`,
+  `benchmark_result_facts`, `latest_benchmark_result_facts`); it writes no
+  benchmark rows and runs no warehouse migrations. Rails framework metadata
+  (Solid Cache/Queue/Cable) stays in local SQLite under `dash/storage/`, which
+  is runtime state and never committed.
 - `migrations/` holds SQLx-compatible PostgreSQL warehouse migrations.
 - `.github/workflows/ci.yml` holds the GitHub-hosted CI workflow.
 - `.forgejo/workflows/ci.yml` holds the local Forgejo CI workflow.

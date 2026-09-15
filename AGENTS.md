@@ -31,6 +31,13 @@
   `data/jsplib/`, a SolverForge Rust/PyO3 adapter under
   `solver/solverforge_jssp/`, a Timefold Java adapter under `solver/timefold/`,
   and an OR-Tools C++ CP-SAT adapter under `solver/ortools/`.
+- `dash/` contains the read-only Rails 8 benchmark dashboard. It reads the
+  PostgreSQL warehouse views (`latest_benchmark_runs`, `benchmark_result_facts`,
+  `latest_benchmark_result_facts`) and owns no benchmark data. Rails framework
+  metadata lives in local SQLite under `dash/storage/`; `dash/storage/`,
+  `dash/log/`, `dash/tmp/`, and `dash/config/master.key` are runtime state and
+  must never be committed. The warehouse URL comes from `BENCH_DATABASE_URL`
+  or the root Makefile's `DATABASE_URL`; never commit warehouse credentials.
 - `archive/` holds previous reports and older standalone scripts; do not treat it as active source.
 
 ## Build, Test, and Development Commands
@@ -98,6 +105,9 @@
   configured by `DATABASE_URL`, or `BENCH_DATABASE_URL` when `DATABASE_URL` is
   unset. The default URL is `postgresql://postgres@localhost/solverforge_bench`.
   `make db-reset` passes `DB_RESET_FLAGS ?= -y -f` to SQLx by default.
+- `make dash-setup`, `make dash-server`, `make dash-warehouse-check`,
+  `make dash-smoke`, and `make dash-test` delegate to `dash/Makefile` with the
+  root warehouse URL for the read-only Rails dashboard.
 - `make normalize-results INPUT=... OUTPUT=...` normalizes generated global CSV
   artifacts through Polars. Pass `ARGS="--format ndjson"` for NDJSON output.
 - `PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src .venv/bin/python3 scripts/run_benchmark.py <benchmark>` runs the unified root harness directly.
