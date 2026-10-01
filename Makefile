@@ -94,7 +94,7 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-job-shop-scheduling-solverforge-quick bench-job-shop-scheduling-solverforge-quick-db \
 	bench-nightly-db \
 	reaudit-legacy-publication \
-	verify-benchmark-contracts verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
+	verify-benchmark-contracts verify-reference-catalogs load-reference-catalogs verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
 	verify-solverforge-py-guardrail-contract verify-solverforge-py-smoke verify-solverforge-py-comparison verify-solverforge-py-release \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
 	db-check db-create db-migrate db-reset normalize-results \
@@ -121,6 +121,19 @@ verify-benchmark-contracts: banner venv
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_solver_output_contracts.py
 	PYTHONPATH=. "$(PYTHON)" scripts/test_reaudit_legacy_publication.py
 	PYTHONPATH=src "$(PYTHON)" scripts/test_git_provenance.py
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_reference_catalog.py
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_reference_catalogs_contract.py
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_warehouse_references.py
+
+verify-reference-catalogs: banner venv
+	$(call status,Verifying reference catalogs reproduce from their pinned sources)
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/generate_reference_catalog.py jssp --check
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/generate_reference_catalog.py cvrp --check
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/generate_reference_catalog.py employee --check
+
+load-reference-catalogs: banner venv
+	$(call status,Loading official reference catalogs into the warehouse)
+	"$(PYTHON)" scripts/load_reference_catalog.py --database-url "$(DATABASE_URL)"
 
 verify-fair-start-rows: banner venv
 	@test -n "$(RUN_ID)" || (echo "RUN_ID is required" >&2; exit 2)
