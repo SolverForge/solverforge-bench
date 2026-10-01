@@ -13,7 +13,6 @@ from employee_scheduling_bench.loader import (
     dataset_group_names,
     enumerate_instances,
     load_instance,
-    load_solution,
 )
 from employee_scheduling_bench.solver.solver import (
     AVAILABLE_METHODS,
@@ -26,6 +25,7 @@ from employee_scheduling_bench.validation import (
     validate_breakdown,
 )
 from solverforge_bench.model import BenchmarkCase, Evaluation, SolverRun, SolverVersion
+from solverforge_bench.references import catalog_instances, reference_for
 
 
 class EmployeeSchedulingSpec:
@@ -41,6 +41,9 @@ class EmployeeSchedulingSpec:
         "score_drift",
         "native_solver_status",
         "solver_metadata",
+        "reference_kind",
+        "reference_source",
+        "reference_revision",
     ]
     solution_model = Solution
 
@@ -59,28 +62,36 @@ class EmployeeSchedulingSpec:
 
     def cases(self, args: argparse.Namespace) -> Iterable[BenchmarkCase]:
         dataset_set_label = _dataset_set_label(args)
+        data_dir = Path(args.benchmark_root) / "data" / "inrc2"
         for inst_info in _selected_instances(args):
             instance = load_instance(
                 inst_info["scenario_path"],
                 inst_info["history_path"],
                 inst_info["week_paths"],
             )
-            reference = (
-                load_solution(inst_info["solution_dir"])
-                if inst_info["solution_dir"]
-                else None
-            )
+            # The reference is the official competition value for this exact
+            # history/week combination, resolved from the catalog. A combination
+            # the competition published no reference solution for has no
+            # reference; the run reports that rather than inventing one.
+            reference = None
+            if inst_info["name"] in catalog_instances(data_dir):
+                reference = reference_for(data_dir, inst_info["name"])
             yield BenchmarkCase(
                 dataset="INRC-II",
                 dataset_set=dataset_set_label,
                 instance=inst_info["name"],
                 instance_size=inst_info["num_nurses"],
                 payload=instance,
-                reference_solution=reference,
                 context=inst_info,
                 native_fields={
                     "nurses": inst_info["num_nurses"],
                     "weeks": inst_info["num_weeks"],
+                    "reference_cost": (reference.reference_cost if reference else None),
+                    "reference_kind": reference.kind if reference else None,
+                    "reference_source": reference.source_name if reference else None,
+                    "reference_revision": (
+                        reference.source_revision if reference else None
+                    ),
                 },
             )
 
@@ -98,8 +109,15 @@ class EmployeeSchedulingSpec:
         artifact_dir: Path,
     ) -> Evaluation:
         solution = run.solution
-        reference = case.reference_solution
-        reference_cost = reference.cost if reference else None
+        reference_cost = case.native_fields.get("reference_cost")
+        reference_kind = case.native_fields.get("reference_kind")
+        reference_source = case.native_fields.get("reference_source")
+        reference_revision = case.native_fields.get("reference_revision")
+        reference_fields = {
+            "reference_kind": reference_kind,
+            "reference_source": reference_source,
+            "reference_revision": reference_revision,
+        }
         try:
             breakdown = validate_breakdown(solution=solution, instance=case.payload)
         except HardConstraintViolation as exc:
@@ -114,6 +132,7 @@ class EmployeeSchedulingSpec:
                 native_fields={
                     "validator_model_delta": None,
                     "score_drift": getattr(solution, "score_drift", None),
+                    **reference_fields,
                     **_solver_metadata_fields(solution),
                 },
             )
@@ -150,6 +169,7 @@ class EmployeeSchedulingSpec:
             native_fields={
                 "validator_model_delta": model_delta,
                 "score_drift": score_drift,
+                **reference_fields,
                 **_solver_metadata_fields(solution),
             },
         )

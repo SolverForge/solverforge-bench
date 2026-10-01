@@ -6,7 +6,6 @@ from typing import Iterable
 
 from job_shop_bench.domain.models import Solution
 from job_shop_bench.loader import dataset_group_names, instance_metadata, load_instance
-from job_shop_bench.references import reference_for
 from job_shop_bench.solver.solver import (
     AVAILABLE_METHODS,
     DEFAULT_METHODS,
@@ -15,6 +14,7 @@ from job_shop_bench.solver.solver import (
 )
 from job_shop_bench.validation import ValidationError, validate
 from solverforge_bench.model import BenchmarkCase, Evaluation, SolverRun, SolverVersion
+from solverforge_bench.references import KNOWN_OPTIMUM, reference_for
 
 
 class JobShopSpec:
@@ -58,12 +58,8 @@ class JobShopSpec:
                 data_dir / m["path"], name=name, family=m["family"]
             )
             reference = reference_for(data_dir, name)
-            reference_cost = reference["upper_bound"]
-            reference_kind = (
-                "known_optimum"
-                if reference["status"] == "closed"
-                else "best_known_upper_bound"
-            )
+            reference_cost = reference.reference_cost
+            reference_kind = reference.kind
             yield BenchmarkCase(
                 dataset="JSPLIB",
                 dataset_set=dataset_set,
@@ -76,11 +72,14 @@ class JobShopSpec:
                     "num_operations": sum(len(j) for j in instance.operations_by_job),
                     "source_family": instance.family,
                     "known_best_makespan": (
-                        reference_cost if reference_kind == "known_optimum" else None
+                        reference_cost if reference_kind == KNOWN_OPTIMUM else None
                     ),
-                    "lower_bound_makespan": reference["lower_bound"],
+                    "lower_bound_makespan": reference.lower_bound,
                     "upper_bound_makespan": reference_cost,
                     "reference_kind": reference_kind,
+                    "reference_cost": reference_cost,
+                    "reference_source": reference.source_name,
+                    "reference_revision": reference.source_revision,
                 },
             )
 
