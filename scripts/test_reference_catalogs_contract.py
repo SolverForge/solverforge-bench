@@ -90,10 +90,17 @@ class ReferenceCatalogContractTest(unittest.TestCase):
                         ]
                     )
                 else:
-                    # The catalog may only cover tuples the corpus actually
-                    # ships, so every catalog key resolves to real files.
-                    shipped = generator.employee_reference_instances()
-                    self.assertEqual(set(catalog["instances"]), set(shipped))
+                    # The employee catalog covers two published sources whose
+                    # tuples differ: the reference solutions the corpus ships,
+                    # and the scores the competition validated across finalists.
+                    # Every key must still name a case the corpus can enumerate.
+                    enumerated = generator.enumerable_case_names()
+                    self.assertTrue(
+                        set(catalog["instances"]) <= enumerated,
+                        "the employee catalog names cases the loader cannot enumerate: "
+                        f"{sorted(set(catalog['instances']) - enumerated)[:5]}",
+                    )
+                    self.assertGreaterEqual(len(catalog["instances"]), 9)
                     continue
                 self.assertEqual(
                     set(catalog["instances"]),
@@ -101,21 +108,43 @@ class ReferenceCatalogContractTest(unittest.TestCase):
                     f"{name}: catalog and bundled instances disagree",
                 )
 
-    def test_employee_catalog_entries_resolve_to_shipped_files(self) -> None:
-        """A catalog key that names no real solution directory is a fiction."""
+    def test_employee_solution_directories_are_well_formed(self) -> None:
+        """A directory carrying solution rows must match the weeks it names."""
         generator = _load_module(
             ROOT / "scripts/generate_reference_catalog.py",
             "gen_reference_catalog_files",
         )
         shipped = generator.employee_reference_instances()
-        catalog = self.catalogs["employee-scheduling"]["instances"]
-        self.assertEqual(set(catalog), set(shipped))
         for name, (sol_dir, weeks) in shipped.items():
             with self.subTest(instance=name):
                 solution_dir = Path(sol_dir)
                 self.assertTrue(solution_dir.is_dir(), f"{name}: {sol_dir} is gone")
                 rows = sorted(solution_dir.glob("Sol-*.txt"))
                 self.assertEqual(len(rows), len(weeks), f"{name}: week rows differ")
+
+    def test_published_reference_cases_are_enumerable(self) -> None:
+        """A published reference must belong to a case the loader can produce.
+
+        The catalog key and the loader's case name are written in different
+        styles, so a key that no run can produce would hold a reference nothing
+        could ever resolve against.
+        """
+        generator = _load_module(
+            ROOT / "scripts/generate_reference_catalog.py", "gen_reference_catalog_pub"
+        )
+        catalog = self.catalogs["employee-scheduling"]["instances"]
+        published = {
+            name
+            for name, entry in catalog.items()
+            if str(entry.get("reference_detail", "")).startswith("best validated")
+        }
+        self.assertTrue(published, "no competition-validated references are published")
+        enumerated = generator.enumerable_case_names()
+        self.assertEqual(
+            published - enumerated,
+            set(),
+            "published references name cases the loader cannot enumerate",
+        )
 
     def test_reference_kind_is_explicit_and_valid(self) -> None:
         for name, catalog in self.catalogs.items():
