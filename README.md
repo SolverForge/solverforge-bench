@@ -657,3 +657,37 @@ best-known-solutions catalog in
 Closed instances are labelled `known_optimum`; open instances use the official
 best-known upper bound and are labelled `best_known_upper_bound`. The latter is
 a reference solution value, not a proof of optimality.
+
+## Official references
+
+Every problem resolves its reference from a versioned catalog beside its
+instances, `references.json`, through `solverforge_bench.references`. One
+mechanism decides what a gap is measured against, and each value carries the
+source that published it, that source's revision, and whether it is a proven
+optimum or a best known upper bound -- comparing across those kinds compares
+different claims, so the kind travels with the value.
+
+| Problem | Catalog | Source |
+| --- | --- | --- |
+| `cvrp` | `list-variable/cvrp/data/X/references.json` | CVRPLIB Set X table (Uchoa et al. 2017); its `Opt` column gives 61 optima and 39 best known bounds |
+| `job-shop-scheduling` | `scalar-variable/job-shop-scheduling/data/jsplib/references.json` | ScheduleOpt best-known catalogue; 147 closed, 15 open |
+| `employee-scheduling` | `scalar-variable/employee-scheduling/data/inrc2/references.json` | INRC-II official test dataset; the nine tuples the competition published reference solutions for, scored by the official validator |
+
+Regenerate a catalog from its source, and check that a committed catalog still
+matches the source it claims:
+
+```sh
+make verify-reference-catalogs     # every catalog reproduces from its source
+make load-reference-catalogs       # carry the committed values into PostgreSQL
+```
+
+`verify-reference-catalogs` fails when a committed value no longer regenerates,
+so a hand-edited reference cannot reach the warehouse. Loading is an idempotent
+upsert into `benchmark_reference_catalog`; `benchmark_reference_resolved` then
+reports the effective reference per result, preferring the pinned official value
+and falling back to whatever the run recorded when the catalog has no entry.
+
+The bundled CVRP `.sol` files hold one feasible tour per instance and are not
+official values, so they are not used as references. Employee scheduling runs
+instances outside the published test set without a reference, and reports that
+absence rather than substituting a bound of its own.

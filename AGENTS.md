@@ -222,6 +222,14 @@ persist that expected catalog, reject results outside it, and finish as
 `completed` only when the observed matrix matches it exactly. Solver version
 metadata must hash the actual invoked distribution, executable, native binary,
 or JAR; manifest declarations alone are not runtime provenance. Only rows from
+Every problem's official reference value lives in a versioned `references.json`
+beside its instances and is resolved through `solverforge_bench.references`; a
+committed catalog must regenerate from its published source, which
+`make verify-reference-catalogs` enforces. A reference carries its source and
+revision and whether it is a proven optimum or a best known upper bound --
+do not compare across those kinds, and do not substitute a solver's own best
+result for a missing official value.
+
 `publishable_benchmark_runs` and `publishable_benchmark_result_facts` have
 passed the clean-commit, exact-matrix, fair-start, and runtime-provenance gate.
 

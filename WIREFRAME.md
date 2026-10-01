@@ -313,7 +313,10 @@ Every module in `src/solverforge_bench/` and its single ownership:
 - `solverforge_jssp/solver.toml` remains a stock SolverForge selector
   configuration. It may choose upstream list neighborhoods, but it does not add
   benchmark-local solver/search helpers, config probes, warm starts, or
-  reference-solution hints.
+  reference-solution hints. `src/solverforge_bench/references.py` resolves
+  every problem's official reference from the `references.json` beside its
+  instances, and `scripts/generate_reference_catalog.py` regenerates each
+  catalog from its published source (`make verify-reference-catalogs`).
 - SolverForge and Timefold JSSP machine operation lists start empty. Known best
   bounds and validation data stay in specs and validators, not in solver-start
   incumbents.
@@ -408,6 +411,7 @@ Migrations apply through `make db-migrate` (SQLx). In ledger order:
 | `20260528000000_add_fair_start_witness.sql` | per-row fair-start witness and validity columns |
 | `20260718000000_add_publication_integrity.sql` | expected-matrix catalog, SHA attestation columns, publication audit and `publishable_*` views |
 | `20260904000000_add_official_reference_metrics.sql` | official job-shop reference metrics (known best, bounds, gaps) |
+| `20261001000000_add_reference_catalog.sql` | `benchmark_reference_catalog` (official value, kind, source per instance) and `benchmark_reference_resolved` |
 | `20260915203000_retract_misrepresenting_employee_runs.sql` | retracts employee-scheduling runs measured by superseded adapter versions or by the pre-fix OR-Tools employee binary; run-granularity deletion keeps exact-matrix attestation intact |
 
 Tables:
