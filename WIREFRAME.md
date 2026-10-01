@@ -113,6 +113,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
 | `test_solver_output_contracts.py` | Test suite for SolverForge output-completeness classification |
 | `test_verify_solverforge_py_guardrails.py` | Test suite behind `make verify-solverforge-py-guardrail-contract` |
 | `test_reaudit_legacy_publication.py` | Test suite for the legacy publication re-audit |
+| `test_git_provenance.py` | Test suite for the recorded source-tree provenance rule behind `git_dirty` |
 
 ## Shared Harness Flow
 
@@ -438,6 +439,12 @@ Views:
   identified commit with an exact expected/observed matrix, valid fair-start
   witnesses, and complete runtime provenance. Solver failure rows are allowed
   inside an otherwise complete matrix.
+- Source-tree provenance: `git_dirty` is true when tracked files differ from
+  `HEAD` or untracked files exist under a harness source root (`src/`,
+  `scripts/`, `list-variable/`, `scalar-variable/`); untracked runtime output
+  elsewhere is recorded in `benchmark_runs.metadata.worktree` without failing
+  the gate. `worktree_provenance()` in `src/solverforge_bench/postgres.py` owns
+  the rule.
 
 Referential behavior: `benchmark_results.run_id`,
 `benchmark_run_matrix_entries.run_id`, and `benchmark_solver_versions.run_id`

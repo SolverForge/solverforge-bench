@@ -614,6 +614,17 @@ allowed in an otherwise complete matrix; they reduce feasibility and never
 contribute a fabricated quality value. The latest-run views keep normal and
 nightly runs separate.
 
+A run is attributed to its commit only when the checkout holds no unreconciled
+change to the harness: tracked file modifications (staged or not), and untracked
+files under `src/`, `scripts/`, `list-variable/`, or `scalar-variable/`, all make
+`git_dirty` true and withhold publication. Untracked output outside those roots —
+`build/`, `logs/`, per-solver `target/`, the dashboard's `storage/`, export
+directories, and stray scratch files the benchmark never reads — is runtime
+state, not a claim about the harness, and does not fail the gate. Those paths are
+recorded per run in `benchmark_runs.metadata.worktree`, and
+`src/solverforge_bench/postgres.py` is the single place that decides what counts,
+so the rule and the recorded flag cannot drift apart.
+
 For file-based loading, `scripts/normalize_results.py` normalizes generated
 global CSV artifacts through Polars:
 
