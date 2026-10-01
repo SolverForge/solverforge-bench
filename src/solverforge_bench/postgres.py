@@ -291,7 +291,7 @@ class PostgresResultWriter:
         if self._conn is None:
             raise RuntimeError("PostgresResultWriter is not open")
 
-        git_commit, git_dirty = _git_state(self.config.repo_root)
+        provenance = worktree_provenance(self.config.repo_root)
         with self._conn.cursor() as cur:
             cur.execute(
                 """
@@ -357,8 +357,8 @@ class PostgresResultWriter:
                     "time_limits_seconds": self.config.time_limits_seconds,
                     "command_args": self._jsonb(self.config.command_args),
                     "repo_root": str(self.config.repo_root),
-                    "git_commit": git_commit,
-                    "git_dirty": git_dirty,
+                    "git_commit": provenance.commit,
+                    "git_dirty": provenance.dirty,
                     "python_version": sys.version,
                     "expected_result_count": self.config.matrix.expected_count,
                     "expected_matrix_sha256": self.config.matrix.sha256,
@@ -473,8 +473,20 @@ def make_postgres_config(
             "config_path": (
                 str(args.config) if getattr(args, "config", None) else None
             ),
+            # Recorded so a run rejected for a dirty tree says which files did
+            # it, and so untracked output that was present but harmless is
+            # visible rather than inferred.
+            "worktree": _worktree_metadata(Path(args.repo_root)),
         },
     )
+
+
+def _worktree_metadata(repo_root: Path) -> dict[str, Any]:
+    provenance = worktree_provenance(repo_root)
+    return {
+        "dirty_paths": list(provenance.dirty_paths),
+        "untracked_paths": list(provenance.untracked_paths),
+    }
 
 
 def _load_psycopg():
@@ -489,13 +501,90 @@ def _load_psycopg():
     return psycopg, Jsonb
 
 
-def _git_state(repo_root: Path) -> tuple[str | None, bool]:
+#: Top-level directories that hold harness code. An untracked file under one of
+#: these can change how a run behaves, so it must keep the checkout from
+#: claiming a clean identified commit. Everything else untracked is local
+#: runtime output: the suite scratch trees (`build/`, `logs/`, `.venv/`,
+#: `__pycache__/`, per-solver `target/`, the dashboard's `storage/`), hand-made
+#: export directories, and stray scratch files the benchmark never reads.
+#: `git_dirty` gates publication, so treating those as dirty strands every
+#: future run in the warehouse as unpublishable over a file git does not track.
+HARNESS_SOURCE_ROOTS = (
+    "src",
+    "scripts",
+    "list-variable",
+    "scalar-variable",
+)
+
+
+@dataclass(frozen=True)
+class WorktreeProvenance:
+    """What the run's source tree looked like when the run was opened."""
+
+    commit: str | None
+    dirty: bool
+    dirty_paths: tuple[str, ...] = ()
+    untracked_paths: tuple[str, ...] = ()
+
+
+def worktree_provenance(repo_root: Path) -> WorktreeProvenance:
+    """Classify the worktree against the recorded commit.
+
+    ``dirty`` means the harness that produced the results is not the identified
+    commit: tracked files differ from ``HEAD``, or untracked files exist inside
+    the harness source roots. ``untracked_paths`` records local output and
+    scratch the run read nothing from, so a run that is nevertheless rejected
+    can be explained without guessing.
+    """
     commit = _git_output(repo_root, "rev-parse", "HEAD")
-    dirty = bool(_git_output(repo_root, "status", "--porcelain"))
-    return commit, dirty
+    status = _git_output(
+        repo_root, "status", "--porcelain", "--untracked-files=all", strip=False
+    )
+    if status is None:
+        # No usable git state (not a repository, or git unavailable). The
+        # publication gate rejects a run whose commit cannot be identified.
+        return WorktreeProvenance(commit=commit, dirty=False)
+
+    dirty_paths: list[str] = []
+    untracked_paths: list[str] = []
+    for line in status.splitlines():
+        # Porcelain v1: XY<space>path, or "?? path" for untracked entries.
+        entry = line[3:].strip()
+        if not entry:
+            continue
+        for path in _porcelain_paths(entry):
+            if line.startswith("??"):
+                (dirty_paths if _is_harness_source(path) else untracked_paths).append(
+                    path
+                )
+            else:
+                dirty_paths.append(path)
+    return WorktreeProvenance(
+        commit=commit,
+        dirty=bool(dirty_paths),
+        dirty_paths=tuple(dirty_paths),
+        untracked_paths=tuple(untracked_paths),
+    )
 
 
-def _git_output(repo_root: Path, *args: str) -> str | None:
+def _porcelain_paths(entry: str) -> list[str]:
+    """Expand a porcelain entry into every path it reports.
+
+    A rename reports ``old -> new``; both sides belong to the claim, because the
+    removed half can still be imported through a stale cached module.
+    """
+    if " -> " not in entry:
+        return [entry]
+    origin, _, destination = entry.partition(" -> ")
+    return [origin, destination]
+
+
+def _is_harness_source(path: str) -> bool:
+    root = path.split("/", 1)[0]
+    return root in HARNESS_SOURCE_ROOTS
+
+
+def _git_output(repo_root: Path, *args: str, strip: bool = True) -> str | None:
     try:
         result = subprocess.run(
             ["git", *args],
@@ -508,7 +597,9 @@ def _git_output(repo_root: Path, *args: str) -> str | None:
         return None
     if result.returncode != 0:
         return None
-    return result.stdout.strip() or None
+    # Porcelain output is only parseable verbatim: the leading column of the
+    # first line is a status field, so stripping it shifts every path.
+    return (result.stdout.strip() or None) if strip else result.stdout or None
 
 
 def _json_safe(value: Any) -> Any:

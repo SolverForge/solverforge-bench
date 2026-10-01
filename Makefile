@@ -120,6 +120,7 @@ verify-benchmark-contracts: banner venv
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_benchmark_contracts.py
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_solver_output_contracts.py
 	PYTHONPATH=. "$(PYTHON)" scripts/test_reaudit_legacy_publication.py
+	PYTHONPATH=src "$(PYTHON)" scripts/test_git_provenance.py
 
 verify-fair-start-rows: banner venv
 	@test -n "$(RUN_ID)" || (echo "RUN_ID is required" >&2; exit 2)
