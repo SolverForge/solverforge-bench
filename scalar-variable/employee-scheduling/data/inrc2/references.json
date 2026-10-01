@@ -1,0 +1,65 @@
+{
+  "source": {
+    "name": "INRC-II official test dataset (mobiz.vives.be/inrc2)",
+    "revision": "inrc2-official-test-dataset-2014",
+    "url": "https://mobiz.vives.be/inrc2/?page_id=20",
+    "metadata_url": "http://mobiz.vives.be/inrc2/wp-content/uploads/2014/08/testdatasets_txt.zip",
+    "note": "The competition publishes the test instances together with their reference solutions and no other solution set; the canonical selection is exactly that published test set, and the bundled corpus is byte-identical to it. These values are the penalties the official validator reports for those reference solutions, so they are best known upper bounds, not proven optima. The extended and hidden datasets ship instances without any solution."
+  },
+  "instances": {
+    "n005w4_H0_WD1-2-3-3": {
+      "reference": 1695.0,
+      "status": "open",
+      "lower_bound": null,
+      "upper_bound": 1695.0
+    },
+    "n005w4_H1_WD5-3-1-0": {
+      "reference": 2010.0,
+      "status": "open",
+      "lower_bound": null,
+      "upper_bound": 2010.0
+    },
+    "n005w4_H2_WD6-7-8-9": {
+      "reference": 1720.0,
+      "status": "open",
+      "lower_bound": null,
+      "upper_bound": 1720.0
+    },
+    "n012w8_H0_WD3-5-0-2-0-4-5-2": {
+      "reference": 3295.0,
+      "status": "open",
+      "lower_bound": null,
+      "upper_bound": 3295.0
+    },
+    "n012w8_H1_WD7-7-0-8-9-3-2-6": {
+      "reference": 3805.0,
+      "status": "open",
+      "lower_bound": null,
+      "upper_bound": 3805.0
+    },
+    "n012w8_H2_WD4-5-6-7-2-1-2-1": {
+      "reference": 3745.0,
+      "status": "open",
+      "lower_bound": null,
+      "upper_bound": 3745.0
+    },
+    "n021w4_H0_WD5-4-1-2": {
+      "reference": 2305.0,
+      "status": "open",
+      "lower_bound": null,
+      "upper_bound": 2305.0
+    },
+    "n021w4_H1_WD0-6-1-6": {
+      "reference": 2305.0,
+      "status": "open",
+      "lower_bound": null,
+      "upper_bound": 2305.0
+    },
+    "n021w4_H2_WD8-1-4-3": {
+      "reference": 2345.0,
+      "status": "open",
+      "lower_bound": null,
+      "upper_bound": 2345.0
+    }
+  }
+}

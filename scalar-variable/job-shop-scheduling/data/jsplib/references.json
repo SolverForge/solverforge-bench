@@ -1,0 +1,982 @@
+{
+  "source": {
+    "name": "ScheduleOpt/benchmarks",
+    "revision": "2f0500c4d4c1a5588778004dc47954240e65d399",
+    "url": "https://github.com/ScheduleOpt/benchmarks",
+    "metadata_url": "https://raw.githubusercontent.com/ScheduleOpt/benchmarks/2f0500c4d4c1a5588778004dc47954240e65d399/jobshop/solutions/bks.json"
+  },
+  "instances": {
+    "abz5": {
+      "reference": 1234,
+      "status": "closed",
+      "lower_bound": 1234,
+      "upper_bound": 1234
+    },
+    "abz6": {
+      "reference": 943,
+      "status": "closed",
+      "lower_bound": 943,
+      "upper_bound": 943
+    },
+    "abz7": {
+      "reference": 656,
+      "status": "closed",
+      "lower_bound": 656,
+      "upper_bound": 656
+    },
+    "abz8": {
+      "reference": 667,
+      "status": "closed",
+      "lower_bound": 667,
+      "upper_bound": 667
+    },
+    "abz9": {
+      "reference": 678,
+      "status": "closed",
+      "lower_bound": 678,
+      "upper_bound": 678
+    },
+    "ft06": {
+      "reference": 55,
+      "status": "closed",
+      "lower_bound": 55,
+      "upper_bound": 55
+    },
+    "ft10": {
+      "reference": 930,
+      "status": "closed",
+      "lower_bound": 930,
+      "upper_bound": 930
+    },
+    "ft20": {
+      "reference": 1165,
+      "status": "closed",
+      "lower_bound": 1165,
+      "upper_bound": 1165
+    },
+    "la01": {
+      "reference": 666,
+      "status": "closed",
+      "lower_bound": 666,
+      "upper_bound": 666
+    },
+    "la02": {
+      "reference": 655,
+      "status": "closed",
+      "lower_bound": 655,
+      "upper_bound": 655
+    },
+    "la03": {
+      "reference": 597,
+      "status": "closed",
+      "lower_bound": 597,
+      "upper_bound": 597
+    },
+    "la04": {
+      "reference": 590,
+      "status": "closed",
+      "lower_bound": 590,
+      "upper_bound": 590
+    },
+    "la05": {
+      "reference": 593,
+      "status": "closed",
+      "lower_bound": 593,
+      "upper_bound": 593
+    },
+    "la06": {
+      "reference": 926,
+      "status": "closed",
+      "lower_bound": 926,
+      "upper_bound": 926
+    },
+    "la07": {
+      "reference": 890,
+      "status": "closed",
+      "lower_bound": 890,
+      "upper_bound": 890
+    },
+    "la08": {
+      "reference": 863,
+      "status": "closed",
+      "lower_bound": 863,
+      "upper_bound": 863
+    },
+    "la09": {
+      "reference": 951,
+      "status": "closed",
+      "lower_bound": 951,
+      "upper_bound": 951
+    },
+    "la10": {
+      "reference": 958,
+      "status": "closed",
+      "lower_bound": 958,
+      "upper_bound": 958
+    },
+    "la11": {
+      "reference": 1222,
+      "status": "closed",
+      "lower_bound": 1222,
+      "upper_bound": 1222
+    },
+    "la12": {
+      "reference": 1039,
+      "status": "closed",
+      "lower_bound": 1039,
+      "upper_bound": 1039
+    },
+    "la13": {
+      "reference": 1150,
+      "status": "closed",
+      "lower_bound": 1150,
+      "upper_bound": 1150
+    },
+    "la14": {
+      "reference": 1292,
+      "status": "closed",
+      "lower_bound": 1292,
+      "upper_bound": 1292
+    },
+    "la15": {
+      "reference": 1207,
+      "status": "closed",
+      "lower_bound": 1207,
+      "upper_bound": 1207
+    },
+    "la16": {
+      "reference": 945,
+      "status": "closed",
+      "lower_bound": 945,
+      "upper_bound": 945
+    },
+    "la17": {
+      "reference": 784,
+      "status": "closed",
+      "lower_bound": 784,
+      "upper_bound": 784
+    },
+    "la18": {
+      "reference": 848,
+      "status": "closed",
+      "lower_bound": 848,
+      "upper_bound": 848
+    },
+    "la19": {
+      "reference": 842,
+      "status": "closed",
+      "lower_bound": 842,
+      "upper_bound": 842
+    },
+    "la20": {
+      "reference": 902,
+      "status": "closed",
+      "lower_bound": 902,
+      "upper_bound": 902
+    },
+    "la21": {
+      "reference": 1046,
+      "status": "closed",
+      "lower_bound": 1046,
+      "upper_bound": 1046
+    },
+    "la22": {
+      "reference": 927,
+      "status": "closed",
+      "lower_bound": 927,
+      "upper_bound": 927
+    },
+    "la23": {
+      "reference": 1032,
+      "status": "closed",
+      "lower_bound": 1032,
+      "upper_bound": 1032
+    },
+    "la24": {
+      "reference": 935,
+      "status": "closed",
+      "lower_bound": 935,
+      "upper_bound": 935
+    },
+    "la25": {
+      "reference": 977,
+      "status": "closed",
+      "lower_bound": 977,
+      "upper_bound": 977
+    },
+    "la26": {
+      "reference": 1218,
+      "status": "closed",
+      "lower_bound": 1218,
+      "upper_bound": 1218
+    },
+    "la27": {
+      "reference": 1235,
+      "status": "closed",
+      "lower_bound": 1235,
+      "upper_bound": 1235
+    },
+    "la28": {
+      "reference": 1216,
+      "status": "closed",
+      "lower_bound": 1216,
+      "upper_bound": 1216
+    },
+    "la29": {
+      "reference": 1152,
+      "status": "closed",
+      "lower_bound": 1152,
+      "upper_bound": 1152
+    },
+    "la30": {
+      "reference": 1355,
+      "status": "closed",
+      "lower_bound": 1355,
+      "upper_bound": 1355
+    },
+    "la31": {
+      "reference": 1784,
+      "status": "closed",
+      "lower_bound": 1784,
+      "upper_bound": 1784
+    },
+    "la32": {
+      "reference": 1850,
+      "status": "closed",
+      "lower_bound": 1850,
+      "upper_bound": 1850
+    },
+    "la33": {
+      "reference": 1719,
+      "status": "closed",
+      "lower_bound": 1719,
+      "upper_bound": 1719
+    },
+    "la34": {
+      "reference": 1721,
+      "status": "closed",
+      "lower_bound": 1721,
+      "upper_bound": 1721
+    },
+    "la35": {
+      "reference": 1888,
+      "status": "closed",
+      "lower_bound": 1888,
+      "upper_bound": 1888
+    },
+    "la36": {
+      "reference": 1268,
+      "status": "closed",
+      "lower_bound": 1268,
+      "upper_bound": 1268
+    },
+    "la37": {
+      "reference": 1397,
+      "status": "closed",
+      "lower_bound": 1397,
+      "upper_bound": 1397
+    },
+    "la38": {
+      "reference": 1196,
+      "status": "closed",
+      "lower_bound": 1196,
+      "upper_bound": 1196
+    },
+    "la39": {
+      "reference": 1233,
+      "status": "closed",
+      "lower_bound": 1233,
+      "upper_bound": 1233
+    },
+    "la40": {
+      "reference": 1222,
+      "status": "closed",
+      "lower_bound": 1222,
+      "upper_bound": 1222
+    },
+    "orb01": {
+      "reference": 1059,
+      "status": "closed",
+      "lower_bound": 1059,
+      "upper_bound": 1059
+    },
+    "orb02": {
+      "reference": 888,
+      "status": "closed",
+      "lower_bound": 888,
+      "upper_bound": 888
+    },
+    "orb03": {
+      "reference": 1005,
+      "status": "closed",
+      "lower_bound": 1005,
+      "upper_bound": 1005
+    },
+    "orb04": {
+      "reference": 1005,
+      "status": "closed",
+      "lower_bound": 1005,
+      "upper_bound": 1005
+    },
+    "orb05": {
+      "reference": 887,
+      "status": "closed",
+      "lower_bound": 887,
+      "upper_bound": 887
+    },
+    "orb06": {
+      "reference": 1010,
+      "status": "closed",
+      "lower_bound": 1010,
+      "upper_bound": 1010
+    },
+    "orb07": {
+      "reference": 397,
+      "status": "closed",
+      "lower_bound": 397,
+      "upper_bound": 397
+    },
+    "orb08": {
+      "reference": 899,
+      "status": "closed",
+      "lower_bound": 899,
+      "upper_bound": 899
+    },
+    "orb09": {
+      "reference": 934,
+      "status": "closed",
+      "lower_bound": 934,
+      "upper_bound": 934
+    },
+    "orb10": {
+      "reference": 944,
+      "status": "closed",
+      "lower_bound": 944,
+      "upper_bound": 944
+    },
+    "swv01": {
+      "reference": 1407,
+      "status": "closed",
+      "lower_bound": 1407,
+      "upper_bound": 1407
+    },
+    "swv02": {
+      "reference": 1475,
+      "status": "closed",
+      "lower_bound": 1475,
+      "upper_bound": 1475
+    },
+    "swv03": {
+      "reference": 1398,
+      "status": "closed",
+      "lower_bound": 1398,
+      "upper_bound": 1398
+    },
+    "swv04": {
+      "reference": 1464,
+      "status": "closed",
+      "lower_bound": 1464,
+      "upper_bound": 1464
+    },
+    "swv05": {
+      "reference": 1424,
+      "status": "closed",
+      "lower_bound": 1424,
+      "upper_bound": 1424
+    },
+    "swv06": {
+      "reference": 1667,
+      "status": "closed",
+      "lower_bound": 1667,
+      "upper_bound": 1667
+    },
+    "swv07": {
+      "reference": 1594,
+      "status": "open",
+      "lower_bound": 1541,
+      "upper_bound": 1594
+    },
+    "swv08": {
+      "reference": 1751,
+      "status": "open",
+      "lower_bound": 1694,
+      "upper_bound": 1751
+    },
+    "swv09": {
+      "reference": 1655,
+      "status": "closed",
+      "lower_bound": 1655,
+      "upper_bound": 1655
+    },
+    "swv10": {
+      "reference": 1743,
+      "status": "open",
+      "lower_bound": 1692,
+      "upper_bound": 1743
+    },
+    "swv11": {
+      "reference": 2983,
+      "status": "closed",
+      "lower_bound": 2983,
+      "upper_bound": 2983
+    },
+    "swv12": {
+      "reference": 2972,
+      "status": "closed",
+      "lower_bound": 2972,
+      "upper_bound": 2972
+    },
+    "swv13": {
+      "reference": 3104,
+      "status": "closed",
+      "lower_bound": 3104,
+      "upper_bound": 3104
+    },
+    "swv14": {
+      "reference": 2968,
+      "status": "closed",
+      "lower_bound": 2968,
+      "upper_bound": 2968
+    },
+    "swv15": {
+      "reference": 2885,
+      "status": "closed",
+      "lower_bound": 2885,
+      "upper_bound": 2885
+    },
+    "swv16": {
+      "reference": 2924,
+      "status": "closed",
+      "lower_bound": 2924,
+      "upper_bound": 2924
+    },
+    "swv17": {
+      "reference": 2794,
+      "status": "closed",
+      "lower_bound": 2794,
+      "upper_bound": 2794
+    },
+    "swv18": {
+      "reference": 2852,
+      "status": "closed",
+      "lower_bound": 2852,
+      "upper_bound": 2852
+    },
+    "swv19": {
+      "reference": 2843,
+      "status": "closed",
+      "lower_bound": 2843,
+      "upper_bound": 2843
+    },
+    "swv20": {
+      "reference": 2823,
+      "status": "closed",
+      "lower_bound": 2823,
+      "upper_bound": 2823
+    },
+    "yn1": {
+      "reference": 884,
+      "status": "closed",
+      "lower_bound": 884,
+      "upper_bound": 884
+    },
+    "yn2": {
+      "reference": 904,
+      "status": "closed",
+      "lower_bound": 904,
+      "upper_bound": 904
+    },
+    "yn3": {
+      "reference": 892,
+      "status": "closed",
+      "lower_bound": 892,
+      "upper_bound": 892
+    },
+    "yn4": {
+      "reference": 967,
+      "status": "closed",
+      "lower_bound": 967,
+      "upper_bound": 967
+    },
+    "ta01": {
+      "reference": 1231,
+      "status": "closed",
+      "lower_bound": 1231,
+      "upper_bound": 1231
+    },
+    "ta02": {
+      "reference": 1244,
+      "status": "closed",
+      "lower_bound": 1244,
+      "upper_bound": 1244
+    },
+    "ta03": {
+      "reference": 1218,
+      "status": "closed",
+      "lower_bound": 1218,
+      "upper_bound": 1218
+    },
+    "ta04": {
+      "reference": 1175,
+      "status": "closed",
+      "lower_bound": 1175,
+      "upper_bound": 1175
+    },
+    "ta05": {
+      "reference": 1224,
+      "status": "closed",
+      "lower_bound": 1224,
+      "upper_bound": 1224
+    },
+    "ta06": {
+      "reference": 1238,
+      "status": "closed",
+      "lower_bound": 1238,
+      "upper_bound": 1238
+    },
+    "ta07": {
+      "reference": 1227,
+      "status": "closed",
+      "lower_bound": 1227,
+      "upper_bound": 1227
+    },
+    "ta08": {
+      "reference": 1217,
+      "status": "closed",
+      "lower_bound": 1217,
+      "upper_bound": 1217
+    },
+    "ta09": {
+      "reference": 1274,
+      "status": "closed",
+      "lower_bound": 1274,
+      "upper_bound": 1274
+    },
+    "ta10": {
+      "reference": 1241,
+      "status": "closed",
+      "lower_bound": 1241,
+      "upper_bound": 1241
+    },
+    "ta11": {
+      "reference": 1357,
+      "status": "closed",
+      "lower_bound": 1357,
+      "upper_bound": 1357
+    },
+    "ta12": {
+      "reference": 1367,
+      "status": "closed",
+      "lower_bound": 1367,
+      "upper_bound": 1367
+    },
+    "ta13": {
+      "reference": 1342,
+      "status": "closed",
+      "lower_bound": 1342,
+      "upper_bound": 1342
+    },
+    "ta14": {
+      "reference": 1345,
+      "status": "closed",
+      "lower_bound": 1345,
+      "upper_bound": 1345
+    },
+    "ta15": {
+      "reference": 1339,
+      "status": "closed",
+      "lower_bound": 1339,
+      "upper_bound": 1339
+    },
+    "ta16": {
+      "reference": 1360,
+      "status": "closed",
+      "lower_bound": 1360,
+      "upper_bound": 1360
+    },
+    "ta17": {
+      "reference": 1462,
+      "status": "closed",
+      "lower_bound": 1462,
+      "upper_bound": 1462
+    },
+    "ta18": {
+      "reference": 1396,
+      "status": "closed",
+      "lower_bound": 1396,
+      "upper_bound": 1396
+    },
+    "ta19": {
+      "reference": 1332,
+      "status": "closed",
+      "lower_bound": 1332,
+      "upper_bound": 1332
+    },
+    "ta20": {
+      "reference": 1348,
+      "status": "closed",
+      "lower_bound": 1348,
+      "upper_bound": 1348
+    },
+    "ta21": {
+      "reference": 1642,
+      "status": "closed",
+      "lower_bound": 1642,
+      "upper_bound": 1642
+    },
+    "ta22": {
+      "reference": 1600,
+      "status": "closed",
+      "lower_bound": 1600,
+      "upper_bound": 1600
+    },
+    "ta23": {
+      "reference": 1557,
+      "status": "closed",
+      "lower_bound": 1557,
+      "upper_bound": 1557
+    },
+    "ta24": {
+      "reference": 1644,
+      "status": "closed",
+      "lower_bound": 1644,
+      "upper_bound": 1644
+    },
+    "ta25": {
+      "reference": 1595,
+      "status": "closed",
+      "lower_bound": 1595,
+      "upper_bound": 1595
+    },
+    "ta26": {
+      "reference": 1643,
+      "status": "closed",
+      "lower_bound": 1643,
+      "upper_bound": 1643
+    },
+    "ta27": {
+      "reference": 1680,
+      "status": "closed",
+      "lower_bound": 1680,
+      "upper_bound": 1680
+    },
+    "ta28": {
+      "reference": 1603,
+      "status": "closed",
+      "lower_bound": 1603,
+      "upper_bound": 1603
+    },
+    "ta29": {
+      "reference": 1625,
+      "status": "closed",
+      "lower_bound": 1625,
+      "upper_bound": 1625
+    },
+    "ta30": {
+      "reference": 1584,
+      "status": "open",
+      "lower_bound": 1562,
+      "upper_bound": 1584
+    },
+    "ta31": {
+      "reference": 1764,
+      "status": "closed",
+      "lower_bound": 1764,
+      "upper_bound": 1764
+    },
+    "ta32": {
+      "reference": 1783,
+      "status": "open",
+      "lower_bound": 1774,
+      "upper_bound": 1783
+    },
+    "ta33": {
+      "reference": 1791,
+      "status": "closed",
+      "lower_bound": 1791,
+      "upper_bound": 1791
+    },
+    "ta34": {
+      "reference": 1828,
+      "status": "closed",
+      "lower_bound": 1828,
+      "upper_bound": 1828
+    },
+    "ta35": {
+      "reference": 2007,
+      "status": "closed",
+      "lower_bound": 2007,
+      "upper_bound": 2007
+    },
+    "ta36": {
+      "reference": 1819,
+      "status": "closed",
+      "lower_bound": 1819,
+      "upper_bound": 1819
+    },
+    "ta37": {
+      "reference": 1771,
+      "status": "closed",
+      "lower_bound": 1771,
+      "upper_bound": 1771
+    },
+    "ta38": {
+      "reference": 1673,
+      "status": "closed",
+      "lower_bound": 1673,
+      "upper_bound": 1673
+    },
+    "ta39": {
+      "reference": 1795,
+      "status": "closed",
+      "lower_bound": 1795,
+      "upper_bound": 1795
+    },
+    "ta40": {
+      "reference": 1669,
+      "status": "open",
+      "lower_bound": 1658,
+      "upper_bound": 1669
+    },
+    "ta41": {
+      "reference": 2005,
+      "status": "open",
+      "lower_bound": 1926,
+      "upper_bound": 2005
+    },
+    "ta42": {
+      "reference": 1937,
+      "status": "open",
+      "lower_bound": 1900,
+      "upper_bound": 1937
+    },
+    "ta43": {
+      "reference": 1846,
+      "status": "open",
+      "lower_bound": 1809,
+      "upper_bound": 1846
+    },
+    "ta44": {
+      "reference": 1978,
+      "status": "open",
+      "lower_bound": 1961,
+      "upper_bound": 1978
+    },
+    "ta45": {
+      "reference": 1997,
+      "status": "closed",
+      "lower_bound": 1997,
+      "upper_bound": 1997
+    },
+    "ta46": {
+      "reference": 2002,
+      "status": "open",
+      "lower_bound": 1976,
+      "upper_bound": 2002
+    },
+    "ta47": {
+      "reference": 1889,
+      "status": "open",
+      "lower_bound": 1827,
+      "upper_bound": 1889
+    },
+    "ta48": {
+      "reference": 1937,
+      "status": "open",
+      "lower_bound": 1921,
+      "upper_bound": 1937
+    },
+    "ta49": {
+      "reference": 1960,
+      "status": "open",
+      "lower_bound": 1938,
+      "upper_bound": 1960
+    },
+    "ta50": {
+      "reference": 1923,
+      "status": "open",
+      "lower_bound": 1848,
+      "upper_bound": 1923
+    },
+    "ta51": {
+      "reference": 2760,
+      "status": "closed",
+      "lower_bound": 2760,
+      "upper_bound": 2760
+    },
+    "ta52": {
+      "reference": 2756,
+      "status": "closed",
+      "lower_bound": 2756,
+      "upper_bound": 2756
+    },
+    "ta53": {
+      "reference": 2717,
+      "status": "closed",
+      "lower_bound": 2717,
+      "upper_bound": 2717
+    },
+    "ta54": {
+      "reference": 2839,
+      "status": "closed",
+      "lower_bound": 2839,
+      "upper_bound": 2839
+    },
+    "ta55": {
+      "reference": 2679,
+      "status": "closed",
+      "lower_bound": 2679,
+      "upper_bound": 2679
+    },
+    "ta56": {
+      "reference": 2781,
+      "status": "closed",
+      "lower_bound": 2781,
+      "upper_bound": 2781
+    },
+    "ta57": {
+      "reference": 2943,
+      "status": "closed",
+      "lower_bound": 2943,
+      "upper_bound": 2943
+    },
+    "ta58": {
+      "reference": 2885,
+      "status": "closed",
+      "lower_bound": 2885,
+      "upper_bound": 2885
+    },
+    "ta59": {
+      "reference": 2655,
+      "status": "closed",
+      "lower_bound": 2655,
+      "upper_bound": 2655
+    },
+    "ta60": {
+      "reference": 2723,
+      "status": "closed",
+      "lower_bound": 2723,
+      "upper_bound": 2723
+    },
+    "ta61": {
+      "reference": 2868,
+      "status": "closed",
+      "lower_bound": 2868,
+      "upper_bound": 2868
+    },
+    "ta62": {
+      "reference": 2869,
+      "status": "closed",
+      "lower_bound": 2869,
+      "upper_bound": 2869
+    },
+    "ta63": {
+      "reference": 2755,
+      "status": "closed",
+      "lower_bound": 2755,
+      "upper_bound": 2755
+    },
+    "ta64": {
+      "reference": 2702,
+      "status": "closed",
+      "lower_bound": 2702,
+      "upper_bound": 2702
+    },
+    "ta65": {
+      "reference": 2725,
+      "status": "closed",
+      "lower_bound": 2725,
+      "upper_bound": 2725
+    },
+    "ta66": {
+      "reference": 2845,
+      "status": "closed",
+      "lower_bound": 2845,
+      "upper_bound": 2845
+    },
+    "ta67": {
+      "reference": 2825,
+      "status": "closed",
+      "lower_bound": 2825,
+      "upper_bound": 2825
+    },
+    "ta68": {
+      "reference": 2784,
+      "status": "closed",
+      "lower_bound": 2784,
+      "upper_bound": 2784
+    },
+    "ta69": {
+      "reference": 3071,
+      "status": "closed",
+      "lower_bound": 3071,
+      "upper_bound": 3071
+    },
+    "ta70": {
+      "reference": 2995,
+      "status": "closed",
+      "lower_bound": 2995,
+      "upper_bound": 2995
+    },
+    "ta71": {
+      "reference": 5464,
+      "status": "closed",
+      "lower_bound": 5464,
+      "upper_bound": 5464
+    },
+    "ta72": {
+      "reference": 5181,
+      "status": "closed",
+      "lower_bound": 5181,
+      "upper_bound": 5181
+    },
+    "ta73": {
+      "reference": 5568,
+      "status": "closed",
+      "lower_bound": 5568,
+      "upper_bound": 5568
+    },
+    "ta74": {
+      "reference": 5339,
+      "status": "closed",
+      "lower_bound": 5339,
+      "upper_bound": 5339
+    },
+    "ta75": {
+      "reference": 5392,
+      "status": "closed",
+      "lower_bound": 5392,
+      "upper_bound": 5392
+    },
+    "ta76": {
+      "reference": 5342,
+      "status": "closed",
+      "lower_bound": 5342,
+      "upper_bound": 5342
+    },
+    "ta77": {
+      "reference": 5436,
+      "status": "closed",
+      "lower_bound": 5436,
+      "upper_bound": 5436
+    },
+    "ta78": {
+      "reference": 5394,
+      "status": "closed",
+      "lower_bound": 5394,
+      "upper_bound": 5394
+    },
+    "ta79": {
+      "reference": 5358,
+      "status": "closed",
+      "lower_bound": 5358,
+      "upper_bound": 5358
+    },
+    "ta80": {
+      "reference": 5183,
+      "status": "closed",
+      "lower_bound": 5183,
+      "upper_bound": 5183
+    }
+  }
+}
