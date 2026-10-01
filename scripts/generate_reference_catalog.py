@@ -27,6 +27,7 @@ fails when a catalog drifts from the source it claims to have come from.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import sys
@@ -42,6 +43,51 @@ EMPLOYEE_DIR = ROOT / "scalar-variable/employee-scheduling/data/inrc2"
 
 CVRPLIB_SOURCE_NAME = "CVRPLIB (Uchoa et al. 2017 Set X)"
 DEFAULT_CVRP_TABLE = ROOT / "list-variable/cvrp/data/X/cvrplib-set-x.txt"
+
+#: The competition's validated-results workbook, kept beside the corpus it scores.
+PUBLISHED_RESULTS_FILE = "inrc2-validated-results.xlsx"
+TUPLE_PATTERN = re.compile(
+    r"^(?P<instance>n\d+w\d+)_(?P<history>\d+)_(?P<weeks>[\d-]+)$"
+)
+
+
+def _load_published_module():
+    """Import the published-results parser so both scripts share one rule."""
+    spec = importlib.util.spec_from_file_location(
+        "import_inrc2_published_results",
+        ROOT / "scripts/import_inrc2_published_results.py",
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def published_results(workbook: Path) -> dict[str, tuple[float, str]]:
+    return _load_published_module().parse_validated_results(workbook)
+
+
+def _corpus_has(instance: str, history: str, weeks: list[str]) -> bool:
+    """The tuple must resolve against the corpus we actually ship."""
+    directory = EMPLOYEE_DIR / instance
+    if not directory.is_dir():
+        return False
+    needed = [directory / f"H0-{instance}-{history}.txt"]
+    needed += [directory / f"WD-{instance}-{week}.txt" for week in weeks]
+    return all(path.exists() for path in needed)
+
+
+def enumerable_case_names() -> set[str]:
+    """Case names the employee loader can actually enumerate.
+
+    The loader discovers a case from a ``Solution_H_<h>-WD_<weeks>`` directory,
+    so a catalog key that does not correspond to such a directory can never be
+    resolved from the run it would describe.
+    """
+    sys.path.insert(0, str(ROOT / "scalar-variable/employee-scheduling/src"))
+    from employee_scheduling_bench.loader import enumerate_instances  # noqa: PLC0415
+
+    return {info["name"] for info in enumerate_instances(str(EMPLOYEE_DIR))}
 
 
 def _load(path: Path) -> dict:
@@ -161,7 +207,12 @@ def _employee_instance_name(directory_name: str, hist: int, weeks: list[int]) ->
 
 
 def employee_reference_instances() -> dict[str, tuple[str, list[int]]]:
-    """Every instance the bundled corpus can resolve an official value for."""
+    """Every instance the bundled corpus can resolve an official value for.
+
+    A ``Solution_H_*`` directory with no solution rows is the competition's
+    published tuple: it marks the case as enumerable and carries its reference in
+    the catalog, so it is skipped here rather than scored.
+    """
     found: dict[str, tuple[str, list[int]]] = {}
     for instance_dir in sorted(EMPLOYEE_DIR.iterdir()):
         if not instance_dir.is_dir():
@@ -169,6 +220,8 @@ def employee_reference_instances() -> dict[str, tuple[str, list[int]]]:
         for sol_dir in sorted(instance_dir.glob("Solution_H_*")):
             match = EMPLOYEE_SOLUTION_DIR.match(sol_dir.name)
             if not match:
+                continue
+            if not any(sol_dir.glob("Sol-*.txt")):
                 continue
             hist = int(match.group("hist"))
             weeks = [int(x) for x in match.group("weeks").split("-")]
@@ -235,6 +288,14 @@ def _score_reference_solution(sol_dir: Path, weeks: list[int]):
 
 
 def generate_employee(check: bool) -> int:
+    """Write the employee catalog from both official sources.
+
+    The bundled corpus supplies the tuples the competition published reference
+    solutions for; the competition's validated-results workbook supplies the
+    tuples it scored across the finalists' submissions. They cover different
+    history/week selections, and neither alone covers every instance we run, so
+    the catalog carries both rather than whichever ran last.
+    """
     instances = {}
     for name, (sol_dir, weeks) in sorted(employee_reference_instances().items()):
         cost, _ = _score_reference_solution(Path(sol_dir), weeks)
@@ -243,7 +304,32 @@ def generate_employee(check: bool) -> int:
             "status": "open",
             "lower_bound": None,
             "upper_bound": float(cost),
+            "reference_detail": "bundled reference solution",
         }
+
+    workbook = EMPLOYEE_DIR / PUBLISHED_RESULTS_FILE
+    if workbook.exists():
+        for name, (value, team) in sorted(published_results(workbook).items()):
+            match = TUPLE_PATTERN.match(name)
+            if match is None:
+                continue
+            instance, history = match.group("instance"), match.group("history")
+            weeks = match.group("weeks").split("-")
+            if not _corpus_has(instance, history, weeks):
+                continue
+            # The workbook names a tuple "<instance>_<h>_<weeks>"; the loader
+            # names the same case "<instance>_H<h>-WD<weeks>". Key the catalog by
+            # the case name, so the reference resolves from the case it belongs
+            # to rather than from a name no run ever produces.
+            case_name = f"{instance}_H{history}_WD{match.group('weeks')}"
+            instances[case_name] = {
+                "reference": float(value),
+                "status": "open",
+                "lower_bound": None,
+                "upper_bound": float(value),
+                "reference_detail": f"best validated finalist result ({team})",
+            }
+
     payload = {
         "source": {
             "name": "INRC-II official test dataset (mobiz.vives.be/inrc2)",
