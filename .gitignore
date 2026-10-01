@@ -21,6 +21,7 @@ dist/
 # Benchmark output artifacts
 logs/*
 !logs/.gitkeep
+exports/
 list-variable/cvrp/data/benchmark*.csv
 list-variable/cvrp/data/artifacts/
 scalar-variable/employee-scheduling/data/benchmark*.csv
