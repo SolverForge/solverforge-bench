@@ -30,7 +30,8 @@ ROOT = Path(__file__).resolve().parents[1]
 EMPLOYEE_DIR = ROOT / "scalar-variable/employee-scheduling/data/inrc2"
 CATALOG = EMPLOYEE_DIR / "references.json"
 
-TUPLE = re.compile(r"^(?P<instance>n\d+w\d+)_(?P<history>\d+)_(?P<weeks>[\d-]+)$")
+#: Catalog keys use the loader's case name: "<instance>_H<h>_WD<weeks>".
+TUPLE = re.compile(r"^(?P<instance>n\d+w\d+)_H(?P<history>\d+)_WD(?P<weeks>[\d-]+)$")
 
 
 def published_tuples() -> dict[str, str]:
@@ -45,7 +46,7 @@ def published_tuples() -> dict[str, str]:
 
 def directory_name(name: str) -> str:
     match = TUPLE.match(name)
-    assert match is not None, name
+    assert match is not None, f"not a catalog case name: {name!r}"
     return f"Solution_H_{match.group('history')}-WD_{match.group('weeks')}"
 
 
