@@ -68,7 +68,16 @@ class ReferenceCatalogContractTest(unittest.TestCase):
                 self.assertTrue(str(source.get("revision", "")).strip())
 
     def test_every_instance_the_problem_runs_has_a_reference(self) -> None:
-        """A run must never compute a gap against a missing value."""
+        """A run must never compute a gap against a missing value.
+
+        Every instance the problem can run resolves a reference, except the
+        employee-scheduling selection outside the published test set, where the
+        absence is the honest answer and is reported rather than filled.
+        """
+        generator = _load_module(
+            ROOT / "scripts/generate_reference_catalog.py",
+            "gen_reference_catalog_coverage",
+        )
         for name, (data_dir, _dataset, path) in CATALOGS.items():
             with self.subTest(problem=name):
                 catalog = self.catalogs[name]
@@ -81,15 +90,32 @@ class ReferenceCatalogContractTest(unittest.TestCase):
                         ]
                     )
                 else:
-                    # Only the published test instances carry official values;
-                    # the canonical selection is that set, but any instance the
-                    # catalog does cover must be an instance we ship.
-                    bundled = set(catalog["instances"])
+                    # The catalog may only cover tuples the corpus actually
+                    # ships, so every catalog key resolves to real files.
+                    shipped = generator.employee_reference_instances()
+                    self.assertEqual(set(catalog["instances"]), set(shipped))
+                    continue
                 self.assertEqual(
                     set(catalog["instances"]),
                     bundled,
                     f"{name}: catalog and bundled instances disagree",
                 )
+
+    def test_employee_catalog_entries_resolve_to_shipped_files(self) -> None:
+        """A catalog key that names no real solution directory is a fiction."""
+        generator = _load_module(
+            ROOT / "scripts/generate_reference_catalog.py",
+            "gen_reference_catalog_files",
+        )
+        shipped = generator.employee_reference_instances()
+        catalog = self.catalogs["employee-scheduling"]["instances"]
+        self.assertEqual(set(catalog), set(shipped))
+        for name, (sol_dir, weeks) in shipped.items():
+            with self.subTest(instance=name):
+                solution_dir = Path(sol_dir)
+                self.assertTrue(solution_dir.is_dir(), f"{name}: {sol_dir} is gone")
+                rows = sorted(solution_dir.glob("Sol-*.txt"))
+                self.assertEqual(len(rows), len(weeks), f"{name}: week rows differ")
 
     def test_reference_kind_is_explicit_and_valid(self) -> None:
         for name, catalog in self.catalogs.items():
