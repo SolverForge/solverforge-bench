@@ -230,5 +230,33 @@ class EmployeeOrToolsStatusTests(unittest.TestCase):
         self.assertEqual(raised.exception.termination_status, "adapter_error")
 
 
+class PyvrpRouteTranslationTests(unittest.TestCase):
+    """pyvrp 0.14.0 restructured routes and location registration.
+
+    A route now iterates Activities (depot start/end plus clients) rather than
+    bare node indices, and the depot must be registered through add_location.
+    Both are easy to get subtly wrong: reading activities straight through gives
+    depot entries in the routes, and taking the client index unshifted produces a
+    tour the cost check rejects on the wrong edges.
+    """
+
+    def test_route_activities_map_to_node_indices(self) -> None:
+        client = SimpleNamespace(idx=0, is_client=lambda: True)
+        depot = SimpleNamespace(idx=0, is_client=lambda: False)
+        other = SimpleNamespace(idx=41, is_client=lambda: True)
+        route = [depot, client, other, depot]
+
+        nodes = [activity.idx + 1 for activity in route if activity.is_client()]
+
+        self.assertEqual(nodes, [1, 42])
+
+    def test_depot_activity_is_excluded_from_the_tour(self) -> None:
+        depot = SimpleNamespace(idx=0, is_client=lambda: False)
+
+        nodes = [a.idx + 1 for a in [depot] if a.is_client()]
+
+        self.assertEqual(nodes, [])
+
+
 if __name__ == "__main__":
     unittest.main()

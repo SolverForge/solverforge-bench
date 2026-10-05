@@ -18,11 +18,15 @@ def solve_with_pyvrp(instance: Instance, time_limit: int) -> SolverResult:
     m = pyvrp.Model()
     m.add_vehicle_type(num_available=len(instance.demand), capacity=instance.capacity)
     depot_coords = instance.node_coord[instance.depot[0]]
-    m.add_depot(x=depot_coords[0], y=depot_coords[1])
-    _ = [
-        m.add_client(float(coord[0]), float(coord[1]), delivery=int(demand))
-        for coord, demand in list(zip(instance.node_coord, instance.demand))[1:]
-    ]
+    # Locations are registered on the model first and referenced by depot or
+    # client; the depot is added before any client so location index 0 stays the
+    # depot and the edge_weight matrix keeps its original row and column order.
+    m.add_depot(m.add_location(float(depot_coords[0]), float(depot_coords[1])))
+    for coord, demand in list(zip(instance.node_coord, instance.demand))[1:]:
+        m.add_client(
+            m.add_location(float(coord[0]), float(coord[1])),
+            delivery=int(demand),
+        )
     for i, frm in enumerate(m.locations):
         for j, to in enumerate(m.locations):
             m.add_edge(frm, to, round(instance.edge_weight[i][j]))
@@ -36,8 +40,18 @@ def solve_with_pyvrp(instance: Instance, time_limit: int) -> SolverResult:
     )
     emit_fair_start_witness(witness)
     res = m.solve(stop=pyvrp.stop.MaxRuntime(time_limit), display=True)  # one second
-    # 3 transform pyvrp output to solution object
+    # 3 transform pyvrp output to solution object. A route iterates Activities
+    # (depot start/end plus one per client), while the benchmark's Solution model
+    # expects node indices. Filter depots out, then shift pyvrp's 0-based client
+    # index to the node index: client 0 is node 1, which is how the shipped
+    # reference tours and every other CVRP adapter index edge_weight and demand.
     return solver_result(
-        Solution(routes=[list(route) for route in res.best.routes()], cost=res.cost()),
+        Solution(
+            routes=[
+                [activity.idx + 1 for activity in route if activity.is_client()]
+                for route in res.best.routes()
+            ],
+            cost=res.cost(),
+        ),
         witness,
     )
