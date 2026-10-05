@@ -21,6 +21,13 @@ where = [
     "scalar-variable/employee-scheduling/src",
     "scalar-variable/job-shop-scheduling/src",
 ]
+# The solver adapter roots contain Rust and Java build trees. They carry no
+# __init__.py, so namespace discovery walks into them, and cargo's transient
+# rmeta scratch directories exist only for the duration of a build: discovery
+# records one and the wheel build then fails because it is already gone. The
+# benchmark harness never imports from a build tree, so exclude them outright
+# instead of racing the compiler.
+exclude = ["*.target*", "target*"]
 
 [tool.setuptools.package-data]
 "cvrp_bench.solver" = ["solverforge_py.toml"]
