@@ -24,7 +24,7 @@ Every tracked file at the repository root and its role:
 - `Makefile` — root build and execution surface (see Makefile Contract).
 - `pyproject.toml` — Python 3.14 package `solverforge-bench` (version `0.1.0`),
   shared dependencies (`polars`, `pydantic`, `pyvrp`, `vrplib`, `hygese`,
-  `psycopg[binary]`, exact `solverforge==0.6.6`), package discovery across the
+  `psycopg[binary]`, exact `solverforge==0.6.10`), package discovery across the
   four source roots, and per-benchmark `solverforge_py.toml` package data.
 - `benchmark.example.toml` — documents the TOML configuration surface with a
   minimal quick-run CVRP example.
@@ -179,10 +179,10 @@ Every module in `src/solverforge_bench/` and its single ownership:
 - Native solver builds are rooted in `solver/ortools/` (C++ Routing library
   executable with `PATH_CHEAPEST_ARC` + `GUIDED_LOCAL_SEARCH` and the time
   limit applied inside `RoutingSearchParameters`), `solver/rustvrp/`,
-  `solver/vroom/`, `solver/timefold/` (Java, Timefold `2.1.0`), and
+  `solver/vroom/`, `solver/timefold/` (Java, Timefold `2.7.0`), and
   `solver/solverforge/` (Rust/PyO3).
 - The SolverForge CVRP manifest and committed registry lockfile target the
-  published `0.19.4` crates.
+  published `0.19.8` crates.
 - The CVRP model uses public SolverForge CVRP list-variable hook bundles:
   `VrpSolution`, matrix distance meters, stock route hooks, stock savings
   depot/distance/metric-class hooks, and strict route feasibility for
@@ -192,7 +192,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   adapter-owned incumbents, route hints, and reference-solution reads are not
   part of solver input.
 - The `solverforge-py` CVRP adapter builds a public Python-binding list-variable
-  model from the same CVRPLIB instance. Its canonical `0.6.6` declaration uses
+  model from the same CVRPLIB instance. Its canonical `0.6.10` declaration uses
   independent `ListRouteHooks` and `ListSavingsHooks`, explicit row-scoped
   capacity/demand/distance metadata, and explicit cross/intra-position distance
   sources. It starts all route lists empty and reports the installed
@@ -238,7 +238,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   and `ortools`. `instance_json.py` is the shared native-payload serializer
   that emits `optimal` shift slots per requirement with `is_minimum` flags.
 - The SolverForge NRP manifest and committed registry lockfile target the
-  published `0.19.4` crates with `serde` enabled.
+  published `0.19.8` crates with `serde` enabled.
 - The SolverForge NRP model uses public scalar APIs: per-shift candidate
   values, unassigned scalar variables for optional slots, nearby value/entity
   candidates, and one `ScalarGroup::assignment` for required minimum slots,
@@ -300,7 +300,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   and `ortools`. `instance_json.py` serializes the native payload.
 - The SolverForge JSSP manifest and committed registry lockfile target the
   published SolverForge facade, SolverForge Core, and SolverForge Scoring
-  `0.19.4` crates.
+  `0.19.8` crates.
 - Its list model declares each operation's fixed machine owner with
   `element_owner_fn`; SolverForge construction and list neighborhoods must not
   move an operation to a non-required machine.
@@ -354,9 +354,9 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `make verify-fair-start-rows RUN_ID=<uuid>`.
 - Runtime provenance hashes the actually invoked distribution, executable,
   native binary, or JAR; manifest declarations alone are not provenance. The
-  per-solver pins are: native SolverForge `0.19.4` (CVRP, employee, job-shop,
-  with committed registry lockfiles), Python `solverforge==0.6.6`,
-  Timefold `2.1.0` (all three `pom.xml` files), OR-Tools `9.15.6755`
+  per-solver pins are: native SolverForge `0.19.8` (CVRP, employee, job-shop,
+  with committed registry lockfiles), Python `solverforge==0.6.10`,
+  Timefold `2.7.0` (all three `pom.xml` files), OR-Tools `9.15.6755`
   (`ORTOOLS_VERSION` in the root Makefile).
 - Native and Python SolverForge adapters keep separate configuration files per
   workload; `make verify-solverforge-config-parity` enforces semantic
@@ -460,7 +460,7 @@ keep per-run attestation intact. Partial row deletion is never used.
 Virtualenv and validators:
 
 - `make install-python-deps` creates or refreshes the root `.venv` and installs
-  the exact published `solverforge==0.6.6` wheel.
+  the exact published `solverforge==0.6.10` wheel.
 - `make validate-cvrp` validates all bundled CVRP `.vrp`/`.sol` pairs.
 - `make validate-job-shop-scheduling` validates the bundled JSPLIB manifest and
   parser output.
@@ -614,7 +614,7 @@ Dashboard:
   `cargo clippy --locked --all-targets -- -D warnings`, and runs
   `cargo build --locked` for the CVRP SolverForge adapter, CVRP rustvrp
   adapter, employee SolverForge adapter, and job-shop SolverForge adapter.
-  Adapter manifests and committed locks target SolverForge `0.19.4`.
+  Adapter manifests and committed locks target SolverForge `0.19.8`.
 - The dashboard has no CI jobs yet; adding Rails checks to both workflows is
   the known follow-up.
 
