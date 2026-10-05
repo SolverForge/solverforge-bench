@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import fnmatch
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -241,6 +243,73 @@ class SolverExecutionOutcomeTests(unittest.TestCase):
     def test_unknown_termination_status_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unsupported solver termination"):
             SolverExecutionError("bad status", termination_status="invented")
+
+
+class PackagingDiscoveryTests(unittest.TestCase):
+    """The wheel build must not depend on compiler scratch directories.
+
+    The package-discovery roots sit above the Rust and Java adapter trees. Those
+    trees have no __init__.py, so namespace discovery walks into them and treats
+    every directory as a package, including cargo's transient rmeta* scratch
+    directories, which exist only while a build runs. When the editable-wheel
+    build reads that list after the compiler has cleaned up, it fails on a
+    package directory that is already gone. Assert the exclusion holds, because
+    the failure it prevents depends on timing and will not reproduce on demand.
+    """
+
+    def _excluded(self, name: str, patterns: list[str]) -> bool:
+        """setuptools matches exclusion patterns with fnmatch against the path."""
+        return any(fnmatch.fnmatch(name, pattern) for pattern in patterns)
+
+    def test_discovery_excludes_solver_build_trees(self) -> None:
+        pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+        config = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        find = config["tool"]["setuptools"]["packages"]["find"]
+
+        self.assertTrue(find["where"], "no discovery roots are configured")
+        excludes = find.get("exclude", [])
+        self.assertTrue(excludes, "no discovery exclusions are configured")
+        # Prove the patterns actually match a build tree rather than merely
+        # being present: a config key nobody honours is not a guard.
+        for sample in (
+            "cvrp_bench/solver/solverforge/target",
+            "cvrp_bench.solver.rustvrp.target.debug.deps/rmeta8qqu5S",
+            "employee_scheduling_bench/solver/solverforge_nrp/target/wheels",
+        ):
+            self.assertTrue(
+                self._excluded(sample, excludes)
+                or any(
+                    fnmatch.fnmatch(part, pattern)
+                    for pattern in excludes
+                    for part in Path(sample).parts
+                ),
+                f"discovery would walk into the build tree at {sample}",
+            )
+
+    def test_discovery_roots_still_cover_every_real_package(self) -> None:
+        """The roots must keep naming each benchmark package it ships."""
+        root = Path(__file__).resolve().parents[1]
+        config = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+        find = config["tool"]["setuptools"]["packages"]["find"]
+
+        roots = [root / where for where in find["where"]]
+        for package in (
+            "solverforge_bench",
+            "cvrp_bench",
+            "employee_scheduling_bench",
+            "job_shop_bench",
+        ):
+            self.assertTrue(
+                any(
+                    (candidate / package / "__init__.py").is_file()
+                    or any(
+                        child.is_dir() and not child.name.startswith((".", "target"))
+                        for child in candidate.glob(f"{package}*")
+                    )
+                    for candidate in roots
+                ),
+                f"{package} is not reachable from any discovery root",
+            )
 
 
 if __name__ == "__main__":
