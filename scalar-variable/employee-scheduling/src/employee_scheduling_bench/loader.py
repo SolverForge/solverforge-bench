@@ -339,6 +339,60 @@ def load_instance(
     return Instance(scenario=scenario, history=history, weeks=weeks)
 
 
+def _declared_week_sets(data_dir: Path) -> dict[tuple[str, int], list[list[int]]]:
+    """Week sequences named by the manifest's ``selected_tuples``, if any.
+
+    A tuple is ``<instance>_H<history>_WD<w1>-<w2>-...``. Anything that does not
+    parse or names no weeks is skipped rather than guessed at.
+    """
+    manifest = load_dataset_manifest(str(data_dir))
+    declared = manifest.get("selected_tuples")
+    if not declared:
+        return {}
+
+    sets: dict[tuple[str, int], list[list[int]]] = {}
+    for name in declared:
+        match = re.match(
+            r"^(?P<instance>n\d+w\d+)_H(?P<history>\d+)_WD(?P<weeks>[\d-]+)$", name
+        )
+        if match is None:
+            continue
+        key = (match.group("instance"), int(match.group("history")))
+        weeks = [int(w) for w in match.group("weeks").split("-")]
+        if weeks and weeks not in sets.setdefault(key, []):
+            sets[key].append(weeks)
+    return sets
+
+
+def _week_sequences(
+    instance_name: str,
+    hist_idx: int,
+    instance_dir: Path,
+    week_files: list[Path],
+    num_weeks_total: int,
+    sol_dirs: list[Path],
+    declared: dict[tuple[str, int], list[list[int]]],
+) -> list[list[int]]:
+    """Week sequences a family/history combination should enumerate.
+
+    A family that ships reference solutions enumerates exactly those: the solution
+    directory records the history and week set the official value belongs to. A
+    family with no shipped solution falls back to the leading weeks, which is the
+    only selection its files describe; a declared tuple adds its own week set,
+    because the competition scored a week subset nothing in the corpus records.
+    """
+    sequences: list[list[int]] = []
+    if not sol_dirs and len(week_files) >= num_weeks_total:
+        sequences.append(
+            [int(Path(f).stem.rsplit("-", 1)[1]) for f in week_files[:num_weeks_total]]
+        )
+
+    for weeks in declared.get((instance_name, hist_idx), []):
+        if all((instance_dir / f"WD-{instance_name}-{w}.txt").exists() for w in weeks):
+            sequences.append(weeks)
+    return sequences
+
+
 def enumerate_instances(data_dir: str) -> list[dict]:
     """List all valid (scenario, history, week-sequence, solution) combinations.
 
@@ -353,6 +407,7 @@ def enumerate_instances(data_dir: str) -> list[dict]:
     """
     base = Path(data_dir)
     results = []
+    declared = _declared_week_sets(base)
 
     for instance_dir in sorted(base.iterdir()):
         if not instance_dir.is_dir():
@@ -419,28 +474,13 @@ def enumerate_instances(data_dir: str) -> list[dict]:
                 }
             )
 
-    # Also include combinations without solution directories (history + all weeks)
-    # if no solution dirs were found for an instance
-    instance_names_with_solutions = {r["name"].split("_H")[0] for r in results}
-    for instance_dir in sorted(base.iterdir()):
-        if not instance_dir.is_dir():
-            continue
-        instance_name = instance_dir.name
-        if instance_name in instance_names_with_solutions:
-            continue
-
-        scenario_file = instance_dir / f"Sc-{instance_name}.txt"
-        if not scenario_file.exists():
-            continue
-
-        m = re.match(r"n(\d+)w(\d+)", instance_name)
-        if not m:
-            continue
-        num_nurses = int(m.group(1))
-        num_weeks_total = int(m.group(2))
-
+        # Families that ship no solution directory still need a default selection.
+        # It takes the leading weeks, which is the only selection the corpus
+        # supports for them from the files alone: no shipped artefact names a week
+        # subset. A declared tuple supplies that missing week set instead.
         history_files = sorted(instance_dir.glob(f"H0-{instance_name}-*.txt"))
         week_files = sorted(instance_dir.glob(f"WD-{instance_name}-*.txt"))
+        num_weeks_total = int(re.match(r"n\d+w(\d+)", instance_name).group(1))
 
         for hf in history_files:
             hist_match = re.match(rf"H0-{instance_name}-(\d+)\.txt", hf.name)
@@ -448,26 +488,31 @@ def enumerate_instances(data_dir: str) -> list[dict]:
                 continue
             hist_idx = int(hist_match.group(1))
 
-            # Use first num_weeks_total week files
-            if len(week_files) >= num_weeks_total:
-                wp_list = [str(wf) for wf in week_files[:num_weeks_total]]
-                wd_indices = []
-                for wf in week_files[:num_weeks_total]:
-                    wm = re.match(rf"WD-{instance_name}-(\d+)\.txt", wf.name)
-                    if wm:
-                        wd_indices.append(wm.group(1))
-                wd_label = "-".join(wd_indices)
-                name = f"{instance_name}_H{hist_idx}_WD{wd_label}"
-
+            for weeks in _week_sequences(
+                instance_name,
+                hist_idx,
+                instance_dir,
+                week_files,
+                num_weeks_total,
+                sol_dirs,
+                declared,
+            ):
+                wd_label = "-".join(str(w) for w in weeks)
+                case = f"{instance_name}_H{hist_idx}_WD{wd_label}"
+                if any(r["name"] == case for r in results):
+                    continue
                 results.append(
                     {
-                        "name": name,
+                        "name": case,
                         "scenario_path": str(scenario_file),
                         "history_path": str(hf),
-                        "week_paths": wp_list,
+                        "week_paths": [
+                            str(instance_dir / f"WD-{instance_name}-{w}.txt")
+                            for w in weeks
+                        ],
                         "solution_dir": None,
                         "num_nurses": num_nurses,
-                        "num_weeks": num_weeks_total,
+                        "num_weeks": len(weeks),
                     }
                 )
 

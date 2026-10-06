@@ -12,6 +12,7 @@ from employee_scheduling_bench.domain.models import Solution
 from employee_scheduling_bench.loader import (
     dataset_group_names,
     enumerate_instances,
+    load_dataset_manifest,
     load_instance,
 )
 from employee_scheduling_bench.solver.solver import (
@@ -190,9 +191,32 @@ class EmployeeSchedulingSpec:
         )
 
 
+def selected_tuples(data_dir: Path) -> set[str] | None:
+    """Explicit (instance, history, week) tuples the run must grade, if declared.
+
+    Returns None when the manifest names no tuple selection, in which case every
+    tuple the corpus can enumerate is graded.
+    """
+    manifest = load_dataset_manifest(str(data_dir))
+    tuples = manifest.get("selected_tuples")
+    if tuples is None:
+        return None
+    return set(tuples)
+
+
 def _selected_instances(args: argparse.Namespace) -> list[dict]:
     data_dir = Path(args.benchmark_root) / "data" / "inrc2"
     instances = enumerate_instances(str(data_dir))
+
+    # The competition published validated results for history/week tuples whose
+    # reference solutions it never shipped. Nothing in the corpus records those
+    # week sets, so selection has to declare them; a family the corpus only ships
+    # leading weeks for would otherwise never grade the tuple the score belongs
+    # to. Tuples are filtered exactly like enumerated cases, so a declared tuple
+    # the corpus cannot load never becomes a case.
+    declared = selected_tuples(data_dir)
+    if declared is not None:
+        instances = [inst for inst in instances if inst["name"] in declared]
 
     if args.dataset_set:
         dataset_names = dataset_group_names(str(data_dir), args.dataset_set)
