@@ -308,20 +308,34 @@ def generate_employee(check: bool) -> int:
         }
 
     workbook = EMPLOYEE_DIR / PUBLISHED_RESULTS_FILE
+    unresolvable: dict[str, dict[str, object]] = {}
     if workbook.exists():
+        # A catalog entry is only usable when a run can produce its case. The
+        # loader discovers a case from a Solution_H_<h>-WD_<weeks> directory, and
+        # the competition published validated scores for tuples whose solutions
+        # the corpus never shipped, so those names can never be resolved. Keep
+        # them out of the run-facing map and record them separately rather than
+        # deleting evidence or publishing a value nothing can score against.
+        enumerated = enumerable_case_names()
         for name, (value, team) in sorted(published_results(workbook).items()):
             match = TUPLE_PATTERN.match(name)
             if match is None:
                 continue
             instance, history = match.group("instance"), match.group("history")
             weeks = match.group("weeks").split("-")
-            if not _corpus_has(instance, history, weeks):
-                continue
             # The workbook names a tuple "<instance>_<h>_<weeks>"; the loader
-            # names the same case "<instance>_H<h>-WD<weeks>". Key the catalog by
-            # the case name, so the reference resolves from the case it belongs
-            # to rather than from a name no run ever produces.
+            # names the same case "<instance>_H<h>-WD<weeks>".
             case_name = f"{instance}_H{history}_WD{match.group('weeks')}"
+            if case_name not in enumerated:
+                unresolvable[case_name] = {
+                    "reference": float(value),
+                    "reference_detail": f"best validated finalist result ({team})",
+                    "reason": (
+                        "the corpus ships this tuple's history and week data but no "
+                        "reference solution, so no run can enumerate the case"
+                    ),
+                }
+                continue
             instances[case_name] = {
                 "reference": float(value),
                 "status": "open",
@@ -343,10 +357,15 @@ def generate_employee(check: bool) -> int:
                 "corpus is byte-identical to it. These values are the penalties the "
                 "official validator reports for those reference solutions, so they "
                 "are best known upper bounds, not proven optima. The extended and "
-                "hidden datasets ship instances without any solution."
+                "hidden datasets ship instances without any solution. The "
+                "competition's validated finalist scores cover further tuples, but "
+                "the corpus ships no reference solution for those, so they are "
+                "listed under unresolvable_published_results and left out of the "
+                "run-facing map."
             ),
         },
         "instances": instances,
+        "unresolvable_published_results": unresolvable,
     }
     return _write(EMPLOYEE_DIR / "references.json", payload, check)
 

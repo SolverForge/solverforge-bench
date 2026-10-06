@@ -4,7 +4,7 @@
     "revision": "inrc2-official-test-dataset-2014",
     "url": "https://mobiz.vives.be/inrc2/?page_id=20",
     "metadata_url": "http://mobiz.vives.be/inrc2/wp-content/uploads/2014/08/testdatasets_txt.zip",
-    "note": "The competition publishes the test instances together with their reference solutions and no other solution set; the canonical selection is exactly that published test set, and the bundled corpus is byte-identical to it. These values are the penalties the official validator reports for those reference solutions, so they are best known upper bounds, not proven optima. The extended and hidden datasets ship instances without any solution."
+    "note": "The competition publishes the test instances together with their reference solutions and no other solution set; the canonical selection is exactly that published test set, and the bundled corpus is byte-identical to it. These values are the penalties the official validator reports for those reference solutions, so they are best known upper bounds, not proven optima. The extended and hidden datasets ship instances without any solution. The competition's validated finalist scores cover further tuples, but the corpus ships no reference solution for those, so they are listed under unresolvable_published_results and left out of the run-facing map."
   },
   "instances": {
     "n005w4_H0_WD1-2-3-3": {
@@ -69,202 +69,148 @@
       "lower_bound": null,
       "upper_bound": 2345.0,
       "reference_detail": "bundled reference solution"
-    },
+    }
+  },
+  "unresolvable_published_results": {
     "n030w4_H1_WD6-2-9-1": {
       "reference": 1755.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 1755.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n030w4_H1_WD6-7-5-3": {
       "reference": 1935.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 1935.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n030w8_H1_WD2-7-0-9-3-6-0-6": {
       "reference": 2340.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 2340.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n030w8_H1_WD6-7-5-3-5-6-2-9": {
       "reference": 1900.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 1900.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n040w4_H0_WD2-0-6-1": {
       "reference": 1730.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 1730.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n040w4_H2_WD6-1-0-6": {
       "reference": 1880.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 1880.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n040w8_H0_WD0-6-8-9-2-6-6-4": {
       "reference": 3310.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 3310.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n040w8_H2_WD5-0-4-8-7-1-7-2": {
       "reference": 2700.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 2700.0,
-      "reference_detail": "best validated finalist result (INF_UFRGS)"
+      "reference_detail": "best validated finalist result (INF_UFRGS)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n050w4_H0_WD0-4-8-7": {
       "reference": 1490.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 1490.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n050w4_H0_WD7-2-7-2": {
       "reference": 1480.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 1480.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n050w8_H1_WD1-7-8-5-7-4-1-8": {
       "reference": 5410.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 5410.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n050w8_H1_WD9-7-5-3-8-8-3-1": {
       "reference": 5435.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 5435.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n060w4_H1_WD6-1-1-5": {
       "reference": 2815.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 2815.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n060w4_H1_WD9-6-3-8": {
       "reference": 2950.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 2950.0,
-      "reference_detail": "best validated finalist result (Polytechnique Montreal)"
+      "reference_detail": "best validated finalist result (Polytechnique Montreal)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n060w8_H0_WD6-2-9-9-0-8-1-3": {
       "reference": 2765.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 2765.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n060w8_H2_WD1-0-3-4-0-3-9-1": {
       "reference": 3065.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 3065.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n080w4_H2_WD4-3-3-3": {
       "reference": 3535.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 3535.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n080w4_H2_WD6-0-4-8": {
       "reference": 3570.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 3570.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n080w8_H1_WD4-4-9-9-3-6-0-5": {
       "reference": 4995.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 4995.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n080w8_H2_WD0-4-0-9-1-9-6-2": {
       "reference": 5030.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 5030.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n100w4_H0_WD1-1-0-8": {
       "reference": 1445.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 1445.0,
-      "reference_detail": "best validated finalist result (Polytechnique Montreal)"
+      "reference_detail": "best validated finalist result (Polytechnique Montreal)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n100w4_H2_WD0-6-4-6": {
       "reference": 2100.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 2100.0,
-      "reference_detail": "best validated finalist result (Polytechnique Montreal)"
+      "reference_detail": "best validated finalist result (Polytechnique Montreal)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n100w8_H0_WD0-1-7-8-9-1-5-4": {
       "reference": 3080.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 3080.0,
-      "reference_detail": "best validated finalist result (Polytechnique Montreal)"
+      "reference_detail": "best validated finalist result (Polytechnique Montreal)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n100w8_H1_WD2-4-7-9-3-9-2-8": {
       "reference": 3055.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 3055.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n120w4_H1_WD4-6-2-6": {
       "reference": 2435.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 2435.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n120w4_H1_WD5-6-9-8": {
       "reference": 2485.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 2485.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n120w8_H0_WD0-9-9-4-5-1-0-3": {
       "reference": 3615.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 3615.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     },
     "n120w8_H1_WD7-2-6-4-5-2-0-2": {
       "reference": 3510.0,
-      "status": "open",
-      "lower_bound": null,
-      "upper_bound": 3510.0,
-      "reference_detail": "best validated finalist result (NurseOptimizers)"
+      "reference_detail": "best validated finalist result (NurseOptimizers)",
+      "reason": "the corpus ships this tuple's history and week data but no reference solution, so no run can enumerate the case"
     }
   }
 }
