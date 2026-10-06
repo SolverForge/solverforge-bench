@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.2](https://github.com/SolverForge/solverforge-bench/compare/v0.1.1...v0.1.2) (2026-10-06)
+
+
+### Features
+
+* **bench:** make the published reference tuples runnable 7d8a336
+* **bench:** pin the competition's validated INRC-II results b278a6f
+* **employee:** grade the tuples the competition published results for d37aa42
+
+
+### Bug Fixes
+
+* **build:** keep the packaging discovery out of solver build trees 38cd823
+* **cvrp:** adapt the pyvrp wrapper to the 0.14.0 API a3c634f
+* **references:** keep the workbook importer consistent with the catalog f40ab98
+* **references:** resolve employee catalog entries against the enumerable cases 1aec532
+* **warehouse:** drop reference rows the catalogs no longer carry 38ccc9d
+
 ## 0.1.1 (2026-10-01)
 
 
