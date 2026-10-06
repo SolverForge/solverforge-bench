@@ -111,11 +111,11 @@ class WarehouseReferenceResolutionTest(unittest.TestCase):
     def test_employee_reference_values_match_the_published_penalties(self) -> None:
         """Every warehouse employee value is one the loader can resolve.
 
-        The catalog carries the reference solutions the competition ships, which
-        is the whole set a run can score against. The competition's validated
-        finalist scores cover tuples whose reference solutions were never
-        published, so they are recorded beside the catalog rather than loaded
-        here: a row for them would resolve a gap against a case no run produces.
+        The catalog holds both official sources: the reference solutions the test
+        set ships, and the history/week tuples the competition scored across the
+        finalists. The manifest declares which tuples a run grades, and every one
+        of them carries a value here, so no graded instance is scored against
+        nothing.
         """
         rows = query(
             "SELECT instance, reference_cost FROM benchmark_reference_catalog "
@@ -123,21 +123,23 @@ class WarehouseReferenceResolutionTest(unittest.TestCase):
         )
         resolved = {instance: float(cost) for instance, cost in rows}
 
-        catalog = json.loads(
-            (
-                Path(__file__).resolve().parents[1]
-                / "scalar-variable/employee-scheduling/data/inrc2/references.json"
-            ).read_text(encoding="utf-8")
+        data_dir = (
+            Path(__file__).resolve().parents[1]
+            / "scalar-variable/employee-scheduling/data/inrc2"
         )
-        enumerable = set(catalog["instances"])
+        catalog = json.loads((data_dir / "references.json").read_text(encoding="utf-8"))
+        manifest = json.loads((data_dir / "manifest.json").read_text(encoding="utf-8"))
+
         self.assertEqual(
             set(resolved),
-            enumerable,
+            set(catalog["instances"]),
             "the warehouse and the run-facing catalog disagree",
         )
-        self.assertFalse(
-            set(resolved) & set(catalog.get("unresolvable_published_results", {})),
-            "a value no run can enumerate was loaded as a reference",
+        selected = set(manifest["selected_tuples"])
+        self.assertEqual(
+            selected - set(resolved),
+            set(),
+            "a graded tuple has no reference in the warehouse",
         )
         # Values verified against the official INRC-II validator.
         self.assertEqual(resolved["n005w4_H0_WD1-2-3-3"], 1695.0)

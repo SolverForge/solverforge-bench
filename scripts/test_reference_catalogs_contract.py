@@ -123,15 +123,13 @@ class ReferenceCatalogContractTest(unittest.TestCase):
                 self.assertEqual(len(rows), len(weeks), f"{name}: week rows differ")
 
     def test_published_reference_cases_are_enumerable(self) -> None:
-        """A published reference must belong to a case the loader can produce.
+        """Every published reference must belong to a case the loader can produce.
 
         The catalog key and the loader's case name are written in different
         styles, so a key that no run can produce would hold a reference nothing
         could ever resolve against. The competition's validated finalist scores
-        cover tuples whose reference solutions the corpus never shipped; the
-        loader discovers a case from a ``Solution_H_<h>-WD_<weeks>`` directory, so
-        those names cannot be enumerated and are catalogued separately rather
-        than in the run-facing map.
+        cover week subsets the corpus never recorded in a filename; those tuples
+        are declared in the manifest, which is what makes them enumerable.
         """
         generator = _load_module(
             ROOT / "scripts/generate_reference_catalog.py", "gen_reference_catalog_pub"
@@ -144,38 +142,74 @@ class ReferenceCatalogContractTest(unittest.TestCase):
             set(),
             "the run-facing map names cases the loader cannot enumerate",
         )
-        unresolvable = catalog.get("unresolvable_published_results", {})
-        self.assertTrue(
-            unresolvable,
-            "the competition's validated results disappeared from the catalog",
-        )
         self.assertEqual(
-            set(unresolvable) & enumerated,
-            set(),
-            "a resolvable case was parked as unresolvable",
+            catalog.get("unresolvable_published_results", {}),
+            {},
+            "an official value is still parked as unresolvable",
         )
-        for name, entry in unresolvable.items():
-            with self.subTest(instance=name):
-                self.assertGreater(entry["reference"], 0)
-                self.assertTrue(str(entry.get("reason", "")).strip())
 
     def test_every_shipped_reference_solution_is_enumerable(self) -> None:
-        """The values a run can actually score against must all resolve."""
+        """Values a run can score against must all resolve, shipped ones included."""
         generator = _load_module(
             ROOT / "scripts/generate_reference_catalog.py", "gen_reference_catalog_ship"
         )
         bundled = set(generator.employee_reference_instances())
+        enumerated = generator.enumerable_case_names()
+        catalog = set(self.catalogs["employee-scheduling"]["instances"])
+
         self.assertTrue(bundled, "the corpus ships no reference solutions")
         self.assertEqual(
-            bundled - generator.enumerable_case_names(),
+            bundled - enumerated,
             set(),
             "a shipped reference solution names a case the loader cannot enumerate",
         )
-        self.assertEqual(
-            bundled,
-            set(self.catalogs["employee-scheduling"]["instances"]),
-            "the catalog and the shipped reference solutions disagree",
+        self.assertTrue(
+            bundled <= catalog,
+            "a shipped reference solution is missing from the catalog",
         )
+
+    def test_the_declared_selection_is_what_the_catalog_covers(self) -> None:
+        """The manifest decides the graded tuples; the catalog must cover them all.
+
+        A declared tuple with no catalog value would grade an instance with no
+        reference, which is the state this selection exists to end.
+        """
+        root = ROOT
+        manifest = json.loads(
+            (
+                root / "scalar-variable/employee-scheduling/data/inrc2/manifest.json"
+            ).read_text()
+        )
+        selected = set(manifest["selected_tuples"])
+        catalog = set(self.catalogs["employee-scheduling"]["instances"])
+
+        self.assertTrue(selected, "the manifest declares no graded tuples")
+        self.assertEqual(
+            selected - catalog,
+            set(),
+            "the selection grades tuples the catalog has no value for",
+        )
+
+    def test_the_graded_selection_carries_a_reference_for_every_instance(self) -> None:
+        """The point of the selection: no graded instance lacks an official value."""
+        manifest = json.loads(
+            (
+                ROOT / "scalar-variable/employee-scheduling/data/inrc2/manifest.json"
+            ).read_text()
+        )
+        catalog = self.catalogs["employee-scheduling"]["instances"]
+        selected = set(manifest["selected_tuples"])
+
+        uncovered = selected - set(catalog)
+        self.assertEqual(
+            uncovered,
+            set(),
+            f"{len(uncovered)} graded tuples have no official reference: "
+            f"{sorted(uncovered)[:4]}",
+        )
+        for name in sorted(selected):
+            with self.subTest(instance=name):
+                self.assertGreater(catalog[name]["reference"], 0)
 
     def test_reference_kind_is_explicit_and_valid(self) -> None:
         for name, catalog in self.catalogs.items():
