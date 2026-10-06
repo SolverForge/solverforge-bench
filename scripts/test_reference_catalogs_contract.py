@@ -127,23 +127,54 @@ class ReferenceCatalogContractTest(unittest.TestCase):
 
         The catalog key and the loader's case name are written in different
         styles, so a key that no run can produce would hold a reference nothing
-        could ever resolve against.
+        could ever resolve against. The competition's validated finalist scores
+        cover tuples whose reference solutions the corpus never shipped; the
+        loader discovers a case from a ``Solution_H_<h>-WD_<weeks>`` directory, so
+        those names cannot be enumerated and are catalogued separately rather
+        than in the run-facing map.
         """
         generator = _load_module(
             ROOT / "scripts/generate_reference_catalog.py", "gen_reference_catalog_pub"
         )
-        catalog = self.catalogs["employee-scheduling"]["instances"]
-        published = {
-            name
-            for name, entry in catalog.items()
-            if str(entry.get("reference_detail", "")).startswith("best validated")
-        }
-        self.assertTrue(published, "no competition-validated references are published")
+        catalog = self.catalogs["employee-scheduling"]
         enumerated = generator.enumerable_case_names()
+
         self.assertEqual(
-            published - enumerated,
+            set(catalog["instances"]) - enumerated,
             set(),
-            "published references name cases the loader cannot enumerate",
+            "the run-facing map names cases the loader cannot enumerate",
+        )
+        unresolvable = catalog.get("unresolvable_published_results", {})
+        self.assertTrue(
+            unresolvable,
+            "the competition's validated results disappeared from the catalog",
+        )
+        self.assertEqual(
+            set(unresolvable) & enumerated,
+            set(),
+            "a resolvable case was parked as unresolvable",
+        )
+        for name, entry in unresolvable.items():
+            with self.subTest(instance=name):
+                self.assertGreater(entry["reference"], 0)
+                self.assertTrue(str(entry.get("reason", "")).strip())
+
+    def test_every_shipped_reference_solution_is_enumerable(self) -> None:
+        """The values a run can actually score against must all resolve."""
+        generator = _load_module(
+            ROOT / "scripts/generate_reference_catalog.py", "gen_reference_catalog_ship"
+        )
+        bundled = set(generator.employee_reference_instances())
+        self.assertTrue(bundled, "the corpus ships no reference solutions")
+        self.assertEqual(
+            bundled - generator.enumerable_case_names(),
+            set(),
+            "a shipped reference solution names a case the loader cannot enumerate",
+        )
+        self.assertEqual(
+            bundled,
+            set(self.catalogs["employee-scheduling"]["instances"]),
+            "the catalog and the shipped reference solutions disagree",
         )
 
     def test_reference_kind_is_explicit_and_valid(self) -> None:
