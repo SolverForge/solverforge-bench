@@ -142,6 +142,19 @@ def shipped(instance: str, history: str, weeks: list[str]) -> bool:
     return all(path.exists() for path in needed)
 
 
+def enumerable_case_names() -> set[str]:
+    """Case names the employee loader can actually enumerate.
+
+    The loader discovers a case from a ``Solution_H_<h>-WD_<weeks>`` directory,
+    so a tuple whose reference solution the corpus never shipped can never be
+    resolved from the run it would describe.
+    """
+    sys.path.insert(0, str(ROOT / "scalar-variable/employee-scheduling/src"))
+    from employee_scheduling_bench.loader import enumerate_instances  # noqa: PLC0415
+
+    return {info["name"] for info in enumerate_instances(str(EMPLOYEE_DIR))}
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("workbook", type=Path)
@@ -150,17 +163,27 @@ def main(argv: list[str]) -> int:
 
     published = parse_validated_results(args.workbook)
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+    unresolvable = catalog.setdefault("unresolvable_published_results", {})
+    enumerated = enumerable_case_names()
 
     added, skipped, updated = [], [], []
     for name, (value, team) in sorted(published.items()):
         match = TUPLE.match(name)
-        instance, history, weeks = (
-            match.group("instance"),
-            match.group("history"),
-            match.group("weeks").split("-"),
-        )
-        if not shipped(instance, history, weeks):
-            skipped.append(name)
+        instance, history = match.group("instance"), match.group("history")
+        case_name = f"{instance}_H{history}_WD{match.group('weeks')}"
+        if case_name not in enumerated:
+            # A value no run can enumerate is evidence, not a reference: keep it
+            # out of the run-facing map so a gap is never computed against a case
+            # the loader cannot produce.
+            unresolvable[case_name] = {
+                "reference": float(value),
+                "reference_detail": f"best validated finalist result ({team})",
+                "reason": (
+                    "the corpus ships this tuple's history and week data but no "
+                    "reference solution, so no run can enumerate the case"
+                ),
+            }
+            skipped.append(case_name)
             continue
         entry = {
             "reference": float(value),
@@ -169,13 +192,13 @@ def main(argv: list[str]) -> int:
             "upper_bound": float(value),
             "reference_detail": f"best validated finalist result ({team})",
         }
-        if name in catalog["instances"]:
-            if catalog["instances"][name].get("reference") != float(value):
-                updated.append(name)
-            catalog["instances"][name] = entry
+        if case_name in catalog["instances"]:
+            if catalog["instances"][case_name].get("reference") != float(value):
+                updated.append(case_name)
+            catalog["instances"][case_name] = entry
         else:
-            catalog["instances"][name] = entry
-            added.append(name)
+            catalog["instances"][case_name] = entry
+            added.append(case_name)
 
     if not args.check:
         CATALOG.write_text(
