@@ -11,9 +11,11 @@ silently passes when it cannot see the thing it checks is not a gate.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import unittest
+from pathlib import Path
 
 DATABASE_URL = os.environ.get(
     "BENCH_DATABASE_URL", "postgresql://postgres@localhost/solverforge_bench"
@@ -107,20 +109,36 @@ class WarehouseReferenceResolutionTest(unittest.TestCase):
         )
 
     def test_employee_reference_values_match_the_published_penalties(self) -> None:
-        """The catalog's employee values are the official validator's penalties.
+        """Every warehouse employee value is one the loader can resolve.
 
-        The catalog carries two published sources: the nine scoreable bundled
-        solutions, and the 28 tuples from the competition's validated finalist
-        workbook. Both are official, so the size is the sum, and the size is
-        asserted as a floor to keep the bundled values covered without pinning
-        the catalog against the next legitimate source.
+        The catalog carries the reference solutions the competition ships, which
+        is the whole set a run can score against. The competition's validated
+        finalist scores cover tuples whose reference solutions were never
+        published, so they are recorded beside the catalog rather than loaded
+        here: a row for them would resolve a gap against a case no run produces.
         """
         rows = query(
             "SELECT instance, reference_cost FROM benchmark_reference_catalog "
             "WHERE benchmark_name = 'employee-scheduling' ORDER BY instance;"
         )
         resolved = {instance: float(cost) for instance, cost in rows}
-        self.assertGreaterEqual(len(resolved), 9)
+
+        catalog = json.loads(
+            (
+                Path(__file__).resolve().parents[1]
+                / "scalar-variable/employee-scheduling/data/inrc2/references.json"
+            ).read_text(encoding="utf-8")
+        )
+        enumerable = set(catalog["instances"])
+        self.assertEqual(
+            set(resolved),
+            enumerable,
+            "the warehouse and the run-facing catalog disagree",
+        )
+        self.assertFalse(
+            set(resolved) & set(catalog.get("unresolvable_published_results", {})),
+            "a value no run can enumerate was loaded as a reference",
+        )
         # Values verified against the official INRC-II validator.
         self.assertEqual(resolved["n005w4_H0_WD1-2-3-3"], 1695.0)
         self.assertEqual(resolved["n005w4_H1_WD5-3-1-0"], 2010.0)
