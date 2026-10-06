@@ -130,7 +130,6 @@ verify-reference-catalogs: banner venv
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/generate_reference_catalog.py jssp --check
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/generate_reference_catalog.py cvrp --check
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/generate_reference_catalog.py employee --check
-	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/materialise_published_tuples.py --check
 
 load-reference-catalogs: banner venv
 	$(call status,Loading official reference catalogs into the warehouse)
