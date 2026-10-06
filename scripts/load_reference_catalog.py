@@ -97,6 +97,10 @@ def build_sql(rows: list[tuple]) -> str:
         )
         for name, dataset, instance, cost, kind, source, revision in rows
     )
+    keys = ",\n".join(
+        "    ({}, {}, {})".format(_literal(name), _literal(dataset), _literal(instance))
+        for name, dataset, instance, *_rest in rows
+    )
     return f"""
 BEGIN;
 SET LOCAL statement_timeout = '120s';
@@ -110,6 +114,14 @@ ON CONFLICT (benchmark_name, dataset, instance) DO UPDATE SET
     reference_kind = EXCLUDED.reference_kind,
     source_name = EXCLUDED.source_name,
     source_revision = EXCLUDED.source_revision;
+-- The committed catalogs are the authority for what the warehouse may resolve.
+-- A row for an instance no catalog still carries would let a lookup succeed for
+-- a case the loader cannot enumerate, so remove anything the catalogs dropped
+-- instead of leaving a stale value in place.
+DELETE FROM benchmark_reference_catalog
+WHERE (benchmark_name, dataset, instance) NOT IN (
+{keys}
+);
 COMMIT;
 """
 
