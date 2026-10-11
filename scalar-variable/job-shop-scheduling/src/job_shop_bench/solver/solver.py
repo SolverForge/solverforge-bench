@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Callable
 
 from job_shop_bench.domain.models import JobShopInstance
+from job_shop_bench.solver.highs import solve_with_highs
 from job_shop_bench.solver.ortools import solve_with_ortools
 from solverforge_bench.model import SolverResult, SolverVersion
 from solverforge_bench.solver_versions import (
@@ -14,8 +15,8 @@ from solverforge_bench.solver_versions import (
     versions_for_solvers,
 )
 
-AVAILABLE_METHODS = ["solverforge", "solverforge-py", "timefold", "ortools"]
-DEFAULT_METHODS = ["solverforge", "solverforge-py", "timefold", "ortools"]
+AVAILABLE_METHODS = ["solverforge", "solverforge-py", "timefold", "ortools", "highs"]
+DEFAULT_METHODS = ["solverforge", "solverforge-py", "timefold", "ortools", "highs"]
 _SOLVER_DIR = Path(__file__).resolve().parent
 
 
@@ -42,6 +43,9 @@ def create_solver(
 
         return solve_with_timefold
 
+    if method == "highs":
+        return solve_with_highs
+
     return solve_with_ortools
 
 
@@ -65,5 +69,6 @@ def solver_versions(solvers: list[str]) -> dict[str, SolverVersion]:
         "ortools": executable_version(
             _SOLVER_DIR / "ortools" / "target" / "job_shop_scheduling_ortools"
         ),
+        "highs": python_distribution_version("highspy"),
     }
     return versions_for_solvers(solvers, resolvers)
