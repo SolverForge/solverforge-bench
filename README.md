@@ -230,9 +230,11 @@ make bench-cvrp-solverforge-quick
 make bench-cvrp-solverforge-quick-db
 ```
 
-`bench-cvrp-quick` uses the full default CVRP solver set on three instances at
+`bench-cvrp-quick` uses the default CVRP solver set on three instances at
 `1` and `10` seconds, including both native `solverforge` and
-`solverforge-py`. The `bench-cvrp-solverforge-*` targets keep the
+`solverforge-py`. The optional `vroom` and `rustvrp` adapters stay registered
+but are no longer default rows; pass `--solver vroom --solver rustvrp` to run
+them ad hoc. The `bench-cvrp-solverforge-*` targets keep the
 native-SolverForge-only development smoke path, with the `-db` variant applying
 migrations and persisting the same run to PostgreSQL.
 

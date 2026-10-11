@@ -158,11 +158,11 @@ Every module in `src/solverforge_bench/` and its single ownership:
 
 ## Benchmark Specs
 
-| Spec | Category | Registered and default solvers | Default time limits | Native columns |
-| --- | --- | --- | --- | --- |
-| `cvrp` | `list_variable` | `pyvrp`, `ortools`, `vroom`, `timefold`, `rustvrp`, `pyhygese`, `highs`, `solverforge`, `solverforge-py` | `1`, `10`, `60` | none |
-| `employee-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools`, `highs` | `1`, `10`, `60` | `nurses`, `weeks`, `validator_model_delta`, `score_drift` |
-| `job-shop-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools`, `highs` | `1`, `10`, `60` | `num_jobs`, `num_machines`, `num_operations`, `source_family`, `known_best_makespan`, `lower_bound_makespan`, `upper_bound_makespan`, `makespan_gap_to_best`, `makespan_gap_to_reference` |
+| Spec | Category | Registered solvers | Default solvers | Default time limits | Native columns |
+| --- | --- | --- | --- | --- | --- |
+| `cvrp` | `list_variable` | `pyvrp`, `ortools`, `vroom`, `timefold`, `rustvrp`, `pyhygese`, `highs`, `solverforge`, `solverforge-py` | `pyvrp`, `ortools`, `timefold`, `pyhygese`, `highs`, `solverforge`, `solverforge-py` | `1`, `10`, `60` | none |
+| `employee-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools`, `highs` | same as registered | `1`, `10`, `60` | `nurses`, `weeks`, `validator_model_delta`, `score_drift` |
+| `job-shop-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools`, `highs` | same as registered | `1`, `10`, `60` | `num_jobs`, `num_machines`, `num_operations`, `source_family`, `known_best_makespan`, `lower_bound_makespan`, `upper_bound_makespan`, `makespan_gap_to_best`, `makespan_gap_to_reference` |
 
 ## CVRP Adapter Shape
 

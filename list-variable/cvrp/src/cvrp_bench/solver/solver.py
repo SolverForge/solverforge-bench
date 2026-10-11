@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from cvrp_bench.domain.models import Instance
+from cvrp_bench.solver.highs import solve_with_highs
 from cvrp_bench.solver.ortools import solve_with_ortools
 from cvrp_bench.solver.pyhygese import solve_with_pyhygese
 from cvrp_bench.solver.pyvrp import solve_with_pyvrp
@@ -23,16 +24,16 @@ AVAILABLE_METHODS = [
     "timefold",
     "rustvrp",
     "pyhygese",
+    "highs",
     "solverforge",
     "solverforge-py",
 ]
 DEFAULT_METHODS = [
     "pyvrp",
     "ortools",
-    "vroom",
     "timefold",
-    "rustvrp",
     "pyhygese",
+    "highs",
     "solverforge",
     "solverforge-py",
 ]
@@ -87,6 +88,7 @@ def solver_versions(methods: Iterable[str]) -> dict[str, SolverVersion]:
             runtime_paths=[_SOLVER_DIR / "rustvrp" / "target" / "cvrp_rustvrp"],
         ),
         "pyhygese": python_distribution_version("hygese"),
+        "highs": python_distribution_version("highspy"),
         "solverforge": cargo_dependency_version(
             _SOLVER_DIR / "solverforge" / "Cargo.toml",
             "solverforge",
@@ -137,6 +139,7 @@ def create_solver(method: str, *, time_limit: int = 60) -> SolverFn:
         "ortools": solve_with_ortools,
         "vroom": solve_with_vroom,
         "pyhygese": solve_with_pyhygese,
+        "highs": solve_with_highs,
     }
 
     return solvers[method]
