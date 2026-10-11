@@ -6,6 +6,7 @@ module ChartHelper
     "pyvrp" => "#8b5cf6",
     "pyhygese" => "#d28b18",
     "rustvrp" => "#64748b",
+    "highs" => "#0f766e",
     "vroom" => "#c026d3"
   }.freeze
 

@@ -60,6 +60,7 @@ BANNED_PATTERNS = [
 PYTHON_SOLVER_WRAPPERS = [
     REPO_ROOT / "list-variable/cvrp/src/cvrp_bench/solver/pyvrp.py",
     REPO_ROOT / "list-variable/cvrp/src/cvrp_bench/solver/pyhygese.py",
+    REPO_ROOT / "list-variable/cvrp/src/cvrp_bench/solver/highs.py",
     REPO_ROOT / "list-variable/cvrp/src/cvrp_bench/solver/solverforge.py",
     REPO_ROOT / "list-variable/cvrp/src/cvrp_bench/solver/solverforge_py.py",
     REPO_ROOT / "list-variable/cvrp/src/cvrp_bench/solver/timefold.py",
@@ -75,6 +76,8 @@ PYTHON_SOLVER_WRAPPERS = [
     REPO_ROOT
     / "scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver/ortools/__init__.py",
     REPO_ROOT
+    / "scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver/highs.py",
+    REPO_ROOT
     / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/solverforge.py",
     REPO_ROOT
     / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/solverforge_py.py",
@@ -82,6 +85,8 @@ PYTHON_SOLVER_WRAPPERS = [
     / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/timefold.py",
     REPO_ROOT
     / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/ortools/__init__.py",
+    REPO_ROOT
+    / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/highs.py",
 ]
 
 
