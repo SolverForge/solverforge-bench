@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.3](https://github.com/SolverForge/solverforge-bench/compare/v0.1.2...v0.1.3) (2026-10-11)
+
+
+### Features
+
+* **cvrp:** drop vroom and rustvrp from the default benchmark matrix 46fffcf
+* **solvers:** add HiGHS adapters for CVRP, employee scheduling, and JSSP e35bdfa
+* **solvers:** register highs in the employee and job-shop solver registries 21bc19c
+
+
+### Bug Fixes
+
+* **guardrails:** anchor the employee feasibility probe to the published tuples 2eb747d
+
 ## [0.1.2](https://github.com/SolverForge/solverforge-bench/compare/v0.1.1...v0.1.2) (2026-10-06)
 
 
