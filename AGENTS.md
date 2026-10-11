@@ -83,8 +83,8 @@
 - `make build-job-shop-scheduling` builds the SolverForge JSSP Python extension,
   the Timefold JSSP fat JAR, and the native OR-Tools JSSP executable.
 - `make bench-job-shop-scheduling-quick` runs the JSPLIB quick group for
-  `solverforge`, `solverforge-py`, `timefold`, and `ortools` at 1s and 10s
-  limits.
+  `solverforge`, `solverforge-py`, `timefold`, `ortools`, and `highs` at 1s and
+  10s limits.
 - `make bench-job-shop-scheduling-quick-db` does the same quick
   job-shop-scheduling run, applies database migrations first, and persists the
   run to PostgreSQL.

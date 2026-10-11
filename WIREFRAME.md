@@ -24,6 +24,7 @@ Every tracked file at the repository root and its role:
 - `Makefile` — root build and execution surface (see Makefile Contract).
 - `pyproject.toml` — Python 3.14 package `solverforge-bench` (version `0.1.0`),
   shared dependencies (`polars`, `pydantic`, `pyvrp`, `vrplib`, `hygese`,
+  `highspy`,
   `psycopg[binary]`, exact `solverforge==0.6.10`), package discovery across the
   four source roots, and per-benchmark `solverforge_py.toml` package data.
 - `benchmark.example.toml` — documents the TOML configuration surface with a
@@ -159,9 +160,9 @@ Every module in `src/solverforge_bench/` and its single ownership:
 
 | Spec | Category | Registered and default solvers | Default time limits | Native columns |
 | --- | --- | --- | --- | --- |
-| `cvrp` | `list_variable` | `pyvrp`, `ortools`, `vroom`, `timefold`, `rustvrp`, `pyhygese`, `solverforge`, `solverforge-py` | `1`, `10`, `60` | none |
-| `employee-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools` | `1`, `10`, `60` | `nurses`, `weeks`, `validator_model_delta`, `score_drift` |
-| `job-shop-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools` | `1`, `10`, `60` | `num_jobs`, `num_machines`, `num_operations`, `source_family`, `known_best_makespan`, `lower_bound_makespan`, `upper_bound_makespan`, `makespan_gap_to_best`, `makespan_gap_to_reference` |
+| `cvrp` | `list_variable` | `pyvrp`, `ortools`, `vroom`, `timefold`, `rustvrp`, `pyhygese`, `highs`, `solverforge`, `solverforge-py` | `1`, `10`, `60` | none |
+| `employee-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools`, `highs` | `1`, `10`, `60` | `nurses`, `weeks`, `validator_model_delta`, `score_drift` |
+| `job-shop-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools`, `highs` | `1`, `10`, `60` | `num_jobs`, `num_machines`, `num_operations`, `source_family`, `known_best_makespan`, `lower_bound_makespan`, `upper_bound_makespan`, `makespan_gap_to_best`, `makespan_gap_to_reference` |
 
 ## CVRP Adapter Shape
 
@@ -175,7 +176,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
 - `main.py` is a tracked standalone inspection script that reads a single
   bundled `.vrp` file through `vrplib`; it is not part of the harness flow.
 - `solver/solver.py` registers `pyvrp`, `ortools`, `vroom`, `timefold`,
-  `rustvrp`, `pyhygese`, `solverforge`, and `solverforge-py`.
+  `rustvrp`, `pyhygese`, `highs`, `solverforge`, and `solverforge-py`.
 - Native solver builds are rooted in `solver/ortools/` (C++ Routing library
   executable with `PATH_CHEAPEST_ARC` + `GUIDED_LOCAL_SEARCH` and the time
   limit applied inside `RoutingSearchParameters`), `solver/rustvrp/`,
@@ -235,7 +236,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   native columns. Clean evaluations persist `validation_error = NULL`; real
   hard-constraint violations persist the exception text.
 - `solver/solver.py` registers `solverforge`, `solverforge-py`, `timefold`,
-  and `ortools`. `instance_json.py` is the shared native-payload serializer
+  `ortools`, and `highs`. `instance_json.py` is the shared native-payload serializer
   that emits `optimal` shift slots per requirement with `is_minimum` flags.
 - The SolverForge NRP manifest and committed registry lockfile target the
   published `0.19.13` crates with `serde` enabled.
@@ -297,7 +298,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   size, known optimum, lower/upper bounds, and makespan gap through native
   columns.
 - `solver/solver.py` registers `solverforge`, `solverforge-py`, `timefold`,
-  and `ortools`. `instance_json.py` serializes the native payload.
+  `ortools`, and `highs`. `instance_json.py` serializes the native payload.
 - The SolverForge JSSP manifest and committed registry lockfile target the
   published SolverForge facade, SolverForge Core, and SolverForge Scoring
   `0.19.13` crates.

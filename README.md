@@ -14,24 +14,29 @@ See `WIREFRAME.md` for the current as-built repository map.
 
 - `list-variable/cvrp/` is the canonical CVRP comparison imported from
   `~/hack/cvrp_solver_comparison`. It compares commercially usable Python solver
-  integrations, native VROOM, rustvrp, Timefold, and the SolverForge CVRP
+  integrations, Timefold, and the SolverForge CVRP
   list-variable runtime. `solverforge` is the native Rust/PyO3 adapter and
-  `solverforge-py` is the public Python-binding model path.
+  `solverforge-py` is the public Python-binding model path. `highs` runs the
+  HiGHS C++ core through the pinned `highspy==1.15.1` wheel on a two-index
+  MILP with single-commodity load flows over the rounded edge-weight matrix.
 - `scalar-variable/employee-scheduling/` is the nurse rostering benchmark. It
   uses the bundled INRC-II TXT corpus and compares `solverforge`,
-  `solverforge-py`, `timefold`, and `ortools` on nurse-to-shift assignments.
-  The Python-binding path is a first-class default row for public scalar
-  assignment-group coverage.
+  `solverforge-py`, `timefold`, `ortools`, and `highs` on nurse-to-shift
+  assignments. The Python-binding path is a first-class default row for public
+  scalar assignment-group coverage. `highs` mirrors the OR-Tools CP-SAT model
+  (coverage, run-length bounds, weekends, requests) as a MILP with identical
+  weights.
 - `scalar-variable/job-shop-scheduling/` is the job-shop scheduling benchmark. It
   uses the bundled classic JSPLIB corpus for machine scheduling with job
   precedence and disjunctive machine capacity constraints. It compares
-  `solverforge`, `solverforge-py`, `timefold`, and `ortools` on fixed-machine
-  operation start times. The Python-binding path exercises list variables,
-  owner hooks, precedence hooks, and the public first-class list
+  `solverforge`, `solverforge-py`, `timefold`, `ortools`, and `highs` on
+  fixed-machine operation start times. The Python-binding path exercises list
+  variables, owner hooks, precedence hooks, and the public first-class list
   precedence/makespan constraint as a default comparison row.
   The SolverForge adapter is a Rust/PyO3 planning model, the Timefold adapter
   is a Java fat JAR, and the OR-Tools adapter is a native C++ CP-SAT
-  executable. The SolverForge adapter maps JSPLIB data into stock list
+  executable. `highs` encodes the same disjunctive MILP the CP-SAT adapter
+  covers, from zero starts. The SolverForge adapter maps JSPLIB data into stock list
   variables and the upstream `ListPrecedenceMakespanConstraint`; it does not
   provide benchmark-local search helpers or warm-start schedules.
 
