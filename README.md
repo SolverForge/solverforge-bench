@@ -93,7 +93,7 @@ the exact published `solverforge==0.6.10` wheel into the same `.venv`, so
 sibling checkout.
 
 The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
-aligned to the exact published SolverForge `0.20.4` crates and committed
+aligned to the exact published SolverForge `0.21.0` crates and committed
 registry lockfiles. The `solverforge-py` adapters require the exact published
 `solverforge==0.6.10` distribution and report that installed distribution
 version in CSV and PostgreSQL rows.
@@ -210,7 +210,7 @@ run `make validate-cvrp`, and run
 `python -m pip install -e .`.
 
 The Rust jobs keep `--locked` resolution strict. Their manifests and committed
-registry lockfiles target SolverForge `0.20.4`. The jobs set the PyO3 Python
+registry lockfiles target SolverForge `0.21.0`. The jobs set the PyO3 Python
 environment from `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
 for the CVRP SolverForge adapter, CVRP rustvrp adapter, employee scheduling
