@@ -12,7 +12,7 @@ dependencies = [
     "hygese>=0.0.0.10",
     "highspy==1.15.1",
     "psycopg[binary]>=3.2.0",
-    "solverforge==0.6.12",
+    "solverforge==0.6.10",
 ]
 
 [tool.setuptools.packages.find]
