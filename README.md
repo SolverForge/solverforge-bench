@@ -88,14 +88,14 @@ The root Makefile uses this same `.venv` for CVRP, employee scheduling,
 normalization, and nightly runs. `make install-python-deps` creates or refreshes
 it before benchmark builds and is the CI-safe entrypoint for scripts that
 bootstrap themselves through the repository virtualenv. That target installs
-the exact published `solverforge==0.6.10` wheel into the same `.venv`, so
+the exact published `solverforge==0.6.12` wheel into the same `.venv`, so
 `solverforge-py` benchmark rows never depend on global Python packages or a
 sibling checkout.
 
 The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
 aligned to the exact published SolverForge `0.21.2` crates and committed
 registry lockfiles. The `solverforge-py` adapters require the exact published
-`solverforge==0.6.10` distribution and report that installed distribution
+`solverforge==0.6.12` distribution and report that installed distribution
 version in CSV and PostgreSQL rows.
 
 Each workload keeps two separate SolverForge configuration artifacts: the
@@ -150,7 +150,7 @@ when checking the final JSSP win condition.
 sets for every benchmark class. Before release work, public benchmark claims,
 or changes to the Python-binding solver paths, refresh the root `.venv` with
 `make install-python-deps`; after publication, that target force-refreshes the
-exact `solverforge==0.6.10` wheel in the benchmark environment.
+exact `solverforge==0.6.12` wheel in the benchmark environment.
 
 Run the local/release guardrails explicitly:
 

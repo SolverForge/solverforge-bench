@@ -25,7 +25,7 @@ Every tracked file at the repository root and its role:
 - `pyproject.toml` — Python 3.14 package `solverforge-bench` (version `0.1.0`),
   shared dependencies (`polars`, `pydantic`, `pyvrp`, `vrplib`, `hygese`,
   `highspy`,
-  `psycopg[binary]`, exact `solverforge==0.6.10`), package discovery across the
+  `psycopg[binary]`, exact `solverforge==0.6.12`), package discovery across the
   four source roots, and per-benchmark `solverforge_py.toml` package data.
 - `benchmark.example.toml` — documents the TOML configuration surface with a
   minimal quick-run CVRP example.
@@ -193,7 +193,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   adapter-owned incumbents, route hints, and reference-solution reads are not
   part of solver input.
 - The `solverforge-py` CVRP adapter builds a public Python-binding list-variable
-  model from the same CVRPLIB instance. Its canonical `0.6.10` declaration uses
+  model from the same CVRPLIB instance. Its canonical `0.6.12` declaration uses
   independent `ListRouteHooks` and `ListSavingsHooks`, explicit row-scoped
   capacity/demand/distance metadata, and explicit cross/intra-position distance
   sources. It starts all route lists empty and reports the installed
@@ -356,7 +356,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
 - Runtime provenance hashes the actually invoked distribution, executable,
   native binary, or JAR; manifest declarations alone are not provenance. The
   per-solver pins are: native SolverForge `0.21.2` (CVRP, employee, job-shop,
-  with committed registry lockfiles), Python `solverforge==0.6.10`,
+  with committed registry lockfiles), Python `solverforge==0.6.12`,
   Timefold `2.7.0` (all three `pom.xml` files), OR-Tools `9.15.6755`
   (`ORTOOLS_VERSION` in the root Makefile).
 - Native and Python SolverForge adapters keep separate configuration files per
@@ -461,7 +461,7 @@ keep per-run attestation intact. Partial row deletion is never used.
 Virtualenv and validators:
 
 - `make install-python-deps` creates or refreshes the root `.venv` and installs
-  the exact published `solverforge==0.6.10` wheel.
+  the exact published `solverforge==0.6.12` wheel.
 - `make validate-cvrp` validates all bundled CVRP `.vrp`/`.sol` pairs.
 - `make validate-job-shop-scheduling` validates the bundled JSPLIB manifest and
   parser output.
