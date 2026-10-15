@@ -34,10 +34,6 @@ from solverforge_bench.solverforge_failures import classify_solverforge_failure
 _SOLVER_CONFIG_PATH = Path(__file__).with_name("solverforge_py.toml")
 
 
-def _operation_owner(solution: Any, operation_id: int) -> int:
-    return int(solution.operation_facts[operation_id].machine_id)
-
-
 def _operation_construction_order(solution: Any, operation_id: int) -> int:
     fact = solution.operation_facts[int(operation_id)]
     return int(fact.op_index) * 1_000_000 - int(fact.duration)
@@ -76,7 +72,7 @@ class OperationFact:
 class MachineSequence:
     operations = planning_list_variable(
         element_collection="operation_indices",
-        element_owner=_operation_owner,
+        element_owner="operation_owners",
         construction_element_order_key=_operation_construction_order,
         precedence_duration=_operation_duration,
         precedence_successors=_operation_successors,
@@ -109,6 +105,7 @@ class JobShopPythonPlan:
             MachineSequence(machine_id) for machine_id in range(instance.num_machines)
         ]
         flat_operations = [op for job in instance.operations_by_job for op in job]
+        self.operation_owners = [int(op.machine_id) for op in flat_operations]
         operation_id_by_key = {
             (int(op.job_id), int(op.op_index)): operation_id
             for operation_id, op in enumerate(flat_operations)
