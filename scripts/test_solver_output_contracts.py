@@ -80,6 +80,28 @@ class JsspValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValidationError, "Machine overlap"):
             validate_job_shop(instance, solution)
 
+    def test_machine_validation_matches_pairwise_disjunction(self) -> None:
+        from itertools import combinations, product
+
+        windows = [(start, duration) for start in range(3) for duration in range(3)]
+        for candidate in product(windows, repeat=3):
+            expected_valid = all(
+                start_a + duration_a <= start_b or start_b + duration_b <= start_a
+                for (start_a, duration_a), (start_b, duration_b) in combinations(
+                    candidate, 2
+                )
+            )
+            with self.subTest(windows=candidate):
+                instance, solution = self._schedule(list(candidate))
+                if expected_valid:
+                    self.assertEqual(
+                        validate_job_shop(instance, solution),
+                        max(start + duration for start, duration in candidate),
+                    )
+                else:
+                    with self.assertRaisesRegex(ValidationError, "Machine overlap"):
+                        validate_job_shop(instance, solution)
+
     def test_zero_duration_operation_still_obeys_job_precedence(self) -> None:
         instance = JobShopInstance(
             name="zero-duration-precedence",
