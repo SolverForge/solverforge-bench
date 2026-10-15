@@ -1,0 +1,25 @@
+# Native release configuration. pyproject.toml is the only version surface.
+tagPrefix = "v"
+releaseCommitMessageFormat = "chore(release): {{currentTag}}"
+commitUrlFormat = "https://github.com/SolverForge/solverforge-bench/commit/{{hash}}"
+compareUrlFormat = "https://github.com/SolverForge/solverforge-bench/compare/{{previousTag}}...{{currentTag}}"
+issueUrlFormat = "https://github.com/SolverForge/solverforge-bench/issues/{{id}}"
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file."""
+
+packageFiles = [{ filename = "pyproject.toml", type = "python" }]
+bumpFiles = [{ filename = "pyproject.toml", type = "python" }]
+
+types = [
+  { type = "feat", section = "Features" },
+  { type = "fix", section = "Bug Fixes" },
+  { type = "test", section = "Tests" },
+  { type = "docs", section = "Documentation" },
+  { type = "build", hidden = true },
+  { type = "chore", hidden = true },
+  { type = "ci", hidden = true },
+  { type = "style", hidden = true },
+  { type = "refactor", hidden = true },
+]
