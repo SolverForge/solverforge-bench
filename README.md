@@ -88,14 +88,14 @@ The root Makefile uses this same `.venv` for CVRP, employee scheduling,
 normalization, and nightly runs. `make install-python-deps` creates or refreshes
 it before benchmark builds and is the CI-safe entrypoint for scripts that
 bootstrap themselves through the repository virtualenv. That target installs
-the exact published `solverforge==0.6.13` wheel into the same `.venv`, so
+the exact published `solverforge==0.6.14` wheel into the same `.venv`, so
 `solverforge-py` benchmark rows never depend on global Python packages or a
 sibling checkout.
 
 The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
-aligned to the exact published SolverForge `0.21.2` crates and committed
+aligned to the exact published SolverForge `0.21.3` crates and committed
 registry lockfiles. The `solverforge-py` adapters require the exact published
-`solverforge==0.6.13` distribution and report that installed distribution
+`solverforge==0.6.14` distribution and report that installed distribution
 version in CSV and PostgreSQL rows.
 
 Each workload keeps two separate SolverForge configuration artifacts: the
@@ -150,7 +150,7 @@ when checking the final JSSP win condition.
 sets for every benchmark class. Before release work, public benchmark claims,
 or changes to the Python-binding solver paths, refresh the root `.venv` with
 `make install-python-deps`; after publication, that target force-refreshes the
-exact `solverforge==0.6.13` wheel in the benchmark environment.
+exact `solverforge==0.6.14` wheel in the benchmark environment.
 
 Run the local/release guardrails explicitly:
 
@@ -210,7 +210,7 @@ run `make validate-cvrp`, and run
 `python -m pip install -e .`.
 
 The Rust jobs keep `--locked` resolution strict. Their manifests and committed
-registry lockfiles target SolverForge `0.21.2`. The jobs set the PyO3 Python
+registry lockfiles target SolverForge `0.21.3`. The jobs set the PyO3 Python
 environment from `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
 for the CVRP SolverForge adapter, CVRP rustvrp adapter, employee scheduling
