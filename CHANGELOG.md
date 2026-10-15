@@ -1,6 +1,28 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
+All notable changes to this project will be documented in this file.
+## [0.1.4](https://github.com/SolverForge/solverforge-bench/compare/v0.1.3...v0.1.4) (2026-10-15)
+
+
+### Bug Fixes
+
+* **jssp:** declare the fixed operation owner as a solution field ([2908484](https://github.com/SolverForge/solverforge-bench/commit/29084845dc6328f2e4509e25a494d151b26ec68b))
+* **jssp:** order zero-duration operations before equal-start intervals ([9fc4d93](https://github.com/SolverForge/solverforge-bench/commit/9fc4d9348cbff680585e0c1e9764b3bb1e87df1a))
+
+
+### Tests
+
+* **jssp:** compare machine validation with exhaustive pairwise oracle ([6cd89ca](https://github.com/SolverForge/solverforge-bench/commit/6cd89cacd214abd1237b1cb8e28691128b0bfcfa))
+* **jssp:** reproduce zero-duration boundary validation failure ([48bf30d](https://github.com/SolverForge/solverforge-bench/commit/48bf30ddb7773befc911ae56de0e51e131b90af4))
+
+
+### Documentation
+
+* align native SolverForge pin guidance with 0.20.4 ([df3f58e](https://github.com/SolverForge/solverforge-bench/commit/df3f58e4e68a5b3d086e38be0d2fcf1f69250461))
+* align native SolverForge pin guidance with 0.20.4 in AGENTS.md ([a6b5d1b](https://github.com/SolverForge/solverforge-bench/commit/a6b5d1b02751040d79f5b15e3d16eb6291dde55a))
+* align native SolverForge pin guidance with 0.21.0 ([22fe4c6](https://github.com/SolverForge/solverforge-bench/commit/22fe4c611fc33a65e40cda28b9752e4e9c956f7f))
+* align native SolverForge pin guidance with 0.21.2 ([b896787](https://github.com/SolverForge/solverforge-bench/commit/b896787eb6d74ce52bc707aee549c3744c950750))
+
 
 ## [0.1.3](https://github.com/SolverForge/solverforge-bench/compare/v0.1.2...v0.1.3) (2026-10-11)
 
