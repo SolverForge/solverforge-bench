@@ -17,9 +17,89 @@ from employee_scheduling_bench.solver.solverforge_py import (
     _ensure_required_shift_assignments,
     _same_value_conflicts,
 )
+from job_shop_bench.domain.models import (
+    JobShopInstance,
+    Operation,
+    ScheduledOperation,
+    Solution as JobShopSolution,
+)
 from job_shop_bench.solver.solverforge_py import _scheduled_operations
+from job_shop_bench.validation import ValidationError, validate as validate_job_shop
 from solverforge_bench.model import NoSolutionFoundError, SolverExecutionError
 from solverforge_bench.solverforge_failures import classify_solverforge_failure
+
+
+class JsspValidationTests(unittest.TestCase):
+    @staticmethod
+    def _schedule(
+        windows: list[tuple[int, int]]
+    ) -> tuple[JobShopInstance, JobShopSolution]:
+        instance = JobShopInstance(
+            name="zero-duration-boundary",
+            family="regression",
+            num_jobs=len(windows),
+            num_machines=1,
+            operations_by_job=tuple(
+                (Operation(job_id, 0, 0, duration),)
+                for job_id, (_, duration) in enumerate(windows)
+            ),
+        )
+        solution = JobShopSolution(
+            operations=tuple(
+                ScheduledOperation(
+                    job_id=job_id,
+                    op_index=0,
+                    machine_id=0,
+                    start=start,
+                    duration=duration,
+                )
+                for job_id, (start, duration) in enumerate(windows)
+            ),
+        )
+        return instance, solution
+
+    def test_zero_duration_at_boundary_is_independent_of_output_order(self) -> None:
+        from itertools import permutations
+
+        for windows in permutations([(0, 5), (5, 0), (5, 3)]):
+            with self.subTest(windows=windows):
+                instance, solution = self._schedule(list(windows))
+                self.assertEqual(validate_job_shop(instance, solution), 8)
+
+    def test_multiple_zero_duration_operations_at_same_start_are_valid(self) -> None:
+        instance, solution = self._schedule([(5, 3), (5, 0), (5, 0)])
+        self.assertEqual(validate_job_shop(instance, solution), 8)
+
+    def test_positive_duration_overlap_is_still_rejected(self) -> None:
+        instance, solution = self._schedule([(0, 6), (5, 3)])
+        with self.assertRaisesRegex(ValidationError, "Machine overlap"):
+            validate_job_shop(instance, solution)
+
+    def test_zero_duration_inside_busy_interval_is_still_rejected(self) -> None:
+        instance, solution = self._schedule([(0, 6), (5, 0)])
+        with self.assertRaisesRegex(ValidationError, "Machine overlap"):
+            validate_job_shop(instance, solution)
+
+    def test_zero_duration_operation_still_obeys_job_precedence(self) -> None:
+        instance = JobShopInstance(
+            name="zero-duration-precedence",
+            family="regression",
+            num_jobs=1,
+            num_machines=2,
+            operations_by_job=((Operation(0, 0, 0, 6), Operation(0, 1, 1, 0)),),
+        )
+        solution = JobShopSolution(
+            operations=(
+                ScheduledOperation(
+                    job_id=0, op_index=0, machine_id=0, start=0, duration=6
+                ),
+                ScheduledOperation(
+                    job_id=0, op_index=1, machine_id=1, start=5, duration=0
+                ),
+            )
+        )
+        with self.assertRaisesRegex(ValidationError, "Precedence violation"):
+            validate_job_shop(instance, solution)
 
 
 class JsspOutputCompletenessTests(unittest.TestCase):
