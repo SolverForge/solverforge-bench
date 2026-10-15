@@ -8,7 +8,9 @@ class ValidationError(ValueError):
 
 
 def validate(instance: JobShopInstance, solution: Solution) -> int:
-    entries = {(op.job_id, op.op_index): op for job in instance.operations_by_job for op in job}
+    entries = {
+        (op.job_id, op.op_index): op for job in instance.operations_by_job for op in job
+    }
     seen = set()
     machine_windows: dict[int, list[tuple[int, int, tuple[int, int]]]] = {}
     starts: dict[tuple[int, int], int] = {}
@@ -26,7 +28,9 @@ def validate(instance: JobShopInstance, solution: Solution) -> int:
             raise ValidationError(f"Mismatched machine/duration for {key}")
         seen.add(key)
         starts[key] = sop.start
-        machine_windows.setdefault(sop.machine_id, []).append((sop.start, sop.start + sop.duration, key))
+        machine_windows.setdefault(sop.machine_id, []).append(
+            (sop.start, sop.start + sop.duration, key)
+        )
 
     if seen != set(entries):
         missing = sorted(set(entries) - seen)
@@ -34,13 +38,22 @@ def validate(instance: JobShopInstance, solution: Solution) -> int:
 
     for job in instance.operations_by_job:
         for prev, cur in zip(job, job[1:]):
-            if starts[(cur.job_id, cur.op_index)] < starts[(prev.job_id, prev.op_index)] + prev.duration:
+            if (
+                starts[(cur.job_id, cur.op_index)]
+                < starts[(prev.job_id, prev.op_index)] + prev.duration
+            ):
                 raise ValidationError(f"Precedence violation on job {cur.job_id}")
 
     for machine, windows in machine_windows.items():
-        windows.sort(key=lambda x: x[0])
+        windows.sort(key=lambda x: (x[0], x[1]))
         for (_, end_a, key_a), (start_b, _, key_b) in zip(windows, windows[1:]):
             if start_b < end_a:
-                raise ValidationError(f"Machine overlap on {machine}: {key_a} and {key_b}")
+                raise ValidationError(
+                    f"Machine overlap on {machine}: {key_a} and {key_b}"
+                )
 
-    return max(starts[(op.job_id, op.op_index)] + op.duration for job in instance.operations_by_job for op in job)
+    return max(
+        starts[(op.job_id, op.op_index)] + op.duration
+        for job in instance.operations_by_job
+        for op in job
+    )
