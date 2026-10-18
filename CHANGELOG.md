@@ -1,6 +1,14 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.1.5](https://github.com/SolverForge/solverforge-bench/compare/v0.1.4...v0.1.5) (2026-10-18)
+
+
+### Documentation
+
+* align solver pin guidance with the latest releases ([86846f2](https://github.com/SolverForge/solverforge-bench/commit/86846f2818b320c9fa1bb87d77cf95d60f5135e6))
+
+
 ## [0.1.4](https://github.com/SolverForge/solverforge-bench/compare/v0.1.3...v0.1.4) (2026-10-15)
 
 
