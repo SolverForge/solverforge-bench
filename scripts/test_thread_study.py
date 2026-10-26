@@ -102,6 +102,7 @@ class ThreadStudyTests(unittest.TestCase):
                                         "moves_speculative": speculative,
                                         "step_count": 1000,
                                         "elapsed_ms": 10_000,
+                                        "evaluation_time_ms": 8_000,
                                     }
                                 }
                             ),
@@ -113,7 +114,11 @@ class ThreadStudyTests(unittest.TestCase):
 
         self.assertEqual(sorted(run.threads for run in runs), [1, 4])
         self.assertIn(
-            "| X-n101-k25 | 10s | 4 | 950 | -5.0% | 2.40x | 25% | 120 | 4 threads |",
+            "| X-n101-k25 | 10s | 4 | 950 | -5.0% | — | 2.40x | 25% | 120 | 4 threads |",
+            report,
+        )
+        self.assertIn(
+            "| X-n101-k25 | 10s | 1 | 1,000 | — | 80% | — | 0% | 50.0 | — |",
             report,
         )
 
