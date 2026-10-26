@@ -246,6 +246,15 @@ def _locked_cargo_dependency(
     dependency_spec = manifest.get("dependencies", {}).get(dependency)
     if dependency_spec is None:
         raise ValueError(f"{cargo_toml}: dependency {dependency!r} is not declared")
+    git_url = dependency_spec.get("git") if isinstance(dependency_spec, dict) else None
+    if isinstance(git_url, str) and git_url:
+        return _locked_git_dependency(
+            cargo_toml=cargo_toml,
+            cargo_lock=cargo_lock,
+            dependency=dependency,
+            git_url=git_url,
+            dependency_spec=dependency_spec,
+        )
     if isinstance(dependency_spec, str):
         requirement = dependency_spec
     elif isinstance(dependency_spec, dict):
@@ -294,6 +303,54 @@ def _locked_cargo_dependency(
         "version": version,
         "source": locked_source,
         "checksum": checksum,
+    }
+
+
+def _locked_git_dependency(
+    *,
+    cargo_toml: Path,
+    cargo_lock: Path,
+    dependency: str,
+    git_url: str,
+    dependency_spec: dict[str, Any],
+) -> dict[str, str]:
+    """Pins an unreleased git dependency to the commit its lockfile resolved.
+
+    The version reads `<crate version>+git.<short commit>` so rows from a
+    branch build never pass for the registry release of the same version.
+    """
+    reference = next(
+        (
+            f"{key}={dependency_spec[key]}"
+            for key in ("rev", "tag", "branch")
+            if isinstance(dependency_spec.get(key), str)
+        ),
+        "default-branch",
+    )
+    with cargo_lock.open("rb") as handle:
+        lock = tomllib.load(handle)
+    packages = [
+        package
+        for package in lock.get("package", [])
+        if package.get("name") == dependency
+        and str(package.get("source", "")).startswith(f"git+{git_url}")
+    ]
+    if len(packages) != 1:
+        raise ValueError(f"{cargo_lock}: cannot resolve one locked git {dependency!r}")
+    package = packages[0]
+    locked_source = package["source"]
+    version = package.get("version")
+    commit = locked_source.rpartition("#")[2]
+    if not isinstance(version, str) or not version:
+        raise ValueError(f"{cargo_lock}: locked {dependency!r} version is missing")
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise ValueError(f"{cargo_lock}: {dependency!r} git commit is missing")
+    return {
+        "name": dependency,
+        "manifest_requirement": f"git:{git_url}#{reference}",
+        "version": f"{version}+git.{commit[:12]}",
+        "source": locked_source,
+        "commit": commit,
     }
 
 
