@@ -92,9 +92,12 @@ the exact published `solverforge==0.6.15` wheel into the same `.venv`, so
 `solverforge-py` benchmark rows never depend on global Python packages or a
 sibling checkout.
 
-The CVRP, employee-scheduling, and job-shop SolverForge benchmark adapters are
-aligned to the exact published SolverForge `0.22.0` crates and committed
-registry lockfiles. The `solverforge-py` adapters require the exact published
+The CVRP and employee-scheduling native SolverForge adapters build from the
+unreleased `feat/parallel-move-evaluation` branch of SolverForge for the
+thread study, locked to one commit in their lockfiles; their rows report the
+version as `<crate version>+git.<commit>`. The job-shop native adapter stays
+on the exact published SolverForge `0.22.0` crates and committed registry
+lockfile. The `solverforge-py` adapters require the exact published
 `solverforge==0.6.15` distribution and report that installed distribution
 version in CSV and PostgreSQL rows.
 
@@ -209,8 +212,9 @@ run `make validate-cvrp`, and run
 `.venv`, so CI must use the Makefile bootstrap instead of a detached
 `python -m pip install -e .`.
 
-The Rust jobs keep `--locked` resolution strict. Their manifests and committed
-registry lockfiles target SolverForge `0.22.0`. The jobs set the PyO3 Python
+The Rust jobs keep `--locked` resolution strict. The CVRP and employee
+SolverForge manifests lock the `feat/parallel-move-evaluation` git branch at
+one commit; the job-shop manifest and lockfile target SolverForge `0.22.0`. The jobs set the PyO3 Python
 environment from `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
 for the CVRP SolverForge adapter, CVRP rustvrp adapter, employee scheduling
@@ -326,6 +330,31 @@ In the current bundled manifest, `quick` contains `ft06` and `la01`, while
 (`abz`, `ft`, `la`, `orb`, `swv`, `ta`, and `yn`). The manifest records the
 upstream source URL and known optimum or lower/upper bounds when the upstream
 metadata provides them.
+
+## Thread Study
+
+`make thread-study` answers when SolverForge's parallel local search pays off:
+it runs native SolverForge against itself at 1, 2, and 4 move threads on CVRP
+and employee scheduling, at 10s and 60s budgets
+(`benchmark.thread-study.toml`), then renders `build/thread-study/report.md`.
+
+- The thread counts are solver variants: `solverforge-t2`, `solverforge-t4`,
+  and `solverforge-t8` run the native adapter with that many local-search
+  evaluators, the main director included. They are registered in each suite
+  but never in a default matrix, so they never enter cross-solver rankings.
+- Every run, the single-threaded baseline included, is pinned to the same CPU
+  set, `THREAD_STUDY_CPUS ?= 4,6,8,10`: one logical CPU per physical core on a
+  six-core SMT machine. Set it to your own cores to reproduce on other
+  hardware; a thread count above the set's size only adds contention.
+- Results stay in local CSVs; `[postgres] save = false` keeps them out of the
+  warehouse.
+
+Each report row compares a thread count to 1 thread on the same instance and
+budget: the cost change, the useful-throughput ratio (evaluations the search
+consumed per second), the speculative share (evaluations parallel windows
+discarded), evaluations per step, and a verdict from cost, with differences
+inside 0.5% reported as ties. `make thread-study-report` re-renders the report
+from existing CSVs.
 
 ## Unified Harness
 

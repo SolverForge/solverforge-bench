@@ -46,10 +46,17 @@
   creates the single repository virtualenv used by all benchmark commands.
 - `make install-python-deps` creates or refreshes that root `.venv` from the
   Makefile.
-- The CVRP, employee-scheduling, and job-shop native SolverForge adapters are
-  pinned to the published SolverForge `0.22.0` crates and committed registry
-  lockfiles. The `solverforge-py` adapters use the exact published
-  `solverforge==0.6.15` Python wheel.
+- The CVRP and employee-scheduling native SolverForge adapters build from the
+  SolverForge `feat/parallel-move-evaluation` git branch, locked to one commit,
+  for the thread study; provenance reports `<version>+git.<commit>`. The
+  job-shop native adapter is pinned to the published SolverForge `0.22.0`
+  crates and committed registry lockfile. The `solverforge-py` adapters use the
+  exact published `solverforge==0.6.15` Python wheel.
+- `make thread-study` runs native SolverForge against itself at 1, 2, and 4
+  move threads (`benchmark.thread-study.toml`) with every run pinned to
+  `THREAD_STUDY_CPUS`, and writes `build/thread-study/report.md`. The
+  `solverforge-t<N>` variants stay out of every `DEFAULT_METHODS`; never
+  publish them beside other solvers.
 - Benchmark run targets pin the shared harness with per-suite CPU defaults:
   `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`, and
   `JOBSHOP_BENCH_CPU ?= 2`. They also set `OMP_NUM_THREADS=1`,

@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 from typing import Callable, Iterable
 
@@ -12,9 +13,17 @@ from solverforge_bench.solver_versions import (
     python_distribution_version,
     versions_for_solvers,
 )
+from solverforge_bench.thread_study import thread_variant_count, thread_variant_methods
 
 SolverFn = Callable[[Instance, int], SolverResult]
-AVAILABLE_METHODS = ["solverforge", "solverforge-py", "timefold", "ortools", "highs"]
+AVAILABLE_METHODS = [
+    "solverforge",
+    "solverforge-py",
+    "timefold",
+    "ortools",
+    "highs",
+    *thread_variant_methods(),
+]
 DEFAULT_METHODS = ["solverforge", "solverforge-py", "timefold", "ortools", "highs"]
 _SOLVER_DIR = Path(__file__).resolve().parent
 
@@ -40,13 +49,14 @@ def _load_timefold() -> SolverFn:
 
 
 def solver_versions(methods: Iterable[str]) -> dict[str, SolverVersion]:
+    native_solverforge = cargo_dependency_version(
+        _SOLVER_DIR / "solverforge_nrp" / "Cargo.toml",
+        "solverforge",
+        runtime_distribution="solverforge-nrp",
+        solver_config_path=(_SOLVER_DIR / "solverforge_nrp" / "solver.toml"),
+    )
     resolvers = {
-        "solverforge": cargo_dependency_version(
-            _SOLVER_DIR / "solverforge_nrp" / "Cargo.toml",
-            "solverforge",
-            runtime_distribution="solverforge-nrp",
-            solver_config_path=(_SOLVER_DIR / "solverforge_nrp" / "solver.toml"),
-        ),
+        "solverforge": native_solverforge,
         "solverforge-py": python_distribution_version(
             "solverforge",
             solver_config_path=_SOLVER_DIR / "solverforge_py.toml",
@@ -60,6 +70,7 @@ def solver_versions(methods: Iterable[str]) -> dict[str, SolverVersion]:
             _SOLVER_DIR / "ortools" / "target" / "employee_scheduling_ortools"
         ),
         "highs": python_distribution_version("highspy"),
+        **{variant: native_solverforge for variant in thread_variant_methods()},
     }
     return versions_for_solvers(methods, resolvers)
 
@@ -72,6 +83,12 @@ def create_solver(method: str, *, time_limit: int = 60) -> SolverFn:
 
     if method == "solverforge":
         return _load_solverforge()
+
+    move_threads = thread_variant_count(method)
+    if move_threads is not None:
+        return partial(
+            _load_solverforge(), move_threads=move_threads, solver_name=method
+        )
 
     if method == "solverforge-py":
         return _load_solverforge_py()

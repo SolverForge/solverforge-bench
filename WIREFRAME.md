@@ -34,6 +34,9 @@ Every tracked file at the repository root and its role:
   `nightly = true`, PostgreSQL persistence enabled).
 - `benchmark.nightly.toml` — tracked ready-to-use nightly configuration,
   currently identical to the example file.
+- `benchmark.thread-study.toml` — thread-study configuration: native
+  SolverForge at 1, 2, and 4 move threads on selected CVRP instances and
+  employee datasets, 10s and 60s budgets, no PostgreSQL persistence.
 - `docs_jssp_proposal.md` — design proposal that motivated the job-shop
   SolverForge list-variable adapter; historical design material.
 - `JOB_SHOP_SOLVERFORGE_AUDIT.md` — audit record for the job-shop SolverForge
@@ -96,6 +99,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
 | `logging.py` | Production logging policy and solver stdout/stderr capture |
 | `etl.py` | Polars-based result ETL for `normalize_results.py` |
 | `validation.py` | Shared validation helpers for benchmark run contracts (not the per-benchmark referees) |
+| `thread_study.py` | `solverforge-t<N>` thread-study variants and the 1-vs-N thread report over result CSVs |
 
 ## Scripts Map
 
@@ -111,6 +115,8 @@ Every module in `src/solverforge_bench/` and its single ownership:
 | `normalize_results.py` | Converts generated global CSV artifacts to normalized CSV or NDJSON through Polars |
 | `reaudit_legacy_publication.py` | Re-audits legacy publication rows against current warehouse rules |
 | `test_benchmark_contracts.py` | Test suite behind `make verify-benchmark-contracts` |
+| `thread_study_report.py` | Renders thread-study result CSVs as the markdown 1-vs-N thread report |
+| `test_thread_study.py` | Thread-study variant registry and report tests, run by `make verify-benchmark-contracts` |
 | `test_solver_output_contracts.py` | Test suite for SolverForge output-completeness classification |
 | `test_verify_solverforge_py_guardrails.py` | Test suite behind `make verify-solverforge-py-guardrail-contract` |
 | `test_reaudit_legacy_publication.py` | Test suite for the legacy publication re-audit |
@@ -182,8 +188,15 @@ Every module in `src/solverforge_bench/` and its single ownership:
   limit applied inside `RoutingSearchParameters`), `solver/rustvrp/`,
   `solver/vroom/`, `solver/timefold/` (Java, Timefold `2.7.1`), and
   `solver/solverforge/` (Rust/PyO3).
-- The SolverForge CVRP manifest and committed registry lockfile target the
-  published `0.22.0` crates.
+- The SolverForge CVRP manifest locks the SolverForge
+  `feat/parallel-move-evaluation` git branch at one commit. `solve_cvrp` takes
+  an optional `move_threads` evaluator count and reports
+  `solverforge_telemetry` (thread count, elapsed time, steps, generated,
+  evaluated, speculative, and applied moves, generation and evaluation time),
+  which the adapter carries into `solver_metadata`.
+- `solver/solver.py` also registers the `solverforge-t2`, `solverforge-t4`,
+  and `solverforge-t8` thread-study variants outside `DEFAULT_METHODS`.
+  `--instances` selects CVRPLIB-X instances by name.
 - The CVRP model uses public SolverForge CVRP list-variable hook bundles:
   `VrpSolution`, matrix distance meters, stock route hooks, stock savings
   depot/distance/metric-class hooks, and strict route feasibility for
@@ -238,8 +251,12 @@ Every module in `src/solverforge_bench/` and its single ownership:
 - `solver/solver.py` registers `solverforge`, `solverforge-py`, `timefold`,
   `ortools`, and `highs`. `instance_json.py` is the shared native-payload serializer
   that emits `optimal` shift slots per requirement with `is_minimum` flags.
-- The SolverForge NRP manifest and committed registry lockfile target the
-  published `0.22.0` crates with `serde` enabled.
+- The SolverForge NRP manifest locks the SolverForge
+  `feat/parallel-move-evaluation` git branch at one commit, with `serde`
+  enabled. `solve_nrp` takes an optional `move_threads` evaluator count, and
+  its `solverforge_telemetry` adds the thread count, elapsed time, speculative
+  moves, and generation and evaluation time. `solver/solver.py` registers the
+  `solverforge-t<N>` thread-study variants outside `DEFAULT_METHODS`.
 - The SolverForge NRP model uses public scalar APIs: per-shift candidate
   values, unassigned scalar variables for optional slots, nearby value/entity
   candidates, and one `ScalarGroup::assignment` for required minimum slots,
@@ -355,8 +372,10 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `make verify-fair-start-rows RUN_ID=<uuid>`.
 - Runtime provenance hashes the actually invoked distribution, executable,
   native binary, or JAR; manifest declarations alone are not provenance. The
-  per-solver pins are: native SolverForge `0.22.0` (CVRP, employee, job-shop,
-  with committed registry lockfiles), Python `solverforge==0.6.15`,
+  per-solver pins are: native SolverForge `feat/parallel-move-evaluation` at
+  one locked commit for CVRP and employee (reported as
+  `<version>+git.<commit>`) and `0.22.0` for job-shop with its committed
+  registry lockfile, Python `solverforge==0.6.15`,
   Timefold `2.7.1` (all three `pom.xml` files), OR-Tools `9.15.6755`
   (`ORTOOLS_VERSION` in the root Makefile).
 - Native and Python SolverForge adapters keep separate configuration files per
@@ -538,6 +557,12 @@ Warehouse and artifacts:
   `postgresql://postgres@localhost/solverforge_bench`.
 - `make normalize-results` converts generated global CSV artifacts to normalized
   CSV or NDJSON through `scripts/normalize_results.py`.
+- `make thread-study` builds the CVRP and employee native SolverForge adapters,
+  runs both suites from `THREAD_STUDY_CONFIG` (`benchmark.thread-study.toml`)
+  pinned with `taskset -c $(THREAD_STUDY_CPUS)` (default `4,6,8,10`) under
+  `THREAD_STUDY_LOCK`, writes CSVs to `THREAD_STUDY_DIR`
+  (`build/thread-study`), and calls `make thread-study-report`, which renders
+  `report.md` there.
 
 Dashboard:
 
@@ -556,7 +581,7 @@ Dashboard:
 - `[postgres]` accepts `save` and `url`.
 - `[logging]` accepts `level`, `dir`, `file`, `show_solver_output`, and
   `capture_solver_output`.
-- `[benchmarks.cvrp]` accepts `num_instances`.
+- `[benchmarks.cvrp]` accepts `num_instances` and `instances`.
 - `[benchmarks.employee-scheduling]` accepts `dataset_set` and `datasets`.
 - `[benchmarks.job-shop-scheduling]` accepts `dataset_set` and `datasets`.
 - `run_kind` is one of `quick`, `candidate`, or `tag`; `tag` requires
@@ -615,7 +640,9 @@ Dashboard:
   `cargo clippy --locked --all-targets -- -D warnings`, and runs
   `cargo build --locked` for the CVRP SolverForge adapter, CVRP rustvrp
   adapter, employee SolverForge adapter, and job-shop SolverForge adapter.
-  Adapter manifests and committed locks target SolverForge `0.22.0`.
+  The CVRP and employee manifests lock the SolverForge
+  `feat/parallel-move-evaluation` git branch; the job-shop manifest and lock
+  target SolverForge `0.22.0`.
 - The dashboard has no CI jobs yet; adding Rails checks to both workflows is
   the known follow-up.
 

@@ -1,0 +1,26 @@
+# Thread study: native SolverForge against itself at 1, 2, and 4 move
+# threads. Run it with `make thread-study`, which pins every run to the same
+# CPU set so the single-threaded baseline sees the same hardware.
+solver = ["solverforge", "solverforge-t2", "solverforge-t4"]
+time_limits = [10, 60]
+run_kind = "quick"
+nightly = false
+wall_time_tolerance = 1.1
+watchdog_multiplier = 1.25
+watchdog_grace_seconds = 5.0
+
+[postgres]
+save = false
+
+[logging]
+level = "INFO"
+show_solver_output = false
+capture_solver_output = true
+
+# Small to large routing instances.
+[benchmarks.cvrp]
+instances = ["X-n101-k25", "X-n242-k48", "X-n524-k153", "X-n1001-k43"]
+
+# Small, medium, and large rosters.
+[benchmarks.employee-scheduling]
+datasets = ["n030w4", "n060w8", "n120w8"]

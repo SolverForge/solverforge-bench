@@ -49,6 +49,13 @@ BENCH_ENV_COMMON := OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$(BENCH_PYTHO
 PINNED_CVRP_BENCH := taskset -c $(CVRP_BENCH_CPU) env $(BENCH_ENV_COMMON) BENCH_CPU=$(CVRP_BENCH_CPU) BENCH_LOCK=$(CVRP_BENCH_LOCK)
 PINNED_EMPLOYEE_BENCH := taskset -c $(EMPLOYEE_BENCH_CPU) env $(BENCH_ENV_COMMON) BENCH_CPU=$(EMPLOYEE_BENCH_CPU) BENCH_LOCK=$(EMPLOYEE_BENCH_LOCK)
 PINNED_JOBSHOP_BENCH := taskset -c $(JOBSHOP_BENCH_CPU) env $(BENCH_ENV_COMMON) BENCH_CPU=$(JOBSHOP_BENCH_CPU) BENCH_LOCK=$(JOBSHOP_BENCH_LOCK)
+# The thread study pins every thread count, 1 included, to the same CPU set:
+# one logical CPU per physical core by default, so threads never share a core.
+THREAD_STUDY_CPUS ?= 4,6,8,10
+THREAD_STUDY_CONFIG ?= benchmark.thread-study.toml
+THREAD_STUDY_DIR ?= build/thread-study
+THREAD_STUDY_LOCK ?= $(BENCH_LOCK_DIR)/solverforge-bench-thread-study.lock
+PINNED_THREAD_STUDY := taskset -c $(THREAD_STUDY_CPUS) env $(BENCH_ENV_COMMON) BENCH_CPU=$(THREAD_STUDY_CPUS) BENCH_LOCK=$(THREAD_STUDY_LOCK)
 
 CVRP_ROOT := list-variable/cvrp
 CVRP_SOLVERFORGE_DIR := $(CVRP_ROOT)/src/cvrp_bench/solver/solverforge
@@ -97,6 +104,7 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	verify-benchmark-contracts verify-reference-catalogs load-reference-catalogs verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
 	verify-solverforge-py-guardrail-contract verify-solverforge-py-smoke verify-solverforge-py-comparison verify-solverforge-py-release \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
+	thread-study thread-study-report \
 	db-check db-create db-migrate db-reset normalize-results \
 	dash-setup dash-server dash-warehouse-check dash-smoke dash-test
 
@@ -118,6 +126,7 @@ verify-fair-start: banner venv
 
 verify-benchmark-contracts: banner venv
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_benchmark_contracts.py
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_thread_study.py
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_solver_output_contracts.py
 	PYTHONPATH=. "$(PYTHON)" scripts/test_reaudit_legacy_publication.py
 	PYTHONPATH=src "$(PYTHON)" scripts/test_git_provenance.py
@@ -252,6 +261,18 @@ bench-cvrp-solverforge-quick: build-cvrp-solverforge
 
 bench-cvrp-solverforge-quick-db: build-cvrp-solverforge db-migrate
 	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --num-instances 3 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+
+# ============== Thread Study ==============
+# Native SolverForge against itself across move-thread counts. Results stay in
+# local CSVs and a markdown report; they never enter the warehouse rankings.
+thread-study: build-cvrp-solverforge build-employee-scheduling-solverforge
+	mkdir -p $(THREAD_STUDY_DIR)
+	$(PINNED_THREAD_STUDY) "$(PYTHON)" scripts/run_benchmark.py cvrp --config "$(THREAD_STUDY_CONFIG)" --output $(THREAD_STUDY_DIR)/cvrp.csv $(BENCH_ARGS)
+	$(PINNED_THREAD_STUDY) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling --config "$(THREAD_STUDY_CONFIG)" --output $(THREAD_STUDY_DIR)/employee-scheduling.csv $(BENCH_ARGS)
+	$(MAKE) thread-study-report
+
+thread-study-report: banner
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/thread_study_report.py $(THREAD_STUDY_DIR)/*.csv --output $(THREAD_STUDY_DIR)/report.md
 
 validate-cvrp: banner
 	cd $(CVRP_ROOT) && PYTHONPATH=src "$(PYTHON)" scripts/validate_all.py
