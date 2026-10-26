@@ -192,6 +192,52 @@ checksum = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             version.metadata["runtime_artifacts"][0]["kind"], "native_binary"
         )
 
+    def test_cargo_git_provenance_records_the_locked_commit(self) -> None:
+        commit = "0123456789abcdef0123456789abcdef01234567"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cargo_toml = root / "Cargo.toml"
+            cargo_toml.write_text(
+                """
+[package]
+name = "adapter"
+version = "0.1.0"
+
+[dependencies]
+solverforge = { git = "https://github.com/SolverForge/solverforge", branch = "feat/x" }
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            (root / "Cargo.lock").write_text(
+                f"""
+version = 4
+
+[[package]]
+name = "solverforge"
+version = "0.22.0"
+source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fx#{commit}"
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            binary = root / "adapter.so"
+            binary.write_bytes(b"native runtime")
+
+            version = cargo_dependency_version(
+                cargo_toml,
+                "solverforge",
+                runtime_paths=[binary],
+            )("solverforge")
+
+        validate_solver_versions(["solverforge"], {"solverforge": version})
+        self.assertEqual(version.version, "0.22.0+git.0123456789ab")
+        self.assertEqual(version.metadata["cargo_dependency"]["commit"], commit)
+        self.assertEqual(
+            version.metadata["cargo_dependency"]["manifest_requirement"],
+            "git:https://github.com/SolverForge/solverforge#branch=feat/x",
+        )
+
     def test_executable_provenance_hashes_the_invoked_binary(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             executable = Path(directory) / "solver"
