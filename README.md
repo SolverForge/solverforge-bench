@@ -350,8 +350,10 @@ and employee scheduling, at 10s and 60s budgets
   warehouse.
 
 Each report row compares a thread count to 1 thread on the same instance and
-budget: the cost change, the useful-throughput ratio (evaluations the search
-consumed per second), the speculative share (evaluations parallel windows
+budget: the cost change, the single-threaded run's share of time spent
+evaluating moves (the most parallel evaluation can speed up; generation and
+construction stay sequential), the useful-throughput ratio (evaluations the
+search consumed per second), the speculative share (evaluations parallel windows
 discarded), evaluations per step, and a verdict from cost, with differences
 inside 0.5% reported as ties. `make thread-study-report` re-renders the report
 from existing CSVs.
