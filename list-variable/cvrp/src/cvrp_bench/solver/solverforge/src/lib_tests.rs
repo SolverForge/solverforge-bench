@@ -15,7 +15,7 @@ fn build_plan_initializes_customer_values_and_routes() {
         ],
     };
 
-    let plan = build_plan(input, 9);
+    let plan = build_plan(input, 9, 1);
     let shared_ptr = Arc::as_ptr(&plan.shared) as usize;
 
     assert_eq!(
@@ -49,7 +49,7 @@ fn customer_assignment_must_be_exact() {
             vec![4, 6, 7, 0],
         ],
     };
-    let mut plan = build_plan(input, 9);
+    let mut plan = build_plan(input, 9, 1);
 
     plan.routes[0].visits = vec![1, 2, 3];
     ensure_complete_customer_assignment(&plan)

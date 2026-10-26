@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use solverforge::cvrp::{ProblemData, VrpSolution};
 use solverforge::prelude::*;
-use solverforge::SolverConfig;
+use solverforge::{MoveThreadCount, SolverConfig};
 
 #[cfg(test)]
 #[path = "domain_tests.rs"]
@@ -101,6 +101,8 @@ pub struct CvrpPlan {
 
     pub shared: Arc<ProblemData>,
     pub time_limit_secs: u64,
+    /// Local-search evaluators, main director included; 1 stays sequential.
+    pub move_threads: usize,
 }
 
 impl VrpSolution for CvrpPlan {
@@ -141,6 +143,7 @@ pub fn solver_config_for_plan(plan: &CvrpPlan, base_config: SolverConfig) -> Sol
     termination.minutes_spent_limit = None;
     termination.seconds_spent_limit = Some(plan.time_limit_secs.max(1));
     config.termination = Some(termination);
+    config.move_thread_count = MoveThreadCount::Count(plan.move_threads.max(1));
     config
 }
 

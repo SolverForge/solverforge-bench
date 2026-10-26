@@ -173,6 +173,8 @@ pub struct NrpPlan {
     pub shift_nurse_candidates: Vec<Vec<usize>>,
     pub shift_indices: Vec<usize>,
     pub time_limit_secs: u64,
+    /// Local-search evaluators, main director included; 1 stays sequential.
+    pub move_threads: usize,
     pub data: ProblemData,
 }
 
@@ -186,7 +188,9 @@ pub fn solver_config_for_plan(
     solution: &NrpPlan,
     config: solverforge::SolverConfig,
 ) -> solverforge::SolverConfig {
-    config.with_termination_seconds(solution.time_limit_secs.max(1))
+    let mut config = config.with_termination_seconds(solution.time_limit_secs.max(1));
+    config.move_thread_count = solverforge::MoveThreadCount::Count(solution.move_threads.max(1));
+    config
 }
 
 pub(super) fn nurse_candidates_for_shift(

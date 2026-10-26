@@ -19,3 +19,4 @@ class Solution(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     routes: list
     cost: int
+    solver_metadata: dict | None = None

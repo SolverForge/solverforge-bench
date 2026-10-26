@@ -13,7 +13,13 @@ from solverforge_bench.model import SolverResult
 from solverforge_bench.solverforge_failures import classify_solverforge_failure
 
 
-def solve_with_solverforge(instance: Instance, time_limit: int) -> SolverResult:
+def solve_with_solverforge(
+    instance: Instance,
+    time_limit: int,
+    *,
+    move_threads: int = 1,
+    solver_name: str = "solverforge",
+) -> SolverResult:
     """
     Solve the CVRP using the SolverForge CVRP list-variable runtime.
 
@@ -23,7 +29,9 @@ def solve_with_solverforge(instance: Instance, time_limit: int) -> SolverResult:
       - Soft: minimise total rounded travel distance
 
     Search policy lives in the embedded `solver.toml`, and the Python-provided
-    time limit is applied through the model's config provider.
+    time limit is applied through the model's config provider. `move_threads`
+    sets the local-search evaluator count; the thread-study variants pass it
+    with their own `solver_name`.
     """
     # 1 transform: build input matching the Rust InstanceInput struct.
     # distance_matrix is pre-rounded to match round(instance.edge_weight[i][j])
@@ -41,13 +49,15 @@ def solve_with_solverforge(instance: Instance, time_limit: int) -> SolverResult:
     # 2 solve
     witness = make_fair_start_witness(
         benchmark_name="cvrp",
-        solver="solverforge",
+        solver=solver_name,
         planning_state="empty_list_variables",
         solver_input=instance_json,
     )
     emit_fair_start_witness(witness)
     try:
-        result_json = solverforge_cvrp.solve_cvrp(instance_json, time_limit)
+        result_json = solverforge_cvrp.solve_cvrp(
+            instance_json, time_limit, move_threads
+        )
     except Exception as exc:
         classified = classify_solverforge_failure(
             exc,
@@ -62,10 +72,17 @@ def solve_with_solverforge(instance: Instance, time_limit: int) -> SolverResult:
     witness = witness_from_native_output(
         result,
         benchmark_name="cvrp",
-        solver="solverforge",
+        solver=solver_name,
         planning_state="empty_list_variables",
         solver_input=instance_json,
     )
     return solver_result(
-        Solution(routes=result["routes"], cost=result["cost"]), witness
+        Solution(
+            routes=result["routes"],
+            cost=result["cost"],
+            solver_metadata={
+                "solverforge_telemetry": result.get("solverforge_telemetry")
+            },
+        ),
+        witness,
     )

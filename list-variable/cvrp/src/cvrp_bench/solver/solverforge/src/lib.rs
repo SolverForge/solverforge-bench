@@ -20,7 +20,7 @@ use std::sync::Arc;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use solverforge::cvrp::ProblemData;
-use solverforge::{SolverEvent, SolverManager};
+use solverforge::{SolverEvent, SolverManager, SolverTelemetry};
 
 static MANAGER: SolverManager<CvrpPlan> = SolverManager::new();
 
@@ -38,6 +38,37 @@ struct SolutionOutput {
     routes: Vec<Vec<usize>>,
     cost: i64,
     fair_start_witness: FairStartWitness,
+    solverforge_telemetry: TelemetryOutput,
+}
+
+/// Search counters the thread study reads to explain a cost difference.
+#[derive(Serialize)]
+struct TelemetryOutput {
+    move_threads: usize,
+    elapsed_ms: u128,
+    step_count: u64,
+    moves_generated: u64,
+    moves_evaluated: u64,
+    moves_speculative: u64,
+    moves_applied: u64,
+    generation_time_ms: u128,
+    evaluation_time_ms: u128,
+}
+
+impl TelemetryOutput {
+    fn new(move_threads: usize, telemetry: &SolverTelemetry) -> Self {
+        Self {
+            move_threads,
+            elapsed_ms: telemetry.elapsed.as_millis(),
+            step_count: telemetry.step_count,
+            moves_generated: telemetry.moves_generated,
+            moves_evaluated: telemetry.moves_evaluated,
+            moves_speculative: telemetry.moves_speculative,
+            moves_applied: telemetry.moves_applied,
+            generation_time_ms: telemetry.generation_time.as_millis(),
+            evaluation_time_ms: telemetry.evaluation_time.as_millis(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -49,7 +80,7 @@ struct FairStartWitness {
     prefilled_list_variables: usize,
 }
 
-fn build_plan(input: InstanceInput, time_limit_secs: u64) -> CvrpPlan {
+fn build_plan(input: InstanceInput, time_limit_secs: u64, move_threads: usize) -> CvrpPlan {
     let customer_node_ids: Vec<usize> = (0..input.dimension)
         .filter(|&node_idx| node_idx != input.depot)
         .collect();
@@ -89,6 +120,7 @@ fn build_plan(input: InstanceInput, time_limit_secs: u64) -> CvrpPlan {
         score: None,
         shared,
         time_limit_secs,
+        move_threads,
     }
 }
 
@@ -118,10 +150,11 @@ fn ensure_complete_customer_assignment(plan: &CvrpPlan) -> Result<(), String> {
 }
 
 #[pyfunction]
-fn solve_cvrp(instance_json: &str, time_limit: u64) -> PyResult<String> {
+#[pyo3(signature = (instance_json, time_limit, move_threads = 1))]
+fn solve_cvrp(instance_json: &str, time_limit: u64, move_threads: usize) -> PyResult<String> {
     let input: InstanceInput = serde_json::from_str(instance_json)
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-    let plan = build_plan(input, time_limit);
+    let plan = build_plan(input, time_limit, move_threads);
     let fair_start_witness = FairStartWitness {
         adapter_hint_count: 0,
         preliminary_solve_count: 0,
@@ -139,7 +172,9 @@ fn solve_cvrp(instance_json: &str, time_limit: u64) -> PyResult<String> {
 
     let solved = loop {
         match receiver.blocking_recv() {
-            Some(SolverEvent::Completed { solution, .. }) => break Ok(solution),
+            Some(SolverEvent::Completed { solution, metadata }) => {
+                break Ok((solution, metadata.telemetry))
+            }
             Some(SolverEvent::Cancelled { metadata }) => {
                 break Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
                     "SolverForge job {} was cancelled ({:?})",
@@ -172,7 +207,7 @@ fn solve_cvrp(instance_json: &str, time_limit: u64) -> PyResult<String> {
         ))
     });
 
-    let solved = solved?;
+    let (solved, telemetry) = solved?;
     delete_result?;
     ensure_complete_customer_assignment(&solved)
         .map_err(pyo3::exceptions::PyValueError::new_err)?;
@@ -183,6 +218,7 @@ fn solve_cvrp(instance_json: &str, time_limit: u64) -> PyResult<String> {
         routes,
         cost,
         fair_start_witness,
+        solverforge_telemetry: TelemetryOutput::new(move_threads, &telemetry),
     };
     serde_json::to_string(&output)
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))

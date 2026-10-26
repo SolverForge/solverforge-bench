@@ -34,6 +34,7 @@ fn sample_plan(time_limit_secs: u64) -> CvrpPlan {
         score: None,
         shared,
         time_limit_secs,
+        move_threads: 1,
     }
 }
 
@@ -69,4 +70,15 @@ fn cvrp_plan_materializes_only_non_empty_routes() {
 
     assert_eq!(plan.total_cost(), 23);
     assert_eq!(plan.materialized_routes(), vec![vec![1, 2]]);
+}
+
+#[test]
+fn solver_config_for_plan_applies_the_move_thread_count() {
+    let base_config = SolverConfig::from_toml_str(include_str!("../solver.toml")).unwrap();
+    let mut plan = sample_plan(7);
+    plan.move_threads = 4;
+
+    let config = solver_config_for_plan(&plan, base_config);
+
+    assert_eq!(config.move_thread_count, MoveThreadCount::Count(4));
 }

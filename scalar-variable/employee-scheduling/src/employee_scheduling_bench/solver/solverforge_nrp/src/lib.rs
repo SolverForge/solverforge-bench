@@ -1,3 +1,6 @@
+// The output document nests deeper than serde_json::json! expands by default.
+#![recursion_limit = "256"]
+
 mod constraints;
 
 solverforge::planning_model! {
@@ -78,7 +81,7 @@ struct InstanceInput {
     nurse_names: Vec<String>,
 }
 
-fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
+fn do_solve(instance_json: &str, time_limit: u64, move_threads: usize) -> Result<String, String> {
     let input: InstanceInput =
         serde_json::from_str(instance_json).map_err(|e| format!("Invalid JSON: {}", e))?;
 
@@ -279,6 +282,7 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
         shift_nurse_candidates,
         shift_indices,
         time_limit_secs: time_limit.max(1),
+        move_threads,
         data: problem_data,
     };
     let fair_start_witness = serde_json::json!({
@@ -348,6 +352,11 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
         "reported_score": score.to_string(),
         "fresh_score": fresh_score.to_string(),
         "solverforge_telemetry": telemetry.as_ref().map(|telemetry| serde_json::json!({
+            "move_threads": move_threads,
+            "elapsed_ms": telemetry.elapsed.as_millis(),
+            "moves_speculative": telemetry.moves_speculative,
+            "generation_time_ms": telemetry.generation_time.as_millis(),
+            "evaluation_time_ms": telemetry.evaluation_time.as_millis(),
             "step_count": telemetry.step_count,
             "moves_generated": telemetry.moves_generated,
             "moves_evaluated": telemetry.moves_evaluated,
@@ -410,8 +419,10 @@ fn do_solve(instance_json: &str, time_limit: u64) -> Result<String, String> {
 }
 
 #[pyfunction]
-fn solve_nrp(instance_json: &str, time_limit: u64) -> PyResult<String> {
-    do_solve(instance_json, time_limit).map_err(pyo3::exceptions::PyValueError::new_err)
+#[pyo3(signature = (instance_json, time_limit, move_threads = 1))]
+fn solve_nrp(instance_json: &str, time_limit: u64, move_threads: usize) -> PyResult<String> {
+    do_solve(instance_json, time_limit, move_threads)
+        .map_err(pyo3::exceptions::PyValueError::new_err)
 }
 
 #[pymodule]

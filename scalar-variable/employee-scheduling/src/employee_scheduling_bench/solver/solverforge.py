@@ -19,11 +19,17 @@ SOLVERFORGE_CRATE_DIR = Path(__file__).resolve().parent / "solverforge_nrp"
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
-def solve_with_solverforge(instance: Instance, time_limit: int) -> SolverResult:
+def solve_with_solverforge(
+    instance: Instance,
+    time_limit: int,
+    *,
+    move_threads: int = 1,
+    solver_name: str = "solverforge",
+) -> SolverResult:
     instance_json = serialize_instance(instance)
     witness = make_fair_start_witness(
         benchmark_name="employee-scheduling",
-        solver="solverforge",
+        solver=solver_name,
         planning_state="unassigned_scalar_variables",
         solver_input=instance_json,
     )
@@ -33,7 +39,9 @@ def solve_with_solverforge(instance: Instance, time_limit: int) -> SolverResult:
     try:
         emit_fair_start_witness(witness)
         try:
-            result_json = solverforge_nrp.solve_nrp(instance_json, time_limit)
+            result_json = solverforge_nrp.solve_nrp(
+                instance_json, time_limit, move_threads
+            )
         except Exception as exc:
             classified = classify_solverforge_failure(
                 exc,
@@ -51,7 +59,7 @@ def solve_with_solverforge(instance: Instance, time_limit: int) -> SolverResult:
     witness = witness_from_native_output(
         result,
         benchmark_name="employee-scheduling",
-        solver="solverforge",
+        solver=solver_name,
         planning_state="unassigned_scalar_variables",
         solver_input=instance_json,
     )
