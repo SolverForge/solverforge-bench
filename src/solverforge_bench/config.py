@@ -42,7 +42,7 @@ LOGGING_KEYS = {
     "capture_solver_output",
 }
 BENCHMARK_KEYS = {
-    "cvrp": {"num_instances"},
+    "cvrp": {"num_instances", "instances"},
     "employee-scheduling": {"dataset_set", "datasets"},
     "job-shop-scheduling": {"dataset_set", "datasets"},
 }
@@ -233,7 +233,7 @@ def _benchmark_tables(
 
 
 def _validate_values(values: dict[str, Any]) -> None:
-    list_keys = {"solver", "time_limits", "datasets"}
+    list_keys = {"solver", "time_limits", "datasets", "instances"}
     string_keys = {
         "dataset_set",
         "output",

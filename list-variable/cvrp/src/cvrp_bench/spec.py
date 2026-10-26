@@ -50,6 +50,12 @@ class CvrpSpec:
             default=None,
             help="Limit the number of CVRPLIB-X instances for a smoke run.",
         )
+        parser.add_argument(
+            "--instances",
+            nargs="+",
+            default=None,
+            help="Run only these CVRPLIB-X instances, e.g. X-n101-k25 X-n524-k153.",
+        )
 
     def cases(self, args: argparse.Namespace) -> Iterable[BenchmarkCase]:
         data_dir = Path(args.benchmark_root) / "data" / "X"
@@ -59,6 +65,13 @@ class CvrpSpec:
             {path.stem for path in data_dir.glob("*.vrp")},
             key=_instance_sort_key,
         )
+        if args.instances:
+            unknown = sorted(set(args.instances) - set(instance_names))
+            if unknown:
+                raise ValueError(f"Unknown CVRPLIB-X instance(s): {', '.join(unknown)}")
+            instance_names = [
+                name for name in instance_names if name in set(args.instances)
+            ]
         selected = (
             instance_names[: args.num_instances]
             if args.num_instances
@@ -110,7 +123,10 @@ class CvrpSpec:
                 cost=getattr(solution, "cost", None),
                 reference_cost=reference_cost,
                 validation_error=f"{exc.__class__.__name__}: {exc}",
-                native_fields={"reference_kind": reference_kind},
+                native_fields={
+                    "reference_kind": reference_kind,
+                    **_solver_metadata_fields(solution),
+                },
             )
 
         quality_ratio = (
@@ -124,7 +140,10 @@ class CvrpSpec:
             reference_cost=reference_cost,
             quality_ratio=quality_ratio,
             validation_error=None,
-            native_fields={"reference_kind": reference_kind},
+            native_fields={
+                "reference_kind": reference_kind,
+                **_solver_metadata_fields(solution),
+            },
         )
 
     def output_path(self, args: argparse.Namespace, run_stamp: str) -> Path:
@@ -135,3 +154,8 @@ class CvrpSpec:
 
 
 SPEC = CvrpSpec()
+
+
+def _solver_metadata_fields(solution: object) -> dict[str, object]:
+    metadata = getattr(solution, "solver_metadata", None)
+    return {"solver_metadata": metadata} if metadata else {}
