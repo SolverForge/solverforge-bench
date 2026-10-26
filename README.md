@@ -93,7 +93,7 @@ the exact published `solverforge==0.6.15` wheel into the same `.venv`, so
 sibling checkout.
 
 The CVRP and employee-scheduling native SolverForge adapters build from the
-unreleased `feat/parallel-move-evaluation` branch of SolverForge for the
+unreleased `main` branch of SolverForge for the
 thread study, locked to one commit in their lockfiles; their rows report the
 version as `<crate version>+git.<commit>`. The job-shop native adapter stays
 on the exact published SolverForge `0.22.0` crates and committed registry
@@ -213,7 +213,7 @@ run `make validate-cvrp`, and run
 `python -m pip install -e .`.
 
 The Rust jobs keep `--locked` resolution strict. The CVRP and employee
-SolverForge manifests lock the `feat/parallel-move-evaluation` git branch at
+SolverForge manifests lock the `main` git branch at
 one commit; the job-shop manifest and lockfile target SolverForge `0.22.0`. The jobs set the PyO3 Python
 environment from `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`

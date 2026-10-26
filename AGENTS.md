@@ -47,7 +47,7 @@
 - `make install-python-deps` creates or refreshes that root `.venv` from the
   Makefile.
 - The CVRP and employee-scheduling native SolverForge adapters build from the
-  SolverForge `feat/parallel-move-evaluation` git branch, locked to one commit,
+  SolverForge `main` git branch, locked to one commit,
   for the thread study; provenance reports `<version>+git.<commit>`. The
   job-shop native adapter is pinned to the published SolverForge `0.22.0`
   crates and committed registry lockfile. The `solverforge-py` adapters use the

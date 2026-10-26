@@ -189,7 +189,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `solver/vroom/`, `solver/timefold/` (Java, Timefold `2.7.1`), and
   `solver/solverforge/` (Rust/PyO3).
 - The SolverForge CVRP manifest locks the SolverForge
-  `feat/parallel-move-evaluation` git branch at one commit. `solve_cvrp` takes
+  `main` git branch at one commit. `solve_cvrp` takes
   an optional `move_threads` evaluator count and reports
   `solverforge_telemetry` (thread count, elapsed time, steps, generated,
   evaluated, speculative, and applied moves, generation and evaluation time),
@@ -252,7 +252,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `ortools`, and `highs`. `instance_json.py` is the shared native-payload serializer
   that emits `optimal` shift slots per requirement with `is_minimum` flags.
 - The SolverForge NRP manifest locks the SolverForge
-  `feat/parallel-move-evaluation` git branch at one commit, with `serde`
+  `main` git branch at one commit, with `serde`
   enabled. `solve_nrp` takes an optional `move_threads` evaluator count, and
   its `solverforge_telemetry` adds the thread count, elapsed time, speculative
   moves, and generation and evaluation time. `solver/solver.py` registers the
@@ -372,7 +372,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `make verify-fair-start-rows RUN_ID=<uuid>`.
 - Runtime provenance hashes the actually invoked distribution, executable,
   native binary, or JAR; manifest declarations alone are not provenance. The
-  per-solver pins are: native SolverForge `feat/parallel-move-evaluation` at
+  per-solver pins are: native SolverForge `main` at
   one locked commit for CVRP and employee (reported as
   `<version>+git.<commit>`) and `0.22.0` for job-shop with its committed
   registry lockfile, Python `solverforge==0.6.15`,
@@ -641,7 +641,7 @@ Dashboard:
   `cargo build --locked` for the CVRP SolverForge adapter, CVRP rustvrp
   adapter, employee SolverForge adapter, and job-shop SolverForge adapter.
   The CVRP and employee manifests lock the SolverForge
-  `feat/parallel-move-evaluation` git branch; the job-shop manifest and lock
+  `main` git branch; the job-shop manifest and lock
   target SolverForge `0.22.0`.
 - The dashboard has no CI jobs yet; adding Rails checks to both workflows is
   the known follow-up.
