@@ -350,12 +350,16 @@ and employee scheduling, at 10s and 60s budgets
   warehouse.
 
 Each report row compares a thread count to 1 thread on the same instance and
-budget: the cost change, the single-threaded run's share of time spent
-evaluating moves (the most parallel evaluation can speed up; generation and
-construction stay sequential), the useful-throughput ratio (evaluations the
-search consumed per second), the speculative share (evaluations parallel windows
-discarded), evaluations per step, and a verdict from cost, with differences
-inside 0.5% reported as ties. `make thread-study-report` re-renders the report
+budget. Parallel evaluation runs only in local search, so every search figure
+comes from the adapters' per-phase telemetry for the `Local Search` phase, not
+from run totals: the cost change, the share of the run spent in local search,
+the single-threaded run's share of local-search time spent evaluating moves
+(together, the most parallel evaluation can speed up; construction and move
+generation stay sequential), the useful-throughput ratio (local-search
+evaluations consumed per second), the speculative share (evaluations parallel
+windows discarded), evaluations per step, and a verdict from cost, with
+differences inside 0.5% reported as ties. Rows from runs without phase records
+leave the search figures blank. `make thread-study-report` re-renders the report
 from existing CSVs.
 
 ## Unified Harness

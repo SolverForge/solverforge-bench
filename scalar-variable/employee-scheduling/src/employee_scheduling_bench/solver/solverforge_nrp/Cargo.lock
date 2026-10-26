@@ -400,7 +400,7 @@ checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 [[package]]
 name = "solverforge"
 version = "0.22.0"
-source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#910ecb3e988811fb304ee6eccf128fca0007c21f"
+source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#087ad170f5ae9022a0d07a7b3879e7395e05ef30"
 dependencies = [
  "solverforge-bridge",
  "solverforge-config",
@@ -414,7 +414,7 @@ dependencies = [
 [[package]]
 name = "solverforge-bridge"
 version = "0.22.0"
-source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#910ecb3e988811fb304ee6eccf128fca0007c21f"
+source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#087ad170f5ae9022a0d07a7b3879e7395e05ef30"
 dependencies = [
  "solverforge-config",
  "solverforge-core",
@@ -425,7 +425,7 @@ dependencies = [
 [[package]]
 name = "solverforge-config"
 version = "0.22.0"
-source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#910ecb3e988811fb304ee6eccf128fca0007c21f"
+source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#087ad170f5ae9022a0d07a7b3879e7395e05ef30"
 dependencies = [
  "serde",
  "serde_yaml",
@@ -437,7 +437,7 @@ dependencies = [
 [[package]]
 name = "solverforge-core"
 version = "0.22.0"
-source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#910ecb3e988811fb304ee6eccf128fca0007c21f"
+source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#087ad170f5ae9022a0d07a7b3879e7395e05ef30"
 dependencies = [
  "serde",
  "thiserror",
@@ -446,7 +446,7 @@ dependencies = [
 [[package]]
 name = "solverforge-cvrp"
 version = "0.22.0"
-source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#910ecb3e988811fb304ee6eccf128fca0007c21f"
+source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#087ad170f5ae9022a0d07a7b3879e7395e05ef30"
 dependencies = [
  "solverforge-solver",
 ]
@@ -454,7 +454,7 @@ dependencies = [
 [[package]]
 name = "solverforge-macros"
 version = "0.22.0"
-source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#910ecb3e988811fb304ee6eccf128fca0007c21f"
+source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#087ad170f5ae9022a0d07a7b3879e7395e05ef30"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -476,7 +476,7 @@ dependencies = [
 [[package]]
 name = "solverforge-scoring"
 version = "0.22.0"
-source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#910ecb3e988811fb304ee6eccf128fca0007c21f"
+source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#087ad170f5ae9022a0d07a7b3879e7395e05ef30"
 dependencies = [
  "solverforge-core",
  "thiserror",
@@ -485,7 +485,7 @@ dependencies = [
 [[package]]
 name = "solverforge-solver"
 version = "0.22.0"
-source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#910ecb3e988811fb304ee6eccf128fca0007c21f"
+source = "git+https://github.com/SolverForge/solverforge?branch=feat%2Fparallel-move-evaluation#087ad170f5ae9022a0d07a7b3879e7395e05ef30"
 dependencies = [
  "rand 0.10.2",
  "rand_chacha 0.10.0",

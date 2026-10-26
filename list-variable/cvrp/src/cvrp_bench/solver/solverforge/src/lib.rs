@@ -20,7 +20,7 @@ use std::sync::Arc;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use solverforge::cvrp::ProblemData;
-use solverforge::{SolverEvent, SolverManager, SolverTelemetry};
+use solverforge::{PhaseTelemetry, SolverEvent, SolverManager, SolverTelemetry};
 
 static MANAGER: SolverManager<CvrpPlan> = SolverManager::new();
 
@@ -53,6 +53,33 @@ struct TelemetryOutput {
     moves_applied: u64,
     generation_time_ms: u128,
     evaluation_time_ms: u128,
+    phases: Vec<PhaseOutput>,
+}
+
+/// One phase's share of the run, so the study can read local search alone.
+#[derive(Serialize)]
+struct PhaseOutput {
+    phase_type: String,
+    elapsed_ms: u128,
+    step_count: u64,
+    moves_evaluated: u64,
+    moves_speculative: u64,
+    generation_time_ms: u128,
+    evaluation_time_ms: u128,
+}
+
+impl PhaseOutput {
+    fn new(phase: &PhaseTelemetry) -> Self {
+        Self {
+            phase_type: phase.phase_type.clone(),
+            elapsed_ms: phase.elapsed.as_millis(),
+            step_count: phase.step_count,
+            moves_evaluated: phase.moves_evaluated,
+            moves_speculative: phase.moves_speculative,
+            generation_time_ms: phase.generation_time.as_millis(),
+            evaluation_time_ms: phase.evaluation_time.as_millis(),
+        }
+    }
 }
 
 impl TelemetryOutput {
@@ -67,6 +94,7 @@ impl TelemetryOutput {
             moves_applied: telemetry.moves_applied,
             generation_time_ms: telemetry.generation_time.as_millis(),
             evaluation_time_ms: telemetry.evaluation_time.as_millis(),
+            phases: telemetry.phases.iter().map(PhaseOutput::new).collect(),
         }
     }
 }

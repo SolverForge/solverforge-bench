@@ -17,6 +17,7 @@ from employee_scheduling_bench.solver.solver import (
     DEFAULT_METHODS as EMPLOYEE_DEFAULTS,
 )
 from solverforge_bench.thread_study import (
+    SearchFigures,
     StudyRun,
     read_study_runs,
     render_report,
@@ -34,10 +35,14 @@ def _run(threads: int, cost: float, *, feasible: bool = True) -> StudyRun:
         threads=threads,
         feasible=feasible,
         cost=cost,
-        moves_evaluated=1000 * threads,
-        moves_speculative=100 * (threads - 1),
-        step_count=100,
         elapsed_ms=10_000,
+        search=SearchFigures(
+            elapsed_ms=8_000,
+            step_count=100,
+            moves_evaluated=1000 * threads,
+            moves_speculative=100 * (threads - 1),
+            evaluation_time_ms=6_000,
+        ),
     )
 
 
@@ -65,7 +70,9 @@ class ThreadStudyTests(unittest.TestCase):
             verdict(_run(1, 1000), _run(4, 900, feasible=False)), "1 thread"
         )
 
-    def test_report_reads_native_telemetry_from_result_csvs(self) -> None:
+    def test_report_reads_local_search_phase_records_from_result_csvs(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "rows.csv"
             with path.open("w", newline="", encoding="utf-8") as handle:
@@ -98,11 +105,25 @@ class ThreadStudyTests(unittest.TestCase):
                             "solver_metadata": json.dumps(
                                 {
                                     "solverforge_telemetry": {
-                                        "moves_evaluated": evaluated,
-                                        "moves_speculative": speculative,
-                                        "step_count": 1000,
                                         "elapsed_ms": 10_000,
-                                        "evaluation_time_ms": 8_000,
+                                        "moves_evaluated": evaluated + 500,
+                                        "phases": [
+                                            {
+                                                "phase_type": "Construction Heuristic",
+                                                "elapsed_ms": 2_000,
+                                                "step_count": 500,
+                                                "moves_evaluated": 500,
+                                                "evaluation_time_ms": 1_900,
+                                            },
+                                            {
+                                                "phase_type": "Local Search",
+                                                "elapsed_ms": 8_000,
+                                                "step_count": 1000,
+                                                "moves_evaluated": evaluated,
+                                                "moves_speculative": speculative,
+                                                "evaluation_time_ms": 6_000,
+                                            },
+                                        ],
                                     }
                                 }
                             ),
@@ -114,13 +135,29 @@ class ThreadStudyTests(unittest.TestCase):
 
         self.assertEqual(sorted(run.threads for run in runs), [1, 4])
         self.assertIn(
-            "| X-n101-k25 | 10s | 4 | 950 | -5.0% | — | 2.40x | 25% | 120 | 4 threads |",
+            "| X-n101-k25 | 10s | 4 | 950 | -5.0% | 80% | — | 2.40x | 25% | 120"
+            " | 4 threads |",
             report,
         )
         self.assertIn(
-            "| X-n101-k25 | 10s | 1 | 1,000 | — | 80% | — | 0% | 50.0 | — |",
+            "| X-n101-k25 | 10s | 1 | 1,000 | — | 80% | 75% | — | 0% | 50.0 | — |",
             report,
         )
+
+    def test_runs_without_phase_records_report_no_search_figures(self) -> None:
+        run = StudyRun(
+            benchmark="cvrp",
+            instance="X-n101-k25",
+            time_limit=10,
+            threads=1,
+            feasible=True,
+            cost=1000,
+            elapsed_ms=10_000,
+            search=SearchFigures.from_phases(None),
+        )
+        self.assertIsNone(run.search_share)
+        self.assertIsNone(run.useful_evaluations_per_second)
+        self.assertIn("| — | — | — | — | — | — |", render_report([run]))
 
 
 if __name__ == "__main__":

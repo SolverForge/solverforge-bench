@@ -370,6 +370,15 @@ fn do_solve(instance_json: &str, time_limit: u64, move_threads: usize) -> Result
             "moves_hard_worse": telemetry.moves_hard_worse,
             "score_calculations": telemetry.score_calculations,
             "scalar_assignment_required_remaining": telemetry.scalar_assignment_required_remaining,
+            "phases": telemetry.phases.iter().map(|phase| serde_json::json!({
+                "phase_type": phase.phase_type,
+                "elapsed_ms": phase.elapsed.as_millis(),
+                "step_count": phase.step_count,
+                "moves_evaluated": phase.moves_evaluated,
+                "moves_speculative": phase.moves_speculative,
+                "generation_time_ms": phase.generation_time.as_millis(),
+                "evaluation_time_ms": phase.evaluation_time.as_millis(),
+            })).collect::<Vec<_>>(),
             "selector_telemetry": telemetry.selector_telemetry.iter().map(|selector| serde_json::json!({
                 "selector_index": selector.selector_index,
                 "selector_label": selector.selector_label,
