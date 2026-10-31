@@ -1,6 +1,30 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.1.6](https://github.com/SolverForge/solverforge-bench/compare/v0.1.5...v0.1.6) (2026-10-31)
+
+
+### Features
+
+* **cvrp:** select CVRPLIB-X instances by name ([b3b7dbd](https://github.com/SolverForge/solverforge-bench/commit/b3b7dbd1c5effb2680e6a68725f5cf56bb5d20dc))
+* **provenance:** resolve git-locked cargo dependencies to their commit ([367d4f5](https://github.com/SolverForge/solverforge-bench/commit/367d4f571e0801b21cf12a77797cea70c29b47a1))
+* **solverforge:** run the native adapters with a move-thread count ([0d9db8c](https://github.com/SolverForge/solverforge-bench/commit/0d9db8cce4b0894068f41e085002d65967db056c))
+* **thread-study:** compare native SolverForge with itself across move threads ([af140cf](https://github.com/SolverForge/solverforge-bench/commit/af140cf45f441651169bdd461532844447011a9c))
+* **thread-study:** read search figures from local-search phase records ([c238848](https://github.com/SolverForge/solverforge-bench/commit/c238848d053e33d71311ba76496003dbbdb00670))
+* **thread-study:** report the single-threaded share of time spent evaluating ([4495ecd](https://github.com/SolverForge/solverforge-bench/commit/4495ecdecaf9d5af26d7f4a09bb468d9bf2014d3))
+
+
+### Tests
+
+* **provenance:** pin runtime provenance for git-locked cargo dependencies ([595d276](https://github.com/SolverForge/solverforge-bench/commit/595d2769348becf0a5f37b20ef07ccc1a662679d))
+
+
+### Documentation
+
+* align solver pin guidance with the latest releases ([eb6ca36](https://github.com/SolverForge/solverforge-bench/commit/eb6ca36f3cc96f10e13085a2f0807d315d1e8283))
+* describe the thread-study evaluation-share column ([4178473](https://github.com/SolverForge/solverforge-bench/commit/4178473068278888993f02e2c85bc1d31d98ac0d))
+
+
 ## [0.1.5](https://github.com/SolverForge/solverforge-bench/compare/v0.1.4...v0.1.5) (2026-10-18)
 
 
