@@ -88,18 +88,17 @@ The root Makefile uses this same `.venv` for CVRP, employee scheduling,
 normalization, and nightly runs. `make install-python-deps` creates or refreshes
 it before benchmark builds and is the CI-safe entrypoint for scripts that
 bootstrap themselves through the repository virtualenv. That target installs
-the exact published `solverforge==0.6.15` wheel into the same `.venv`, so
+the exact published `solverforge==0.7.2` wheel into the same `.venv`, so
 `solverforge-py` benchmark rows never depend on global Python packages or a
 sibling checkout.
 
-The CVRP and employee-scheduling native SolverForge adapters build from the
-unreleased `main` branch of SolverForge for the
-thread study, locked to one commit in their lockfiles; their rows report the
-version as `<crate version>+git.<commit>`. The job-shop native adapter stays
-on the exact published SolverForge `0.22.0` crates and committed registry
-lockfile. The `solverforge-py` adapters require the exact published
-`solverforge==0.6.15` distribution and report that installed distribution
-version in CSV and PostgreSQL rows.
+The CVRP, employee-scheduling, and job-shop native SolverForge adapters are
+pinned to the exact published SolverForge `0.23.0` crates with committed
+registry lockfiles. A git-locked SolverForge dependency, when an adapter
+temporarily tracks unreleased work, reports its version as
+`<crate version>+git.<commit>`. The `solverforge-py` adapters require the exact
+published `solverforge==0.7.2` distribution and report that installed
+distribution version in CSV and PostgreSQL rows.
 
 Each workload keeps two separate SolverForge configuration artifacts: the
 native adapter's `solver.toml` and the Python adapter's `solverforge_py.toml`.
@@ -153,7 +152,7 @@ when checking the final JSSP win condition.
 sets for every benchmark class. Before release work, public benchmark claims,
 or changes to the Python-binding solver paths, refresh the root `.venv` with
 `make install-python-deps`; after publication, that target force-refreshes the
-exact `solverforge==0.6.15` wheel in the benchmark environment.
+exact `solverforge==0.7.2` wheel in the benchmark environment.
 
 Run the local/release guardrails explicitly:
 
@@ -212,9 +211,8 @@ run `make validate-cvrp`, and run
 `.venv`, so CI must use the Makefile bootstrap instead of a detached
 `python -m pip install -e .`.
 
-The Rust jobs keep `--locked` resolution strict. The CVRP and employee
-SolverForge manifests lock the `main` git branch at
-one commit; the job-shop manifest and lockfile target SolverForge `0.22.0`. The jobs set the PyO3 Python
+The Rust jobs keep `--locked` resolution strict. The CVRP, employee, and
+job-shop SolverForge manifests and lockfiles target SolverForge `0.23.0`. The jobs set the PyO3 Python
 environment from `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
 for the CVRP SolverForge adapter, CVRP rustvrp adapter, employee scheduling
