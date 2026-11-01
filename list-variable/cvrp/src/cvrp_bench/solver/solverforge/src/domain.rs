@@ -106,8 +106,8 @@ pub struct CvrpPlan {
 }
 
 impl VrpSolution for CvrpPlan {
-    fn vehicle_data_ptr(&self, _entity_idx: usize) -> *const ProblemData {
-        Arc::as_ptr(&self.shared)
+    fn vehicle_data(&self, entity_idx: usize) -> Option<&ProblemData> {
+        self.routes.get(entity_idx).map(|_| self.shared.as_ref())
     }
 
     fn vehicle_visits(&self, entity_idx: usize) -> &[usize] {
