@@ -17,9 +17,11 @@ from solverforge_bench.fair_start import (
     solver_result,
     witness_from_native_output,
 )
-from solverforge_bench.model import SolverResult
+from solverforge_bench.model import NoSolutionFoundError, SolverResult
 
 _JAR_PATH = Path(__file__).parent / "timefold" / "target" / "timefold-jssp.jar"
+# Main.NO_SOLUTION_EXIT_CODE: no complete schedule within the time limit.
+_NO_SOLUTION_EXIT_CODE = 3
 
 
 def solve_with_timefold(instance: JobShopInstance, time_limit: int) -> SolverResult:
@@ -37,6 +39,11 @@ def solve_with_timefold(instance: JobShopInstance, time_limit: int) -> SolverRes
         capture_output=True,
     )
     stderr = result.stderr.decode()
+    if result.returncode == _NO_SOLUTION_EXIT_CODE:
+        raise NoSolutionFoundError(
+            f"timefold returned no complete JSSP schedule within the time limit:\n{stderr}",
+            termination_status="no_incumbent",
+        )
     if result.returncode != 0:
         raise RuntimeError(
             f"timefold solver failed (exit {result.returncode}):\n" f"{stderr}"

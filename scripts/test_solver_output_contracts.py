@@ -332,6 +332,47 @@ class EmployeeOrToolsStatusTests(unittest.TestCase):
         self.assertEqual(raised.exception.termination_status, "adapter_error")
 
 
+class TimefoldJsspNoScheduleTests(unittest.TestCase):
+    """The Timefold JSSP wrapper exits 3 when its time limit ends before the
+    schedule is complete; that is a missing incumbent, not an adapter crash."""
+
+    @staticmethod
+    def _instance() -> JobShopInstance:
+        return JobShopInstance(
+            name="no-schedule",
+            family="regression",
+            num_jobs=1,
+            num_machines=1,
+            operations_by_job=(
+                (Operation(job_id=0, op_index=0, machine_id=0, duration=1),),
+            ),
+        )
+
+    def _solve(self, returncode: int, stderr: bytes):
+        from job_shop_bench.solver import timefold
+
+        completed = SimpleNamespace(returncode=returncode, stderr=stderr, stdout=b"")
+        with patch.object(
+            timefold.subprocess, "run", return_value=completed
+        ), patch.object(timefold, "emit_fair_start_witness"):
+            return timefold.solve_with_timefold(self._instance(), 1)
+
+    def test_incomplete_schedule_is_a_missing_incumbent(self) -> None:
+        with self.assertRaises(NoSolutionFoundError) as raised:
+            self._solve(
+                3, b"Timefold returned no complete JSSP schedule (hard penalty: 306)"
+            )
+
+        self.assertEqual(raised.exception.termination_status, "no_incumbent")
+        self.assertIn("hard penalty: 306", str(raised.exception))
+
+    def test_other_nonzero_exits_stay_adapter_failures(self) -> None:
+        with self.assertRaises(RuntimeError) as raised:
+            self._solve(1, b"Exception in thread main")
+
+        self.assertNotIsInstance(raised.exception, NoSolutionFoundError)
+
+
 class PyvrpRouteTranslationTests(unittest.TestCase):
     """pyvrp 0.14.0 restructured routes and location registration.
 

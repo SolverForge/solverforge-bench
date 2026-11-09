@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Objects;
 
 public class Main {
+    /** Exit status for "no complete schedule within the time limit"; the Python adapter maps it to NoSolutionFoundError. */
+    static final int NO_SOLUTION_EXIT_CODE = 3;
 
     static class OperationInput {
         @JsonProperty("job_id")
@@ -147,9 +149,9 @@ public class Main {
 
         JsspScheduleEvaluator.Evaluation evaluation = JsspScheduleEvaluator.evaluate(solution);
         if (evaluation.hardPenalty() > 0) {
-            throw new IllegalStateException(
-                    "Timefold returned an incomplete or invalid JSSP schedule "
-                            + "(hard penalty: " + evaluation.hardPenalty() + ")");
+            System.err.println("Timefold returned no complete JSSP schedule within the time limit "
+                    + "(hard penalty: " + evaluation.hardPenalty() + ")");
+            System.exit(NO_SOLUTION_EXIT_CODE);
         }
         for (OperationAssignment operation : solution.getOperations()) {
             operation.setStart(evaluation.startFor(operation));
