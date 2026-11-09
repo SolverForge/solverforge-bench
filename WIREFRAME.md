@@ -189,7 +189,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `solver/vroom/`, `solver/timefold/` (Java, Timefold `2.7.1`), and
   `solver/solverforge/` (Rust/PyO3).
 - The SolverForge CVRP manifest and committed registry lockfile target
-  SolverForge `0.24.0`. `solve_cvrp` takes
+  SolverForge `0.25.0`. `solve_cvrp` takes
   an optional `move_threads` evaluator count and reports
   `solverforge_telemetry` (thread count, elapsed time, steps, generated,
   evaluated, speculative, and applied moves, generation and evaluation time),
@@ -252,7 +252,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `ortools`, and `highs`. `instance_json.py` is the shared native-payload serializer
   that emits `optimal` shift slots per requirement with `is_minimum` flags.
 - The SolverForge NRP manifest and committed registry lockfile target
-  SolverForge `0.24.0`, with `serde`
+  SolverForge `0.25.0`, with `serde`
   enabled. `solve_nrp` takes an optional `move_threads` evaluator count, and
   its `solverforge_telemetry` adds the thread count, elapsed time, speculative
   moves, and generation and evaluation time. `solver/solver.py` registers the
@@ -318,7 +318,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `ortools`, and `highs`. `instance_json.py` serializes the native payload.
 - The SolverForge JSSP manifest and committed registry lockfile target the
   published SolverForge facade, SolverForge Core, and SolverForge Scoring
-  `0.24.0` crates.
+  `0.25.0` crates.
 - Its list model declares each operation's fixed machine owner with
   `element_owner_fn`; SolverForge construction and list neighborhoods must not
   move an operation to a non-required machine.
@@ -372,7 +372,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `make verify-fair-start-rows RUN_ID=<uuid>`.
 - Runtime provenance hashes the actually invoked distribution, executable,
   native binary, or JAR; manifest declarations alone are not provenance. The
-  per-solver pins are: native SolverForge `0.24.0` for CVRP, employee, and
+  per-solver pins are: native SolverForge `0.25.0` for CVRP, employee, and
   job-shop with committed registry lockfiles (a git-locked dependency would
   report `<version>+git.<commit>`), Python `solverforge==0.7.2`,
   Timefold `2.7.1` (all three `pom.xml` files), OR-Tools `9.15.6755`
@@ -640,7 +640,7 @@ Dashboard:
   `cargo build --locked` for the CVRP SolverForge adapter, CVRP rustvrp
   adapter, employee SolverForge adapter, and job-shop SolverForge adapter.
   The CVRP, employee, and job-shop manifests and lockfiles target
-  SolverForge `0.24.0`.
+  SolverForge `0.25.0`.
 - The dashboard has no CI jobs yet; adding Rails checks to both workflows is
   the known follow-up.
 
