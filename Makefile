@@ -128,6 +128,7 @@ verify-benchmark-contracts: banner venv
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_benchmark_contracts.py
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_thread_study.py
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_solver_output_contracts.py
+	PYTHONPATH=scripts "$(PYTHON)" scripts/test_verify_stock_solverforge_guardrails.py
 	PYTHONPATH=. "$(PYTHON)" scripts/test_reaudit_legacy_publication.py
 	PYTHONPATH=src "$(PYTHON)" scripts/test_git_provenance.py
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_reference_catalog.py

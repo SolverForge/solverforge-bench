@@ -143,7 +143,10 @@ Use `make verify-stock-solverforge-guardrails` after upstream SolverForge
 solver architecture changes. It builds the active native adapters, runs the
 stock JSSP quick group plus a fixed JSPLIB canonical subset, and requires
 SolverForge JSSP, CVRP, and employee smoke rows to stay hard-feasible with
-valid fair-start witnesses. Add `--require-jssp-win` through `GUARDRAIL_ARGS`
+valid fair-start witnesses. A reference solver that ends its time limit without
+a schedule (`no_solution` or `no_incumbent`) is recorded as its result; any
+other reference error, an invalid fair start, or a watchdog kill fails the
+guardrail. Add `--require-jssp-win` through `GUARDRAIL_ARGS`
 when checking the final JSSP win condition.
 
 ## SolverForge-Py Adapter Test Gate

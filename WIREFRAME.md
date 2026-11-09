@@ -511,6 +511,8 @@ Contract gates:
   strongest-policy hash so jointly weakening both copies also fails.
 - `make verify-stock-solverforge-guardrails` builds the active native adapters,
   runs stock SolverForge guardrail benchmarks, and parses the resulting CSVs.
+  SolverForge rows fail on any error; reference rows fail on any error except
+  ending the time limit without a schedule (`no_solution`, `no_incumbent`).
   Pass `--require-jssp-win` through `GUARDRAIL_ARGS` to enforce that
   SolverForge ties or beats the best feasible JSSP solver row.
 - `make verify-solverforge-py-smoke` builds the native SolverForge adapters,

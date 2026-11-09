@@ -14,6 +14,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_JSSP_SUBSET = ("ft10", "swv20", "yn3", "ta01")
 DEFAULT_TIME_LIMITS = ("1", "10")
+SOLVERFORGE_SOLVERS = frozenset({"solverforge", "solverforge-py"})
+REFERENCE_NO_SCHEDULE_STATUSES = frozenset({"no_solution", "no_incumbent"})
 
 
 def main() -> None:
@@ -204,11 +206,25 @@ def validate_common_rows(rows: list[dict[str, str]], label: str) -> list[str]:
         )
         if not is_true(row["fair_start_valid"]):
             failures.append(f"{row_label} fair-start witness invalid")
-        if row["run_error"]:
+        if row["run_error"] and not is_reference_without_schedule(row):
             failures.append(f"{row_label} run_error={row['run_error']}")
         if is_true(row["watchdog_killed"]):
             failures.append(f"{row_label} watchdog killed solver")
     return failures
+
+
+def is_reference_without_schedule(row: dict[str, str]) -> bool:
+    """A reference solver that ends its time limit without a schedule.
+
+    That is a benchmark result for the reference solver, not a defect in the
+    harness or in SolverForge. SolverForge rows, and any reference row that
+    crashed, proved a valid instance infeasible, or rejected the model, still
+    fail the guardrail.
+    """
+    return (
+        row["solver"] not in SOLVERFORGE_SOLVERS
+        and row["termination_status"] in REFERENCE_NO_SCHEDULE_STATUSES
+    )
 
 
 def read_rows(path: Path) -> list[dict[str, str]]:
