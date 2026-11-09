@@ -189,7 +189,9 @@ pub fn solver_config_for_plan(
     config: solverforge::SolverConfig,
 ) -> solverforge::SolverConfig {
     let mut config = config.with_termination_seconds(solution.time_limit_secs.max(1));
-    config.move_thread_count = solverforge::MoveThreadCount::Count(solution.move_threads.max(1));
+    config.move_thread_count = solverforge::MoveThreadCount::Count(
+        std::num::NonZeroUsize::new(solution.move_threads).unwrap_or(std::num::NonZeroUsize::MIN),
+    );
     config
 }
 

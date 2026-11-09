@@ -80,5 +80,6 @@ fn solver_config_for_plan_applies_the_move_thread_count() {
 
     let config = solver_config_for_plan(&plan, base_config);
 
-    assert_eq!(config.move_thread_count, MoveThreadCount::Count(4));
+    assert_eq!(config.move_thread_count, MoveThreadCount::Count(std::num::NonZeroUsize::new(4).unwrap())
+    );
 }

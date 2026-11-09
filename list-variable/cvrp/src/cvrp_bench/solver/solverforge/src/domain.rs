@@ -143,7 +143,9 @@ pub fn solver_config_for_plan(plan: &CvrpPlan, base_config: SolverConfig) -> Sol
     termination.minutes_spent_limit = None;
     termination.seconds_spent_limit = Some(plan.time_limit_secs.max(1));
     config.termination = Some(termination);
-    config.move_thread_count = MoveThreadCount::Count(plan.move_threads.max(1));
+    config.move_thread_count = MoveThreadCount::Count(
+        std::num::NonZeroUsize::new(plan.move_threads).unwrap_or(std::num::NonZeroUsize::MIN),
+    );
     config
 }
 
