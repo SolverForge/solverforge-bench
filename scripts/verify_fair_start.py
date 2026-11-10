@@ -178,7 +178,7 @@ def check_positive_start_shapes() -> list[Violation]:
     violations.extend(
         require_contains(
             REPO_ROOT
-            / "list-variable/cvrp/src/cvrp_bench/solver/solverforge/src/lib.rs",
+            / "list-variable/cvrp/src/cvrp_bench/solver/solverforge/src/adapter.rs",
             "visits: Vec::new()",
             "CVRP SolverForge routes must start empty",
         )
@@ -194,7 +194,7 @@ def check_positive_start_shapes() -> list[Violation]:
     violations.extend(
         require_contains(
             REPO_ROOT
-            / "scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver/solverforge_nrp/src/lib.rs",
+            / "scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver/solverforge_nrp/src/adapter.rs",
             "nurse_idx: None",
             "employee SolverForge shifts must start unassigned",
         )
@@ -211,7 +211,7 @@ def check_positive_start_shapes() -> list[Violation]:
     violations.extend(
         require_contains(
             REPO_ROOT
-            / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/solverforge_jssp/src/lib.rs",
+            / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/solverforge_jssp/src/adapter.rs",
             "operations: Vec::new()",
             "JSSP SolverForge machine sequences must start empty",
         )

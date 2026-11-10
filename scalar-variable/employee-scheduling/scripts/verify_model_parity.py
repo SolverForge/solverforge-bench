@@ -92,7 +92,7 @@ def _source_checks(repo_root: Path) -> list[SourceCheck]:
     timefold_main = timefold / "Main.java"
     timefold_assignment = timefold / "domain" / "ShiftAssignment.java"
     solverforge = employee_src / "solver" / "solverforge_nrp" / "src"
-    solverforge_lib = solverforge / "lib.rs"
+    solverforge_lib = solverforge / "adapter.rs"
     solverforge_domain = solverforge / "domain.rs"
     solverforge_constraints = solverforge / "constraints.rs"
     solverforge_py = employee_src / "solver" / "solverforge_py.py"
