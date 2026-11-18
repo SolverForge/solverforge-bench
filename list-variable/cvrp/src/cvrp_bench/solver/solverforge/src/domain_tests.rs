@@ -8,10 +8,9 @@ fn sample_plan(time_limit_secs: u64) -> CvrpPlan {
         capacity: 4,
         depot: 0,
         demands: vec![0, 2, 3],
-        distance_matrix: distance_matrix.clone(),
+        metric: DenseMatrix::new(distance_matrix.clone(), distance_matrix),
         time_windows: vec![(0, i64::MAX); 3],
         service_durations: vec![0; 3],
-        travel_times: distance_matrix,
         vehicle_departure_time: 0,
     });
     let data_addr = Arc::as_ptr(&shared) as usize;

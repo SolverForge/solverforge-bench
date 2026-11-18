@@ -10,9 +10,9 @@ name = "solverforge_jssp"
 crate-type = ["cdylib"]
 
 [dependencies]
-solverforge = "0.26.1"
-solverforge-core = "0.26.1"
-solverforge-scoring = "0.26.1"
+solverforge = "0.31.2"
+solverforge-core = "0.31.2"
+solverforge-scoring = "0.31.2"
 pyo3 = { version = "0.28", features = ["extension-module"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

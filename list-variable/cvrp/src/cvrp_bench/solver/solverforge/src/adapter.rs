@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use solverforge::cvrp::ProblemData;
+use solverforge::cvrp::{DenseMatrix, ProblemData};
 use solverforge::{PhaseTelemetry, SolverEvent, SolverManager, SolverTelemetry};
 
 static MANAGER: SolverManager<CvrpPlan> = SolverManager::new();
@@ -107,10 +107,9 @@ fn build_plan(input: InstanceInput, time_limit_secs: u64, move_threads: usize) -
         capacity: input.capacity as i64,
         depot: input.depot,
         demands: input.demand,
-        distance_matrix,
+        metric: DenseMatrix::new(distance_matrix, travel_times),
         time_windows: vec![(0, i64::MAX); input.dimension],
         service_durations: vec![0; input.dimension],
-        travel_times,
         vehicle_departure_time: 0,
     });
     let data_addr = Arc::as_ptr(&shared) as usize;

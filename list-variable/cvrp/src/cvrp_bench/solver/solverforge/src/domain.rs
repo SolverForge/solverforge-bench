@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use solverforge::cvrp::{ProblemData, VrpSolution};
+use solverforge::cvrp::{DenseMatrix, ProblemData, VrpSolution};
 use solverforge::prelude::*;
 use solverforge::{MoveThreadCount, SolverConfig};
 
@@ -69,11 +69,11 @@ impl Route {
         let mut previous = data.depot;
 
         for &node_idx in &self.visits {
-            total += data.distance_matrix[previous][node_idx];
+            total += data.metric.distances[previous][node_idx];
             previous = node_idx;
         }
 
-        total + data.distance_matrix[previous][data.depot]
+        total + data.metric.distances[previous][data.depot]
     }
 
     pub fn materialized_route(&self) -> Vec<usize> {
@@ -106,6 +106,8 @@ pub struct CvrpPlan {
 }
 
 impl VrpSolution for CvrpPlan {
+    type Metric = DenseMatrix;
+
     fn vehicle_data(&self, entity_idx: usize) -> Option<&ProblemData> {
         self.routes.get(entity_idx).map(|_| self.shared.as_ref())
     }

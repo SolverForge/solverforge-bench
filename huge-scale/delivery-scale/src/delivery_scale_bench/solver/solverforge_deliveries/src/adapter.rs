@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use pyo3::prelude::*;
 use serde::Deserialize;
-use solverforge::cvrp::ProblemData;
+use solverforge::cvrp::{DenseMatrix, ProblemData};
 use solverforge::{Analyzable, SolverTelemetry};
 
 use crate::solver::solve;
@@ -79,10 +79,9 @@ fn build_plan(input: InstanceInput, time_limit: u64) -> Result<DeliveryPlan, Str
         capacity: input.capacity,
         depot: n,
         demands,
-        distance_matrix,
+        metric: DenseMatrix::new(distance_matrix, travel_times),
         time_windows,
         service_durations,
-        travel_times,
         vehicle_departure_time: input.departure_time,
     });
     Ok(DeliveryPlan {

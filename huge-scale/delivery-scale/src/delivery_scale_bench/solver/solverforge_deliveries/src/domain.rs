@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use solverforge::cvrp::{ProblemData, VrpSolution};
+use solverforge::cvrp::{DenseMatrix, ProblemData, VrpSolution};
 use solverforge::prelude::*;
 
 /// A delivery stop: a problem fact placed by index into vehicle routes.
@@ -91,7 +91,7 @@ pub fn route_metrics(data: &ProblemData, route: &[usize]) -> RouteMetrics {
     let mut previous = data.depot;
     for &stop in route {
         load += i64::from(data.demands[stop]);
-        let leg = data.travel_times[previous][stop];
+        let leg = data.metric.travel_times[previous][stop];
         travel += leg;
         clock += leg;
         let (min_start, max_end) = data.time_windows[stop];
@@ -99,7 +99,7 @@ pub fn route_metrics(data: &ProblemData, route: &[usize]) -> RouteMetrics {
         lateness += (clock - max_end).max(0);
         previous = stop;
     }
-    travel += data.travel_times[previous][data.depot];
+    travel += data.metric.travel_times[previous][data.depot];
     RouteMetrics {
         capacity_overage: (load - data.capacity).max(0),
         travel_seconds: travel,
@@ -108,6 +108,8 @@ pub fn route_metrics(data: &ProblemData, route: &[usize]) -> RouteMetrics {
 }
 
 impl VrpSolution for DeliveryPlan {
+    type Metric = DenseMatrix;
+
     fn vehicle_data(&self, entity_idx: usize) -> Option<&ProblemData> {
         self.vehicles.get(entity_idx).map(|_| self.shared.as_ref())
     }
