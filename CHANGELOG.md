@@ -1,6 +1,32 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.1.7](https://github.com/SolverForge/solverforge-bench/compare/v0.1.6...v0.1.7) (2026-11-18)
+
+
+### Features
+
+* **huge-scale:** add the delivery-scale routing benchmark ([11ed2f9](https://github.com/SolverForge/solverforge-bench/commit/11ed2f9048e5f4baa3b9770951e6c9884b6ddbf0))
+* **huge-scale:** add the hospital-scale rostering benchmark ([62e2c90](https://github.com/SolverForge/solverforge-bench/commit/62e2c903eab2af4777a8193055c70cb05728a64f))
+
+
+### Bug Fixes
+
+* **guardrails:** treat a reference solver without a schedule as a result ([9111abd](https://github.com/SolverForge/solverforge-bench/commit/9111abd9db6f480235621e8b2c472374beb31af5)), closes [#3](https://github.com/SolverForge/solverforge-bench/issues/3)
+* **jssp:** report Timefold's incomplete schedule as a missing incumbent ([769a1bf](https://github.com/SolverForge/solverforge-bench/commit/769a1bfe02038d576f0007a2358ea02af3748c15))
+
+
+### Documentation
+
+* align native SolverForge pin guidance with 0.24.0 ([f1e027d](https://github.com/SolverForge/solverforge-bench/commit/f1e027d26821ccc82bea6f57c1e7e2d327101c6b))
+* align native SolverForge pin guidance with 0.25.0 ([712a302](https://github.com/SolverForge/solverforge-bench/commit/712a30205590f8aad81ce42bf360a281cd152f0f))
+* align native SolverForge pin guidance with 0.25.1 ([b43bf2f](https://github.com/SolverForge/solverforge-bench/commit/b43bf2f69a5ba5e5d99dd043bdb8beafee205323))
+* align native SolverForge pin guidance with 0.26.0 ([ac853ef](https://github.com/SolverForge/solverforge-bench/commit/ac853ef0382052f2c4ec580638fde4e2ab95ff57)), closes [#7](https://github.com/SolverForge/solverforge-bench/issues/7)
+* align native SolverForge pin guidance with 0.26.1 ([c36cedd](https://github.com/SolverForge/solverforge-bench/commit/c36cedd2f2c1f3a12f52ece6b19ff9952f5fa1f6)), closes [#9](https://github.com/SolverForge/solverforge-bench/issues/9)
+* align solver pin guidance with SolverForge 0.31.2 and Timefold 2.8.0 ([af50304](https://github.com/SolverForge/solverforge-bench/commit/af5030474e3eac1fed88111983be0af32acf3fc1))
+* document the huge-scale benchmark category ([37ce849](https://github.com/SolverForge/solverforge-bench/commit/37ce8493728c67865f9ccde4b9897a77cd76e30d))
+
+
 ## [0.1.6](https://github.com/SolverForge/solverforge-bench/compare/v0.1.5...v0.1.6) (2026-10-31)
 
 
