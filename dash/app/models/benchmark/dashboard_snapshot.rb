@@ -36,7 +36,8 @@ module Benchmark
     METRIC_PROFILES = {
       "cvrp" => [ "Cost / reference", "CVRPLIB reference cost ratio", :quality_ratio ],
       "employee-scheduling" => [ "Validator cost", "No exact official reference in this corpus", :cost ],
-      "job-shop-scheduling" => [ "Makespan / reference", "Official JSPLIB best-known reference ratio", :quality_ratio ]
+      "job-shop-scheduling" => [ "Makespan / reference", "Official JSPLIB best-known reference ratio", :quality_ratio ],
+      "hospital-scale" => [ "Validator cost", "Synthetic huge-scale instances; no official reference", :cost ]
     }.freeze
 
     attr_reader :options, :filters

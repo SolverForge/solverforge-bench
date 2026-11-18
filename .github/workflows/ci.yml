@@ -13,7 +13,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  BENCH_PYTHONPATH: src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src
+  BENCH_PYTHONPATH: src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src:huge-scale/hospital-scale/src
 
 jobs:
   python-github:
@@ -36,7 +36,7 @@ jobs:
           make install-python-deps HOST_PYTHON="${{ steps.setup-python.outputs.python-path }}"
 
       - name: Check Python syntax
-        run: python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src scripts
+        run: python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src huge-scale/hospital-scale/src scripts
 
       - name: Validate TOML configuration examples
         run: |
@@ -72,6 +72,16 @@ jobs:
           PYTHONPATH: ${{ env.BENCH_PYTHONPATH }}
         run: make validate-employee-model-parity
 
+      - name: Validate hospital-scale corpus and witnesses
+        env:
+          PYTHONPATH: ${{ env.BENCH_PYTHONPATH }}
+        run: make validate-hospital-scale
+
+      - name: Validate hospital-scale model parity
+        env:
+          PYTHONPATH: ${{ env.BENCH_PYTHONPATH }}
+        run: make validate-hospital-scale-model-parity
+
   rust-github:
     name: GitHub Rust Adapters
     runs-on: ubuntu-latest
@@ -84,6 +94,7 @@ jobs:
           - list-variable/cvrp/src/cvrp_bench/solver/rustvrp
           - scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver/solverforge_nrp
           - scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/solverforge_jssp
+          - huge-scale/hospital-scale/src/hospital_scale_bench/solver/solverforge_hospital
 
     steps:
       - name: Checkout repository

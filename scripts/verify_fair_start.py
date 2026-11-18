@@ -17,6 +17,7 @@ SOLVER_ROOTS = [
     REPO_ROOT
     / "scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver",
     REPO_ROOT / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver",
+    REPO_ROOT / "huge-scale/hospital-scale/src/hospital_scale_bench/solver",
 ]
 
 SOURCE_SUFFIXES = {
@@ -87,6 +88,9 @@ PYTHON_SOLVER_WRAPPERS = [
     / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/ortools/__init__.py",
     REPO_ROOT
     / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/highs.py",
+    REPO_ROOT
+    / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/solverforge.py",
+    REPO_ROOT / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/timefold.py",
 ]
 
 
@@ -217,6 +221,23 @@ def check_positive_start_shapes() -> list[Violation]:
         )
     )
     violations.extend(check_jssp_timefold_constructor())
+    violations.extend(
+        require_contains(
+            REPO_ROOT
+            / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/solverforge_hospital/src/adapter.rs",
+            "employee_idx: None",
+            "hospital-scale SolverForge shifts must start unassigned",
+        )
+    )
+    violations.extend(
+        require_contains(
+            REPO_ROOT
+            / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/solverforge_hospital/src/domain.rs",
+            "allows_unassigned = true",
+            "hospital-scale SolverForge shift variable must allow unassigned starts",
+        )
+    )
+    violations.extend(check_hospital_scale_timefold_constructor())
 
     return violations
 
@@ -392,6 +413,45 @@ def check_employee_timefold_constructor() -> list[Violation]:
                 path,
                 line_number_for(text, nurse_assignment),
                 "employee Timefold constructor must not preload nurse assignments",
+            )
+        )
+    return violations
+
+
+def check_hospital_scale_timefold_constructor() -> list[Violation]:
+    path = (
+        REPO_ROOT
+        / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/timefold/src/main/java/com/solverforgebench/hospital/domain/Shift.java"
+    )
+    violations = require_contains(
+        path,
+        "private Employee employee;",
+        "hospital-scale Timefold planning variable must exist",
+    )
+    if violations or not path.exists():
+        return violations
+
+    text = path.read_text()
+    constructor_body = extract_between(
+        text,
+        "public Shift(int index,",
+        "\n    public int getIndex()",
+    )
+    if constructor_body is None:
+        return [
+            Violation(
+                path,
+                1,
+                "hospital-scale Timefold constructor boundary not found for fair-start check",
+            )
+        ]
+    employee_assignment = constructor_assignment(constructor_body, "employee")
+    if employee_assignment is not None:
+        violations.append(
+            Violation(
+                path,
+                line_number_for(text, employee_assignment),
+                "hospital-scale Timefold constructor must not preload employee assignments",
             )
         )
     return violations

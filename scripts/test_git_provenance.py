@@ -85,6 +85,13 @@ class WorktreeProvenanceTests(unittest.TestCase):
         self.assertTrue(provenance.dirty)
         self.assertIn("list-variable/local_adapter.py", provenance.dirty_paths)
 
+    def test_untracked_huge_scale_adapter_is_dirty(self) -> None:
+        (self.repo / "huge-scale").mkdir()
+        (self.repo / "huge-scale" / "local_adapter.py").write_text("VALUE = 3\n")
+        provenance = worktree_provenance(self.repo)
+        self.assertTrue(provenance.dirty)
+        self.assertIn("huge-scale/local_adapter.py", provenance.dirty_paths)
+
     def test_untracked_output_directory_is_pristine(self) -> None:
         exports = self.repo / "exports"
         exports.mkdir()

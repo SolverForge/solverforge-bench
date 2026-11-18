@@ -45,6 +45,7 @@ BENCHMARK_KEYS = {
     "cvrp": {"num_instances", "instances"},
     "employee-scheduling": {"dataset_set", "datasets"},
     "job-shop-scheduling": {"dataset_set", "datasets"},
+    "hospital-scale": {"dataset_set", "datasets", "time_limits"},
 }
 RUN_KIND_CHOICES = ("quick", "candidate", "tag")
 

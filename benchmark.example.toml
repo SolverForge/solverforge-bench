@@ -28,3 +28,8 @@ datasets = ["n005w4"]
 [benchmarks.job-shop-scheduling]
 dataset_set = "quick"
 datasets = ["ft06"]
+
+# The huge-scale suites accept their own time_limits, overriding the root value.
+[benchmarks.hospital-scale]
+dataset_set = "quick"
+time_limits = [300]

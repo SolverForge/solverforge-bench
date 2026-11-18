@@ -1,0 +1,21 @@
+[package]
+name = "solverforge-hospital-scale"
+version = "0.1.0"
+edition = "2021"
+description = "SolverForge hospital-at-scale rostering solver for benchmark comparison"
+publish = false
+
+[lib]
+name = "solverforge_hospital_scale"
+crate-type = ["cdylib"]
+
+[dependencies]
+solverforge = { version = "0.26.1", features = ["serde"] }
+tokio = { version = "1", features = ["sync", "rt", "time"] }
+pyo3 = { version = "0.28", features = ["extension-module"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = true

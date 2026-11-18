@@ -19,3 +19,7 @@ dataset_set = "canonical"
 
 [benchmarks.job-shop-scheduling]
 dataset_set = "canonical"
+
+[benchmarks.hospital-scale]
+dataset_set = "canonical"
+time_limits = [300]

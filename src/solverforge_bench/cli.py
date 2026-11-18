@@ -215,6 +215,8 @@ def _benchmark_root(repo_root: Path, benchmark_name: str) -> Path:
         return repo_root / "scalar-variable" / "employee-scheduling"
     if benchmark_name == "job-shop-scheduling":
         return repo_root / "scalar-variable" / "job-shop-scheduling"
+    if benchmark_name == "hospital-scale":
+        return repo_root / "huge-scale" / "hospital-scale"
     raise ValueError(f"Unknown benchmark: {benchmark_name}")
 
 

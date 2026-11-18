@@ -36,19 +36,22 @@ SOLVERFORGE_PY_GUARDRAIL_OUTPUT_DIR ?= build/solverforge-py-guardrails
 BENCH_CONFIG_ARG = $(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",)
 NIGHTLY_CONFIG_ARG = $(if $(findstring --config,$(NIGHTLY_ARGS)),,$(if $(BENCH_CONFIG),--config "$(BENCH_CONFIG)",--config "benchmark.nightly.example.toml"))
 BENCH_DB_ARGS := --postgres-url "$(DATABASE_URL)"
-BENCH_PYTHONPATH := src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src
+BENCH_PYTHONPATH := src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src:huge-scale/hospital-scale/src
 BENCH_CPU ?=
 CVRP_BENCH_CPU ?= $(if $(BENCH_CPU),$(BENCH_CPU),0)
 EMPLOYEE_BENCH_CPU ?= $(if $(BENCH_CPU),$(BENCH_CPU),1)
 JOBSHOP_BENCH_CPU ?= $(if $(BENCH_CPU),$(BENCH_CPU),2)
+HOSPITAL_SCALE_BENCH_CPU ?= $(if $(BENCH_CPU),$(BENCH_CPU),3)
 BENCH_LOCK_DIR ?= /tmp
 CVRP_BENCH_LOCK ?= $(BENCH_LOCK_DIR)/solverforge-bench-cpu-$(CVRP_BENCH_CPU).lock
 EMPLOYEE_BENCH_LOCK ?= $(BENCH_LOCK_DIR)/solverforge-bench-cpu-$(EMPLOYEE_BENCH_CPU).lock
 JOBSHOP_BENCH_LOCK ?= $(BENCH_LOCK_DIR)/solverforge-bench-cpu-$(JOBSHOP_BENCH_CPU).lock
+HOSPITAL_SCALE_BENCH_LOCK ?= $(BENCH_LOCK_DIR)/solverforge-bench-cpu-$(HOSPITAL_SCALE_BENCH_CPU).lock
 BENCH_ENV_COMMON := OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONPATH=$(BENCH_PYTHONPATH)
 PINNED_CVRP_BENCH := taskset -c $(CVRP_BENCH_CPU) env $(BENCH_ENV_COMMON) BENCH_CPU=$(CVRP_BENCH_CPU) BENCH_LOCK=$(CVRP_BENCH_LOCK)
 PINNED_EMPLOYEE_BENCH := taskset -c $(EMPLOYEE_BENCH_CPU) env $(BENCH_ENV_COMMON) BENCH_CPU=$(EMPLOYEE_BENCH_CPU) BENCH_LOCK=$(EMPLOYEE_BENCH_LOCK)
 PINNED_JOBSHOP_BENCH := taskset -c $(JOBSHOP_BENCH_CPU) env $(BENCH_ENV_COMMON) BENCH_CPU=$(JOBSHOP_BENCH_CPU) BENCH_LOCK=$(JOBSHOP_BENCH_LOCK)
+PINNED_HOSPITAL_SCALE_BENCH := taskset -c $(HOSPITAL_SCALE_BENCH_CPU) env $(BENCH_ENV_COMMON) BENCH_CPU=$(HOSPITAL_SCALE_BENCH_CPU) BENCH_LOCK=$(HOSPITAL_SCALE_BENCH_LOCK)
 # The thread study pins every thread count, 1 included, to the same CPU set:
 # one logical CPU per physical core by default, so threads never share a core.
 THREAD_STUDY_CPUS ?= 4,6,8,10
@@ -72,6 +75,9 @@ JOBSHOP_ROOT := scalar-variable/job-shop-scheduling
 JOBSHOP_SOLVERFORGE_DIR := $(JOBSHOP_ROOT)/src/job_shop_bench/solver/solverforge_jssp
 JOBSHOP_TIMEFOLD_POM := $(JOBSHOP_ROOT)/src/job_shop_bench/solver/timefold/pom.xml
 JOBSHOP_ORTOOLS_DIR := $(JOBSHOP_ROOT)/src/job_shop_bench/solver/ortools
+HOSPITAL_SCALE_ROOT := huge-scale/hospital-scale
+HOSPITAL_SCALE_SOLVERFORGE_DIR := $(HOSPITAL_SCALE_ROOT)/src/hospital_scale_bench/solver/solverforge_hospital
+HOSPITAL_SCALE_TIMEFOLD_POM := $(HOSPITAL_SCALE_ROOT)/src/hospital_scale_bench/solver/timefold/pom.xml
 DASH_ROOT := dash
 ORTOOLS_VERSION ?= 9.15.6755
 ORTOOLS_ARCHIVE ?= or-tools_amd64_opensuse-leap_cpp_v$(ORTOOLS_VERSION).tar.gz
@@ -99,11 +105,14 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-job-shop-scheduling-quick bench-job-shop-scheduling-quick-db \
 	bench-job-shop-scheduling-solverforge bench-job-shop-scheduling-solverforge-db \
 	bench-job-shop-scheduling-solverforge-quick bench-job-shop-scheduling-solverforge-quick-db \
+	build-hospital-scale build-hospital-scale-solverforge build-hospital-scale-timefold \
+	bench-hospital-scale bench-hospital-scale-db bench-hospital-scale-quick bench-hospital-scale-quick-db \
 	bench-nightly-db \
 	reaudit-legacy-publication \
 	verify-benchmark-contracts verify-reference-catalogs load-reference-catalogs verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
 	verify-solverforge-py-guardrail-contract verify-solverforge-py-smoke verify-solverforge-py-comparison verify-solverforge-py-release \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
+	validate-hospital-scale validate-hospital-scale-model-parity \
 	thread-study thread-study-report \
 	db-check db-create db-migrate db-reset normalize-results \
 	dash-setup dash-server dash-warehouse-check dash-smoke dash-test
@@ -172,7 +181,7 @@ verify-solverforge-py-release: banner install-python-deps verify-benchmark-contr
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity \
 	validate-job-shop-scheduling build-cvrp-solverforge \
 	build-employee-scheduling-solverforge build-job-shop-scheduling-solverforge
-	"$(PYTHON)" -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src scripts
+	"$(PYTHON)" -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src huge-scale/hospital-scale/src scripts
 	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/verify_solverforge_py_guardrails.py --mode release --output-dir "$(SOLVERFORGE_PY_GUARDRAIL_OUTPUT_DIR)" $(SOLVERFORGE_PY_GUARDRAIL_ARGS)
 
 venv:
@@ -317,17 +326,20 @@ bench-employee-scheduling-solverforge-quick: build-employee-scheduling-solverfor
 bench-employee-scheduling-solverforge-quick-db: build-employee-scheduling-solverforge db-migrate
 	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(BENCH_CONFIG_ARG) --run-kind quick --solver solverforge --datasets n005w4 --time-limits 1 10 $(BENCH_DB_ARGS) $(BENCH_ARGS)
 
-bench-nightly-db: build-cvrp build-employee-scheduling build-job-shop-scheduling db-migrate
+bench-nightly-db: build-cvrp build-employee-scheduling build-job-shop-scheduling build-hospital-scale db-migrate
 	$(PINNED_CVRP_BENCH) "$(PYTHON)" scripts/run_benchmark.py cvrp $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS) & \
 	cvrp_pid=$$!; \
 	$(PINNED_EMPLOYEE_BENCH) "$(PYTHON)" scripts/run_benchmark.py employee-scheduling $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS) & \
 	employee_pid=$$!; \
 	$(PINNED_JOBSHOP_BENCH) "$(PYTHON)" scripts/run_benchmark.py job-shop-scheduling $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS) & \
 	jobshop_pid=$$!; \
+	$(PINNED_HOSPITAL_SCALE_BENCH) "$(PYTHON)" scripts/run_benchmark.py hospital-scale $(NIGHTLY_CONFIG_ARG) $(BENCH_DB_ARGS) $(NIGHTLY_ARGS) & \
+	hospital_scale_pid=$$!; \
 	status=0; \
 	wait $$cvrp_pid || status=$$?; \
 	wait $$employee_pid || status=$$?; \
 	wait $$jobshop_pid || status=$$?; \
+	wait $$hospital_scale_pid || status=$$?; \
 	exit $$status
 
 validate-employee-scheduling: banner
@@ -383,6 +395,34 @@ bench-job-shop-scheduling-solverforge-quick-db: build-job-shop-scheduling-solver
 
 validate-job-shop-scheduling: banner
 	cd $(JOBSHOP_ROOT) && PYTHONPATH=../../src:src "$(PYTHON)" scripts/validate_all.py
+
+build-hospital-scale: banner install-python-deps build-hospital-scale-solverforge build-hospital-scale-timefold
+
+build-hospital-scale-solverforge: banner install-python-deps
+	cd $(HOSPITAL_SCALE_SOLVERFORGE_DIR) && maturin build --release --locked -i "$(PYTHON)"
+	PIP_DISABLE_PIP_VERSION_CHECK=1 "$(PIP)" install --force-reinstall $$(ls -t $(HOSPITAL_SCALE_SOLVERFORGE_DIR)/target/wheels/*.whl | head -1)
+
+build-hospital-scale-timefold: banner
+	$(MAVEN_ENV) mvn -f $(HOSPITAL_SCALE_TIMEFOLD_POM) package -q
+
+bench-hospital-scale: build-hospital-scale
+	$(PINNED_HOSPITAL_SCALE_BENCH) "$(PYTHON)" scripts/run_benchmark.py hospital-scale $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 300 $(BENCH_ARGS)
+
+bench-hospital-scale-db: build-hospital-scale db-migrate
+	$(PINNED_HOSPITAL_SCALE_BENCH) "$(PYTHON)" scripts/run_benchmark.py hospital-scale $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 300 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+
+bench-hospital-scale-quick: build-hospital-scale
+	$(PINNED_HOSPITAL_SCALE_BENCH) "$(PYTHON)" scripts/run_benchmark.py hospital-scale $(BENCH_CONFIG_ARG) --run-kind quick --dataset-set quick --time-limits 300 $(BENCH_ARGS)
+
+bench-hospital-scale-quick-db: build-hospital-scale db-migrate
+	$(PINNED_HOSPITAL_SCALE_BENCH) "$(PYTHON)" scripts/run_benchmark.py hospital-scale $(BENCH_CONFIG_ARG) --run-kind quick --dataset-set quick --time-limits 300 $(BENCH_DB_ARGS) $(BENCH_ARGS)
+
+validate-hospital-scale: banner
+	PYTHONPATH=src:$(HOSPITAL_SCALE_ROOT)/src "$(PYTHON)" $(HOSPITAL_SCALE_ROOT)/scripts/generate_instances.py --check
+	PYTHONPATH=src:$(HOSPITAL_SCALE_ROOT)/src "$(PYTHON)" $(HOSPITAL_SCALE_ROOT)/scripts/validate_all.py
+
+validate-hospital-scale-model-parity: banner
+	PYTHONPATH=src:$(HOSPITAL_SCALE_ROOT)/src "$(PYTHON)" $(HOSPITAL_SCALE_ROOT)/scripts/verify_model_parity.py
 
 # ============== Dashboard ==============
 # Read-only Rails dashboard over the benchmark warehouse. Rails keeps its own

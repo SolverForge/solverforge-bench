@@ -514,6 +514,7 @@ HARNESS_SOURCE_ROOTS = (
     "scripts",
     "list-variable",
     "scalar-variable",
+    "huge-scale",
 )
 
 

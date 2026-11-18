@@ -1,0 +1,35 @@
+{
+  "description": "Synthetic hospital rostering at scale, generated witness-first by hospital_scale_bench.generator. No official reference exists.",
+  "generator_version": 1,
+  "horizon_days": 28,
+  "instances": [
+    {
+      "name": "hs-e1000-s10000",
+      "employees": 1000,
+      "shifts": 10000,
+      "seed": 1001,
+      "instance_path": "instances/hs-e1000-s10000.json.gz",
+      "instance_sha256": "5355c2036cc8dc702bd0db7264dd1d0971b232c926c1c919aa4e3c0dd290e864",
+      "witness_path": "witnesses/hs-e1000-s10000.witness.json.gz",
+      "witness_sha256": "f5932b1322abd360bb67f0a54fce4b02f94aa1216d6c97756537687573999149"
+    },
+    {
+      "name": "hs-e10000-s100000",
+      "employees": 10000,
+      "shifts": 100000,
+      "seed": 10001,
+      "instance_path": "instances/hs-e10000-s100000.json.gz",
+      "instance_sha256": "3c7a0b5e98469d2f8ef40c9a1501a3f1bb2aadd5bb4a588a5b8d943f11b9b023",
+      "witness_path": "witnesses/hs-e10000-s100000.witness.json.gz",
+      "witness_sha256": "aa4195c9adca5c6f2eaf30e0f09e66dcf40f8fbc03a399d78dca66662ecd9f3e"
+    }
+  ],
+  "groups": {
+    "quick": [
+      "hs-e1000-s10000"
+    ],
+    "canonical": [
+      "hs-e10000-s100000"
+    ]
+  }
+}
