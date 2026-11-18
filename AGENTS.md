@@ -31,6 +31,22 @@
   `data/jsplib/`, a SolverForge Rust/PyO3 adapter under
   `solver/solverforge_jssp/`, a Timefold Java adapter under `solver/timefold/`,
   and an OR-Tools C++ CP-SAT adapter under `solver/ortools/`.
+- `huge-scale/hospital-scale/` contains the huge-scale category benchmark:
+  synthetic hospital rostering with the solverforge-hospital ruleset at up to
+  100,000 shifts and 10,000 employees. Source lives in `src/hospital_scale_bench/`,
+  the hash-pinned generated corpus and hidden witnesses under `data/hospital/`,
+  a SolverForge Rust/PyO3 adapter under `solver/solverforge_hospital/`, and a
+  Timefold Java adapter under `solver/timefold/`. It compares only native
+  `solverforge` and `timefold`.
+- `huge-scale/delivery-scale/` is the second huge-scale benchmark: synthetic
+  delivery routing with time windows under the solverforge-deliveries ruleset
+  at 10,000 stops. Source lives in `src/delivery_scale_bench/`, the hash-pinned
+  corpus and hidden witnesses under `data/deliveries/`, a SolverForge Rust/PyO3
+  adapter on the stock routing model under `solver/solverforge_deliveries/`, and
+  a Timefold Java adapter under `solver/timefold/`. 20,000 stops is the ceiling
+  of SolverForge's dense routing matrices on this host; do not raise it.
+  Corpus hashing and gzip JSON encoding for both huge-scale suites live in
+  `src/solverforge_bench/corpus.py`.
 - `dash/` contains the read-only Rails 8 benchmark dashboard. It reads the
   PostgreSQL warehouse views (`latest_benchmark_runs`, `benchmark_result_facts`,
   `latest_benchmark_result_facts`) and owns no benchmark data. Rails framework
@@ -46,8 +62,8 @@
   creates the single repository virtualenv used by all benchmark commands.
 - `make install-python-deps` creates or refreshes that root `.venv` from the
   Makefile.
-- The CVRP, employee-scheduling, and job-shop native SolverForge adapters are
-  pinned to the published SolverForge `0.26.1` crates and committed registry
+- The CVRP, employee-scheduling, job-shop, hospital-scale, and delivery-scale native
+  SolverForge adapters are pinned to the published SolverForge `0.26.1` crates and committed registry
   lockfiles. A git-locked SolverForge dependency reports
   `<version>+git.<commit>` in provenance. The `solverforge-py` adapters use the
   exact published `solverforge==0.7.2` Python wheel.
@@ -57,8 +73,9 @@
   `solverforge-t<N>` variants stay out of every `DEFAULT_METHODS`; never
   publish them beside other solvers.
 - Benchmark run targets pin the shared harness with per-suite CPU defaults:
-  `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`, and
-  `JOBSHOP_BENCH_CPU ?= 2`. They also set `OMP_NUM_THREADS=1`,
+  `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`,
+  `JOBSHOP_BENCH_CPU ?= 2`, `HOSPITAL_SCALE_BENCH_CPU ?= 3`, and
+  `DELIVERY_SCALE_BENCH_CPU ?= 4`. They also set `OMP_NUM_THREADS=1`,
   `MKL_NUM_THREADS=1`, and per-core `BENCH_LOCK` values so different suites can
   run in parallel while accidental same-core runs serialize. `BENCH_CPU=<n>`
   intentionally forces all suites onto one core.
@@ -94,9 +111,21 @@
 - `make bench-job-shop-scheduling-quick-db` does the same quick
   job-shop-scheduling run, applies database migrations first, and persists the
   run to PostgreSQL.
+- `make validate-hospital-scale` checks the hospital-scale corpus reproduces
+  byte-for-byte from its generator and that every hidden witness is
+  hard-feasible. `make validate-hospital-scale-model-parity` checks that both
+  solver models carry the validator's ruleset. `make build-hospital-scale`,
+  `make bench-hospital-scale-quick`, and `make bench-hospital-scale` (with
+  `-db` variants) build and run the suite. Every run uses one 300-second
+  budget.
+- `make validate-delivery-scale`, `make validate-delivery-scale-model-parity`,
+  `make build-delivery-scale`, `make bench-delivery-scale-quick`, and
+  `make bench-delivery-scale` (with `-db` variants) do the same for
+  delivery-scale, also at one 300-second budget.
 - `make bench-nightly-db` is the cronable nightly entrypoint: it builds all
   benchmark stacks, applies migrations once, then invokes the canonical root
-  harness directly for CVRP, employee scheduling, and job-shop scheduling. It
+  harness directly for CVRP, employee scheduling, job-shop scheduling,
+  hospital-scale, and delivery-scale. It
   uses `benchmark.nightly.example.toml` by default and persists all runs to
   PostgreSQL.
 - `make validate-employee-model-parity` verifies that the employee-scheduling
@@ -151,13 +180,17 @@ benchmark target. For employee scheduling, run
 `make bench-employee-scheduling-quick`. For job-shop scheduling, run
 `make validate-job-shop-scheduling` plus `make bench-job-shop-scheduling-quick`
 or a focused root harness run with `--solver` when only one adapter changed. For
-PostgreSQL or run-catalog changes, also run `make db-migrate` and at least one
+hospital-scale, run `make validate-hospital-scale`,
+`make validate-hospital-scale-model-parity`, and
+`make bench-hospital-scale-quick`; for delivery-scale, the matching
+`*-delivery-scale*` targets. Never regenerate either corpus to make a run
+look better: a generator change is a new corpus version. For PostgreSQL or run-catalog changes, also run `make db-migrate` and at least one
 `*-db` dry run or smoke run. When adding a dataset or solver, include a small
 deterministic run and confirm failures are solution failures, not loader or
 adapter errors.
 
 For CI or documentation contract changes, also verify Python syntax with
-`python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src scripts`,
+`python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src huge-scale/hospital-scale/src huge-scale/delivery-scale/src scripts`,
 run `make verify-benchmark-contracts`, run `make verify-fair-start`, run
 `make verify-solverforge-config-parity`, and parse `benchmark*.toml` with
 `tomllib` or an equivalent TOML parser.
@@ -244,7 +277,14 @@ an unassigned callback-required employee shift, and a JSSP operation that is
 missing, duplicated, wrong-owner, cyclic, or otherwise unassigned. They must
 not return a prior best after cancellation. Such output is a failed solver
 invocation, not a solution to send to the validator. Optional employee shifts
-may remain unassigned.
+may remain unassigned. Both hospital-scale wrappers reject any unassigned shift
+the same way; every hospital-scale shift is required. Both delivery-scale
+wrappers reject a plan that misses or repeats a delivery.
+
+Hospital-scale and delivery-scale instances are synthetic: they carry no
+reference value, and no
+solver result may stand in for one. Their hidden witnesses prove feasibility
+only and stay out of every solver path.
 
 Do not reintroduce `standard-variable`, `CoverageGroup`, `coverage_first_fit`,
 or benchmark-local scoring internals for employee scheduling. The active

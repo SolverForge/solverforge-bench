@@ -26,12 +26,13 @@ Every tracked file at the repository root and its role:
   shared dependencies (`polars`, `pydantic`, `pyvrp`, `vrplib`, `hygese`,
   `highspy`,
   `psycopg[binary]`, exact `solverforge==0.7.2`), package discovery across the
-  four source roots, and per-benchmark `solverforge_py.toml` package data.
+  five source roots, and per-benchmark `solverforge_py.toml` package data.
 - `benchmark.example.toml` — documents the TOML configuration surface with a
   minimal quick-run CVRP example.
 - `benchmark.nightly.example.toml` — documents the combined nightly benchmark
   job configuration (canonical dataset sets, `run_kind = "candidate"`,
-  `nightly = true`, PostgreSQL persistence enabled).
+  `nightly = true`, PostgreSQL persistence enabled, both huge-scale suites at
+  their own single 300-second budget).
 - `benchmark.nightly.toml` — tracked ready-to-use nightly configuration,
   currently identical to the example file.
 - `benchmark.thread-study.toml` — thread-study configuration: native
@@ -61,6 +62,14 @@ Every tracked file at the repository root and its role:
   package for INRC-II nurse scheduling.
 - `scalar-variable/job-shop-scheduling/` is the scalar-variable benchmark
   package for classic JSPLIB job-shop scheduling.
+- `huge-scale/hospital-scale/` is the huge-scale benchmark package: synthetic
+  hospital rostering with the solverforge-hospital ruleset at up to 100,000
+  shifts and 10,000 employees.
+- `huge-scale/delivery-scale/` is the second huge-scale benchmark package:
+  synthetic delivery routing with time windows under the solverforge-deliveries
+  ruleset at 10,000 stops.
+- `src/solverforge_bench/corpus.py` holds the deterministic gzip JSON encoding,
+  SHA-256 manifest checks, and drift check both huge-scale corpora share.
 - `dash/` is the read-only Rails 8 benchmark dashboard (see Dashboard). It
   writes no benchmark rows and runs no warehouse migrations; Rails framework
   metadata (Solid Cache/Queue/Cable) stays in local SQLite under `dash/storage/`,
@@ -84,7 +93,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
 | --- | --- |
 | `cli.py` | CLI argument parsing, TOML load, benchmark selection, solver-name validation, run catalog finalization |
 | `config.py` | Typed TOML configuration values (`values` + per-benchmark `benchmark_values`) |
-| `registry.py` | Canonical benchmark spec registry: `cvrp`, `employee-scheduling`, `job-shop-scheduling` |
+| `registry.py` | Canonical benchmark spec registry: `cvrp`, `employee-scheduling`, `job-shop-scheduling`, `hospital-scale`, `delivery-scale` |
 | `model.py` | Core dataclasses: `Evaluation`, `BenchmarkRow`, `SolverResult`, `FairStartWitness`, solver exception types (`NoSolutionFoundError`, `SolverExecutionError`, …), `BenchmarkRow.as_dict()` |
 | `matrix.py` | Exact benchmark matrix construction and completion tracking (expected keys, hashes) |
 | `runner.py` | Orchestration loop: case materialization, `case -> time_limit -> solver` iteration, row assembly, output completion attestation |
@@ -105,7 +114,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
 
 | Script | Role |
 | --- | --- |
-| `run_benchmark.py` | Unified root harness entrypoint; bootstraps `.venv`, extends `sys.path` with all four source roots, delegates to `solverforge_bench.cli.main` |
+| `run_benchmark.py` | Unified root harness entrypoint; bootstraps `.venv`, extends `sys.path` with all five source roots, delegates to `solverforge_bench.cli.main` |
 | `_venv_bootstrap.py` | Shared virtualenv bootstrap helper for scripts that need the repo `.venv` |
 | `verify_fair_start.py` | Static fair-start source checks over all active adapters; `--run-id` mode verifies persisted witness rows in PostgreSQL |
 | `verify_solverforge_config_parity.py` | Parses each native/Python SolverForge TOML pair, requires semantic equality plus the qualified strongest-policy hash |
@@ -124,7 +133,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
 
 ## Shared Harness Flow
 
-1. `scripts/run_benchmark.py` bootstraps into the root `.venv`, adds the four
+1. `scripts/run_benchmark.py` bootstraps into the root `.venv`, adds the five
    source roots to `sys.path`, and delegates to `solverforge_bench.cli.main`.
    Benchmark-local scripts such as
    `scalar-variable/employee-scheduling/scripts/verify_model_parity.py` use the
@@ -133,7 +142,8 @@ Every module in `src/solverforge_bench/` and its single ownership:
    applies CLI overrides, finalizes run catalog fields, validates solver names,
    and passes the selected spec to `runner.py`.
 3. `registry.py` exposes the canonical benchmark specs: `cvrp`,
-   `employee-scheduling`, and `job-shop-scheduling`.
+   `employee-scheduling`, `job-shop-scheduling`, `hospital-scale`, and
+   `delivery-scale`.
 4. `runner.py` materializes a nonempty, duplicate-free case list, positive
    unique time limits, unique solvers, and the complete expected Cartesian
    matrix. It resolves content-hashed runtime provenance before opening output,
@@ -169,6 +179,8 @@ Every module in `src/solverforge_bench/` and its single ownership:
 | `cvrp` | `list_variable` | `pyvrp`, `ortools`, `vroom`, `timefold`, `rustvrp`, `pyhygese`, `highs`, `solverforge`, `solverforge-py` | `pyvrp`, `ortools`, `timefold`, `pyhygese`, `highs`, `solverforge`, `solverforge-py` | `1`, `10`, `60` | none |
 | `employee-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools`, `highs` | same as registered | `1`, `10`, `60` | `nurses`, `weeks`, `validator_model_delta`, `score_drift` |
 | `job-shop-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools`, `highs` | same as registered | `1`, `10`, `60` | `num_jobs`, `num_machines`, `num_operations`, `source_family`, `known_best_makespan`, `lower_bound_makespan`, `upper_bound_makespan`, `makespan_gap_to_best`, `makespan_gap_to_reference` |
+| `hospital-scale` | `huge_scale` | `solverforge`, `timefold` | same as registered | `300` | `employees`, `shifts`, `generator_version`, `validator_model_delta`, `score_drift`, `unassigned_shifts`, `solver_metadata` |
+| `delivery-scale` | `huge_scale` | `solverforge`, `timefold` | same as registered | `300` | `deliveries`, `vehicles`, `generator_version`, `validator_model_delta`, `score_drift`, `unassigned_deliveries`, `solver_metadata` |
 
 ## CVRP Adapter Shape
 
@@ -359,6 +371,84 @@ Every module in `src/solverforge_bench/` and its single ownership:
   preserving optional unassigned shifts. Native adapters accept a solution
   only from `Completed`, never from a prior best after cancellation.
 
+## Hospital-Scale Adapter Shape
+
+- Data lives under `huge-scale/hospital-scale/data/hospital/`: gzip JSON
+  instances in `instances/`, hidden feasibility witnesses in `witnesses/`, and
+  `manifest.json` pinning each file's SHA-256, the generator version, and the
+  dataset groups (`quick`: `hs-e1000-s10000`, a smoke test; `canonical`:
+  `hs-e10000-s100000` only).
+- `generator.py` builds each instance witness-first from a fixed seed over a
+  28-day horizon, seven care hubs, 17 skills, and five shift templates.
+  `scripts/generate_instances.py --check` fails on any drift between the
+  committed corpus and the generator. `scripts/validate_all.py` proves every
+  witness hard-feasible with the benchmark validator and inside the shared
+  candidate domain. Both scripts run as `make validate-hospital-scale`.
+- `loader.py` refuses any file whose SHA-256 differs from the manifest.
+  `domain/models.py` holds the dataclass instance and the Pydantic `Solution`
+  (one employee id per shift, in instance order).
+- `validation.py` is the referee. The hard rules are assignment, required
+  skill, overlap, 10-hour rest, one shift per calendar day touched, and
+  unavailable days; it raises on the first violation. The soft cost is
+  +10 per undesired day, -10 per desired day, plus the sum of squared
+  per-employee shift counts.
+- `solver/instance_json.py` emits the single solver-input document, including
+  the per-skill `skill_candidates` domain both models read.
+  `solver/output.py` rejects any roster with an unassigned shift as
+  `NoSolutionFoundError` before validation.
+- `solver/solverforge_hospital/` is the Rust/PyO3 model on the published
+  SolverForge `0.26.1` crates with a committed registry lockfile. It defines
+  nine named constraints with weights mirrored in Timefold, per-skill candidate
+  values, constant-time nearby meters, and a bounded same-skill neighbourhood of
+  16 shifts on each side for nearby swaps. `solver.toml` sets only the seed and
+  `non_reproducible` mode, so construction and local search are the
+  SolverForge defaults.
+- `solver/timefold/` is the Java fat JAR on Timefold `2.7.1`: an
+  `allowsUnassigned` employee variable with the shared per-skill value range,
+  stock default phases, seed `1`, and a `spentLimit` termination.
+- `scripts/verify_model_parity.py`
+  (`make validate-hospital-scale-model-parity`) requires both models to name
+  the same nine constraints, carry the validator's weight constants, and read
+  `skill_candidates`.
+- SolverForge starts every shift with `employee_idx: None`; the Timefold
+  `Shift` constructor never sets `employee`. Both wrappers emit the fair-start
+  witness before solving.
+
+## Delivery-Scale Adapter Shape
+
+- Data lives under `huge-scale/delivery-scale/data/deliveries/` in the same
+  hash-pinned layout as hospital-scale (`quick`: `ds-s2000`, 2,000 stops on 49
+  vehicles; `canonical`: `ds-s10000`, 10,000 stops on 239 vehicles).
+- `generator.py` draws stops on a 30 km plane around one central depot, mostly
+  in 60 neighbourhood clusters, builds a hidden fleet plan (depot sweep cut by
+  capacity 200, 45 stops, and a 22:00 day end; nearest-neighbour order), then
+  places every time window around that plan's service time. The fleet is the
+  witness route count plus 5% spare. `make validate-delivery-scale` runs the
+  drift check and proves every witness feasible.
+- `validation.py` is the referee: every delivery exactly once, routes not
+  exceeding vehicles, capacity, and every service ending by its window's end
+  (early vehicles wait). The soft cost is total travel seconds, depot to depot.
+  Travel time is Euclidean metres over 10 m/s, rounded half up.
+- `solver/output.py` rejects a plan that misses a delivery as
+  `NoSolutionFoundError`, and an unknown or repeated delivery as an adapter
+  error, before validation.
+- `solver/solverforge_deliveries/` is the Rust/PyO3 model on the stock
+  `solverforge::cvrp` routing model (dense `ProblemData` matrices built from
+  coordinates, which caps the suite at 20,000 stops on this host) with the
+  solverforge-deliveries constraints and cascading route shadows. Its
+  Clarke-Wright hooks check `route_feasible`. `solver.toml` is the
+  solverforge-deliveries policy with construction switched to
+  `list_cheapest_insertion` and the ruin move selector removed.
+- `solver/timefold/` is the Java fat JAR on Timefold `2.7.1`: a
+  `@PlanningListVariable` route per vehicle, travel computed from coordinates,
+  stock default phases, seed `1`, and a `spentLimit` termination.
+- `scripts/verify_model_parity.py`
+  (`make validate-delivery-scale-model-parity`) requires both models to name
+  the same four constraints, carry the same unassigned-delivery weight, and use
+  the validator's travel rule.
+- Both models start every route empty; `make verify-fair-start` checks the
+  SolverForge `Vec::new()` routes and the Timefold constructors.
+
 ## Cross-Cutting Fairness, Witness, and Provenance Contract
 
 - The only acceptable initial planning state is unassigned scalar variables or
@@ -372,10 +462,10 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `make verify-fair-start-rows RUN_ID=<uuid>`.
 - Runtime provenance hashes the actually invoked distribution, executable,
   native binary, or JAR; manifest declarations alone are not provenance. The
-  per-solver pins are: native SolverForge `0.26.1` for CVRP, employee, and
-  job-shop with committed registry lockfiles (a git-locked dependency would
+  per-solver pins are: native SolverForge `0.26.1` for CVRP, employee,
+  job-shop, hospital-scale, and delivery-scale with committed registry lockfiles (a git-locked dependency would
   report `<version>+git.<commit>`), Python `solverforge==0.7.2`,
-  Timefold `2.7.1` (all three `pom.xml` files), OR-Tools `9.15.6755`
+  Timefold `2.7.1` (all four `pom.xml` files), OR-Tools `9.15.6755`
   (`ORTOOLS_VERSION` in the root Makefile).
 - Native and Python SolverForge adapters keep separate configuration files per
   workload; `make verify-solverforge-config-parity` enforces semantic
@@ -464,7 +554,8 @@ Views:
   inside an otherwise complete matrix.
 - Source-tree provenance: `git_dirty` is true when tracked files differ from
   `HEAD` or untracked files exist under a harness source root (`src/`,
-  `scripts/`, `list-variable/`, `scalar-variable/`); untracked runtime output
+  `scripts/`, `list-variable/`, `scalar-variable/`, `huge-scale/`); untracked
+  runtime output
   elsewhere is recorded in `benchmark_runs.metadata.worktree` without failing
   the gate. `worktree_provenance()` in `src/solverforge_bench/postgres.py` owns
   the rule.
@@ -486,6 +577,12 @@ Virtualenv and validators:
 - `make validate-employee-model-parity` verifies that the employee-scheduling
   validator, OR-Tools model, Timefold model, and SolverForge model encode the
   same hard-feasibility clauses, candidate domains, and soft objective weights.
+- `make validate-hospital-scale` checks the hospital-scale corpus against its
+  generator and proves every hidden witness hard-feasible;
+  `make validate-hospital-scale-model-parity` checks the SolverForge and
+  Timefold models against the validator's ruleset.
+- `make validate-delivery-scale` and `make validate-delivery-scale-model-parity`
+  do the same for delivery-scale.
 
 Builds:
 
@@ -495,6 +592,10 @@ Builds:
   Timefold, SolverForge, and OR-Tools integrations.
 - `make build-job-shop-scheduling` builds Python dependencies plus job-shop
   Timefold, SolverForge, and OR-Tools integrations.
+- `make build-hospital-scale` builds Python dependencies plus the hospital-scale
+  SolverForge wheel and Timefold JAR.
+- `make build-delivery-scale` builds the delivery-scale SolverForge wheel and
+  Timefold JAR.
 
 Contract gates:
 
@@ -540,11 +641,17 @@ Benchmark runs:
 - Canonical paths: `make bench-cvrp`, `make bench-employee-scheduling`, and
   `make bench-job-shop-scheduling` run at 1, 10, and 60 seconds, with `-db`
   and SolverForge-only variants.
+- `make bench-hospital-scale-quick` runs `hs-e1000-s10000` and
+  `make bench-hospital-scale` runs the canonical group, both at 300 seconds.
+  Both have `-db` variants.
+- `make bench-delivery-scale-quick` runs `ds-s2000` and
+  `make bench-delivery-scale` runs `ds-s10000`, both at 300 seconds, with
+  `-db` variants.
 - `make bench-nightly-db` builds all benchmark stacks, applies migrations once,
-  and invokes the root harness for all three benchmarks in parallel on their
+  and invokes the root harness for all four benchmarks in parallel on their
   per-suite pinned cores.
 - Per-suite pinned cores: `CVRP_BENCH_CPU ?= 0`, `EMPLOYEE_BENCH_CPU ?= 1`,
-  `JOBSHOP_BENCH_CPU ?= 2`, with `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, and
+  `JOBSHOP_BENCH_CPU ?= 2`, `HOSPITAL_SCALE_BENCH_CPU ?= 3`, with `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, and
   per-core `BENCH_LOCK` values. `BENCH_CPU=<n>` intentionally forces all
   suites onto one core.
 - Override child harness arguments with `BENCH_ARGS`, nightly child arguments
@@ -585,6 +692,9 @@ Dashboard:
 - `[benchmarks.cvrp]` accepts `num_instances` and `instances`.
 - `[benchmarks.employee-scheduling]` accepts `dataset_set` and `datasets`.
 - `[benchmarks.job-shop-scheduling]` accepts `dataset_set` and `datasets`.
+- `[benchmarks.hospital-scale]` and `[benchmarks.delivery-scale]` accept
+  `dataset_set`, `datasets`, and `time_limits`; their `time_limits` override
+  the root value for that suite only.
 - `run_kind` is one of `quick`, `candidate`, or `tag`; `tag` requires
   `release_tag`.
 - A CLI `--postgres-url` enables PostgreSQL persistence unless
@@ -604,6 +714,10 @@ Dashboard:
   `scalar-variable/employee-scheduling/data/benchmark_employee_scheduling_<stamp>.csv`.
 - Job-shop scheduling output defaults to
   `scalar-variable/job-shop-scheduling/data/benchmark_job_shop_scheduling_<stamp>.csv`.
+- Hospital-scale output defaults to
+  `huge-scale/hospital-scale/data/benchmark_hospital_scale_<stamp>.csv`.
+- Delivery-scale output defaults to
+  `huge-scale/delivery-scale/data/benchmark_delivery_scale_<stamp>.csv`.
 - Harness logs (run log plus per-solver stdout/stderr captures) are written
   under `logs/<benchmark>_<stamp>/`.
 - SolverForge-Py guardrail CSVs, logs, and `summary.json` are written under
@@ -614,6 +728,10 @@ Dashboard:
   `scalar-variable/employee-scheduling/data/artifacts/employee_scheduling_<stamp>/`.
 - Job-shop scheduling solution artifacts are written under
   `scalar-variable/job-shop-scheduling/data/artifacts/job_shop_scheduling_<stamp>/`.
+- Hospital-scale solution artifacts are written under
+  `huge-scale/hospital-scale/data/artifacts/hospital_scale_<stamp>/`.
+- Delivery-scale solution artifacts are written under
+  `huge-scale/delivery-scale/data/artifacts/delivery_scale_<stamp>/`.
 - PostgreSQL persistence writes rows immediately as each result completes;
   interrupted runs keep partial rows but stay excluded from latest-run views
   unless their run status is `completed`.
@@ -627,11 +745,13 @@ Dashboard:
   `make install-python-deps HOST_PYTHON=...`, compiles Python source with
   `compileall -q` over `src`, `list-variable/cvrp/src`,
   `scalar-variable/employee-scheduling/src`,
-  `scalar-variable/job-shop-scheduling/src`, and `scripts`, parses the
+  `scalar-variable/job-shop-scheduling/src`, `huge-scale/hospital-scale/src`,
+  `huge-scale/delivery-scale/src`, and `scripts`, parses the
   benchmark TOML examples, verifies SolverForge config parity, the shared
   matrix/provenance contract (`verify-benchmark-contracts`), the Python
   guardrail regression contract, the fair-start witness contract, validates
-  bundled CVRP instances, and validates employee model parity. GitHub uses
+  bundled CVRP instances, validates employee model parity, and validates the
+  corpus and model parity of both huge-scale suites. GitHub uses
   `actions/setup-python@v6`; Forgejo bootstraps Python 3.14 from the runner
   because the local Forgejo action mirror does not provide that interpreter.
 - Rust CI runs on `ubuntu-latest` in `.github/workflows/ci.yml` (GitHub Rust
@@ -640,9 +760,9 @@ Dashboard:
   checks formatting, runs
   `cargo clippy --locked --all-targets -- -D warnings`, and runs
   `cargo build --locked` for the CVRP SolverForge adapter, CVRP rustvrp
-  adapter, employee SolverForge adapter, and job-shop SolverForge adapter.
-  The CVRP, employee, and job-shop manifests and lockfiles target
-  SolverForge `0.26.1`.
+  adapter, employee SolverForge adapter, job-shop SolverForge adapter, and
+  both huge-scale SolverForge adapters. All five SolverForge manifests and
+  lockfiles target SolverForge `0.26.1`.
 - The dashboard has no CI jobs yet; adding Rails checks to both workflows is
   the known follow-up.
 

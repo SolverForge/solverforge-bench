@@ -39,6 +39,17 @@ See `WIREFRAME.md` for the current as-built repository map.
   covers, from zero starts. The SolverForge adapter maps JSPLIB data into stock list
   variables and the upstream `ListPrecedenceMakespanConstraint`; it does not
   provide benchmark-local search helpers or warm-start schedules.
+- `huge-scale/hospital-scale/` is the huge-scale category (`huge_scale`): a
+  synthetic hospital rostering problem with the solverforge-hospital ruleset at
+  up to 100,000 shifts and 10,000 employees. It compares native `solverforge`
+  and `timefold` only. Instances are generated, not official, so rows carry no
+  reference value and compare on validator cost.
+- `huge-scale/delivery-scale/` is the second huge-scale benchmark: synthetic
+  delivery routing with time windows under the solverforge-deliveries ruleset,
+  at 10,000 stops on a fixed fleet. It compares native `solverforge` (the stock
+  SolverForge routing model) and `timefold`. 20,000 stops is the ceiling for
+  SolverForge's routing model on this host: it holds two full stop-to-stop
+  matrices, 6.4 GB at 20,000 stops and 40 GB at 50,000.
 
 ## Documentation Map
 
@@ -92,8 +103,8 @@ the exact published `solverforge==0.7.2` wheel into the same `.venv`, so
 `solverforge-py` benchmark rows never depend on global Python packages or a
 sibling checkout.
 
-The CVRP, employee-scheduling, and job-shop native SolverForge adapters are
-pinned to the exact published SolverForge `0.26.1` crates with committed
+The CVRP, employee-scheduling, job-shop, hospital-scale, and delivery-scale
+native SolverForge adapters are pinned to the exact published SolverForge `0.26.1` crates with committed
 registry lockfiles. A git-locked SolverForge dependency, when an adapter
 temporarily tracks unreleased work, reports its version as
 `<crate version>+git.<commit>`. The `solverforge-py` adapters require the exact
@@ -108,11 +119,17 @@ and JSSP intentionally leave phases unspecified so both bindings select the
 same model-aware SolverForge defaults. At runtime, both adapters change only
 the requested termination seconds. `make verify-solverforge-config-parity`
 rejects semantic drift and also rejects replacing both files with an equally
-weaker policy.
+weaker policy. Hospital-scale has no Python adapter, so its single native
+`solver.toml` sets only the seed and leaves phases to the SolverForge defaults.
+Delivery-scale has no Python adapter either; its `solver.toml` is the
+solverforge-deliveries policy with construction switched to
+`list_cheapest_insertion` and the ruin move selector removed (see
+Delivery-Scale Commands).
 
 Benchmark run targets execute the shared harness through `taskset` with
 different default pinned cores: `CVRP_BENCH_CPU ?= 0`,
-`EMPLOYEE_BENCH_CPU ?= 1`, and `JOBSHOP_BENCH_CPU ?= 2`. They set
+`EMPLOYEE_BENCH_CPU ?= 1`, `JOBSHOP_BENCH_CPU ?= 2`,
+`HOSPITAL_SCALE_BENCH_CPU ?= 3`, and `DELIVERY_SCALE_BENCH_CPU ?= 4`. They set
 `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, and a per-core `BENCH_LOCK`; runs on
 different cores can proceed in parallel, while accidental same-core runs
 serialize. Set `BENCH_CPU=<n>` to intentionally force all suites onto one core.
@@ -209,17 +226,19 @@ GitHub's `ubuntu-latest` jobs. The Python jobs set up Python 3.14, create the
 root `.venv` with `make install-python-deps HOST_PYTHON=...`, compile the
 source trees including job-shop scheduling, parse `benchmark*.toml`, run
 `make verify-solverforge-py-guardrail-contract`, run `make verify-fair-start`,
-run `make validate-cvrp`, and run
-`make validate-employee-model-parity`. The parity script requires that root
+run `make validate-cvrp`, run `make validate-employee-model-parity`, and run
+the corpus and model-parity validators of both huge-scale suites. The parity script requires that root
 `.venv`, so CI must use the Makefile bootstrap instead of a detached
 `python -m pip install -e .`.
 
-The Rust jobs keep `--locked` resolution strict. The CVRP, employee, and
-job-shop SolverForge manifests and lockfiles target SolverForge `0.26.1`. The jobs set the PyO3 Python
+The Rust jobs keep `--locked` resolution strict. The CVRP, employee,
+job-shop, hospital-scale, and delivery-scale SolverForge manifests and
+lockfiles target SolverForge `0.26.1`. The jobs set the PyO3 Python
 environment from `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
 for the CVRP SolverForge adapter, CVRP rustvrp adapter, employee scheduling
-SolverForge adapter, and job-shop scheduling SolverForge adapter. GitHub uses
+SolverForge adapter, job-shop scheduling SolverForge adapter, and both
+huge-scale SolverForge adapters. GitHub uses
 the hosted setup actions; Forgejo uses the local `python` and `rust` runner
 labels and installs Python 3.14 through a shell bootstrap before invoking the
 same Makefile targets.
@@ -332,6 +351,104 @@ In the current bundled manifest, `quick` contains `ft06` and `la01`, while
 upstream source URL and known optimum or lower/upper bounds when the upstream
 metadata provides them.
 
+## Hospital-Scale Commands
+
+Check that the committed corpus reproduces from its generator and that every
+instance has a hard-feasible hidden witness, then check that both solver models
+encode the validator's ruleset:
+
+```sh
+make validate-hospital-scale
+make validate-hospital-scale-model-parity
+```
+
+Build both integrations and run the quick or canonical benchmark:
+
+```sh
+make build-hospital-scale
+make bench-hospital-scale-quick
+make bench-hospital-scale
+```
+
+The corpus lives in `huge-scale/hospital-scale/data/hospital/`. `manifest.json`
+pins the SHA-256 of every gzip instance and witness:
+
+| Instance | Employees | Shifts | Group |
+| --- | --- | --- | --- |
+| `hs-e1000-s10000` | 1,000 | 10,000 | `quick` (smoke test only) |
+| `hs-e10000-s100000` | 10,000 | 100,000 | `canonical` |
+
+Each instance covers a 28-day horizon over seven care hubs, 17 skills, and
+five shift templates (early, day, late, 12-hour long day, overnight).
+`scripts/generate_instances.py` draws a feasible hidden roster first and
+derives shifts, unavailability, and day preferences from it. `--check`
+regenerates everything in memory and fails on any byte of drift. The witness is
+read only by `scripts/validate_all.py`; no solver receives it.
+
+The ruleset is solverforge-hospital's. Hard rules: every shift assigned, the
+required skill held, no overlapping shifts, at least 10 hours of rest between
+shifts, at most one shift per calendar day touched, and no shift touching an
+unavailable day. Soft cost: +10 per undesired day touched, -10 per desired day
+touched, and the sum over employees of the squared shift count. The squared
+count replaces solverforge-hospital's standard-deviation balance so that both
+solvers and the validator compute the same integer. Both models receive the same
+per-skill candidate domain from the shared input document.
+
+Every hospital-scale run, quick, canonical, and nightly, uses one 300-second
+budget. `[benchmarks.hospital-scale]` accepts its own `time_limits`, which
+override the root `time_limits` for this suite only. A run that ends with any
+unassigned shift is a `no_solution` row, never a partial roster sent to the
+validator.
+
+## Delivery-Scale Commands
+
+```sh
+make validate-delivery-scale
+make validate-delivery-scale-model-parity
+make build-delivery-scale
+make bench-delivery-scale-quick
+make bench-delivery-scale
+```
+
+The corpus lives in `huge-scale/delivery-scale/data/deliveries/`, hash-pinned
+by `manifest.json` like hospital-scale:
+
+| Instance | Stops | Vehicles | Group |
+| --- | --- | --- | --- |
+| `ds-s2000` | 2,000 | 49 | `quick` |
+| `ds-s10000` | 10,000 | 239 | `canonical` |
+
+Stops lie on a 30 km by 30 km plane around one central depot, mostly in 60
+neighbourhood clusters. Travel time is the Euclidean distance at 10 m/s,
+rounded half up to whole seconds; the validator and both models compute it the
+same way. `generator.py` builds a hidden fleet plan first: it sweeps around the
+depot, cuts routes by capacity 200, 45 stops, and a 22:00 day end, and orders
+each route by nearest neighbour. It then places every time window around that
+plan's service time. The fleet is the witness route count plus 5% spare.
+
+The ruleset is solverforge-deliveries'. Hard rules: every delivery assigned
+exactly once, no more routes than vehicles, vehicle capacity, and every service
+ending by its window's end (an early vehicle waits). The soft cost is total
+travel seconds, depot to depot.
+
+SolverForge uses its stock routing model (`solverforge::cvrp` matrices and
+hooks) with one deliberate wiring choice and one policy change:
+
+- Clarke-Wright merges go through `route_feasible` (capacity and time windows).
+  The stock `domain = "cvrp"` savings hooks check route structure only, so
+  their merges ignore both; the CVRP benchmark adapter wires the same strict
+  hooks.
+- Construction is `list_cheapest_insertion`. With a fixed fleet and strict
+  merges, SolverForge 0.26.1's Clarke-Wright left every delivery of the
+  2,000-stop instance unassigned.
+- Local search is the solverforge-deliveries policy without the ruin move
+  selector. At 10,000 stops each ruin-and-recreate move costs about 48 ms and
+  starved local search (511 steps in 188 s, infeasible); without it local
+  search makes about 58,000 steps.
+
+Timefold computes travel from coordinates on demand and runs its default
+phases. Every run uses one 300-second budget.
+
 ## Thread Study
 
 `make thread-study` answers when SolverForge's parallel local search pays off:
@@ -376,6 +493,12 @@ PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:sc
 
 PYTHONPATH=src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src \
   .venv/bin/python3 scripts/run_benchmark.py job-shop-scheduling --run-kind quick --dataset-set quick --time-limits 1 10
+
+PYTHONPATH=src:huge-scale/hospital-scale/src \
+  .venv/bin/python3 scripts/run_benchmark.py hospital-scale --run-kind quick --dataset-set quick --time-limits 300
+
+PYTHONPATH=src:huge-scale/delivery-scale/src \
+  .venv/bin/python3 scripts/run_benchmark.py delivery-scale --run-kind quick --dataset-set quick --time-limits 300
 ```
 
 Shared CLI options include:
@@ -400,8 +523,9 @@ Shared CLI options include:
 --capture-solver-output | --no-capture-solver-output
 ```
 
-`cvrp` adds `--num-instances`. `employee-scheduling` and
-`job-shop-scheduling` add `--dataset-set` and `--datasets`.
+`cvrp` adds `--num-instances`. `employee-scheduling`,
+`job-shop-scheduling`, `hospital-scale`, and `delivery-scale` add
+`--dataset-set` and `--datasets`.
 
 The benchmark budget and watchdog are separate. The requested time limit is
 passed to the solver and measured with wall-clock timing around
@@ -492,6 +616,15 @@ datasets = ["n005w4"]
 [benchmarks.job-shop-scheduling]
 dataset_set = "quick"
 datasets = ["ft06"]
+
+# The huge-scale suites accept their own time_limits, overriding the root value.
+[benchmarks.hospital-scale]
+dataset_set = "quick"
+time_limits = [300]
+
+[benchmarks.delivery-scale]
+dataset_set = "quick"
+time_limits = [300]
 ```
 
 Command-line options override TOML values. `release_tag` qualifies only the
@@ -587,6 +720,10 @@ make bench-employee-scheduling-quick
 make bench-employee-scheduling-quick-db
 make bench-job-shop-scheduling-quick
 make bench-job-shop-scheduling-quick-db
+make bench-hospital-scale-quick
+make bench-hospital-scale-quick-db
+make bench-delivery-scale-quick
+make bench-delivery-scale-quick-db
 make bench-cvrp-db BENCH_ARGS="--run-kind tag --release-tag v0.19.10"
 make bench-cvrp-db BENCH_ARGS="--run-kind quick --nightly"
 make bench-nightly-db
@@ -608,8 +745,10 @@ make verify-stock-solverforge-guardrails GUARDRAIL_ARGS="--require-jssp-win"
 
 `make bench-nightly-db` is the cron entrypoint. It builds all benchmark stacks,
 applies migrations once, then calls `scripts/run_benchmark.py` directly for
-CVRP, employee scheduling, and job-shop scheduling in parallel on their
-per-suite pinned cores. By default it uses `benchmark.nightly.example.toml`;
+CVRP, employee scheduling, job-shop scheduling, hospital-scale, and
+delivery-scale in parallel on their per-suite pinned cores. The two huge-scale
+suites run their single 300-second budget from their own `[benchmarks.*]`
+tables; each takes about 10 minutes. By default it uses `benchmark.nightly.example.toml`;
 set `BENCH_CONFIG` for a different nightly config, or append explicit child
 harness overrides with `NIGHTLY_ARGS`. It does not pass `--solver`, so each
 benchmark uses its full problem-specific default solver set, including both
@@ -733,4 +872,6 @@ and falling back to whatever the run recorded when the catalog has no entry.
 The bundled CVRP `.sol` files hold one feasible tour per instance and are not
 official values, so they are not used as references. Employee scheduling runs
 instances outside the published test set without a reference, and reports that
-absence rather than substituting a bound of its own.
+absence rather than substituting a bound of its own. Hospital-scale and delivery-scale
+instances are synthetic and have no catalog: their rows leave `reference_cost` and
+`quality_ratio` empty and compare on validator cost.
