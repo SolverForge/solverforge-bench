@@ -345,6 +345,7 @@ class PackagingDiscoveryTests(unittest.TestCase):
             "employee_scheduling_bench",
             "job_shop_bench",
             "hospital_scale_bench",
+            "delivery_scale_bench",
         ):
             self.assertTrue(
                 any(

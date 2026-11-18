@@ -1,0 +1,34 @@
+{
+  "description": "Synthetic delivery routing with time windows at scale, generated witness-first by delivery_scale_bench.generator. No official reference exists.",
+  "generator_version": 1,
+  "instances": [
+    {
+      "name": "ds-s2000",
+      "deliveries": 2000,
+      "vehicles": 49,
+      "seed": 2001,
+      "instance_path": "instances/ds-s2000.json.gz",
+      "instance_sha256": "a79a1d074ff55a629e7416c0c3ece2a1e2316b30bfb790f82c4455e8510204e3",
+      "witness_path": "witnesses/ds-s2000.witness.json.gz",
+      "witness_sha256": "e7e1f56aaf39caf16a797d7330a1fcd1f8720baf975c583288d04a1168e4277e"
+    },
+    {
+      "name": "ds-s10000",
+      "deliveries": 10000,
+      "vehicles": 239,
+      "seed": 10001,
+      "instance_path": "instances/ds-s10000.json.gz",
+      "instance_sha256": "6812b490ededb4735fa546ff0c4e0220634bf259f7de5ae1d2faefdbec5bc4a9",
+      "witness_path": "witnesses/ds-s10000.witness.json.gz",
+      "witness_sha256": "ce4fea3c13da0e1560068f5aabc6ebd390d6ba57424a999cd7bc62c02dc4c2f7"
+    }
+  ],
+  "groups": {
+    "quick": [
+      "ds-s2000"
+    ],
+    "canonical": [
+      "ds-s10000"
+    ]
+  }
+}

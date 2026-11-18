@@ -17,6 +17,7 @@ sys.path[:0] = [
     str(REPO_ROOT / "scalar-variable" / "employee-scheduling" / "src"),
     str(REPO_ROOT / "scalar-variable" / "job-shop-scheduling" / "src"),
     str(REPO_ROOT / "huge-scale" / "hospital-scale" / "src"),
+    str(REPO_ROOT / "huge-scale" / "delivery-scale" / "src"),
 ]
 
 from solverforge_bench.cli import main  # noqa: E402

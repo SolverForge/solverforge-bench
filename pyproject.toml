@@ -22,6 +22,7 @@ where = [
     "scalar-variable/employee-scheduling/src",
     "scalar-variable/job-shop-scheduling/src",
     "huge-scale/hospital-scale/src",
+    "huge-scale/delivery-scale/src",
 ]
 # The solver adapter roots contain Rust and Java build trees. They carry no
 # __init__.py, so namespace discovery walks into them, and cargo's transient

@@ -1,0 +1,67 @@
+# The solverforge-deliveries search policy with two changes:
+# - Construction is list_cheapest_insertion instead of list_clarke_wright +
+#   list_k_opt. With a fixed fleet and merges that must respect capacity and
+#   time windows, SolverForge 0.26.1's Clarke-Wright left every delivery of the
+#   2,000-stop quick instance unassigned.
+# - No list_ruin_move_selector. At 10,000 stops each ruin-and-recreate move
+#   costs about 48 ms, so local search made 511 steps in 188 s and ended
+#   infeasible; without it, 57,831 steps and a feasible plan.
+# The harness supplies the termination budget.
+
+environment_mode = "reproducible"
+random_seed = 42
+
+[[phases]]
+type = "construction_heuristic"
+construction_heuristic_type = "list_cheapest_insertion"
+entity_class = "Vehicle"
+variable_name = "delivery_order"
+
+[[phases]]
+type = "local_search"
+
+[phases.acceptor]
+type = "late_acceptance"
+late_acceptance_size = 200
+
+[phases.forager]
+type = "first_last_step_score_improving"
+
+[phases.move_selector]
+type = "union_move_selector"
+
+[[phases.move_selector.selectors]]
+type = "nearby_list_change_move_selector"
+max_nearby = 20
+entity_class = "Vehicle"
+variable_name = "delivery_order"
+
+[[phases.move_selector.selectors]]
+type = "nearby_list_swap_move_selector"
+max_nearby = 20
+entity_class = "Vehicle"
+variable_name = "delivery_order"
+
+[[phases.move_selector.selectors]]
+type = "list_reverse_move_selector"
+entity_class = "Vehicle"
+variable_name = "delivery_order"
+
+[[phases.move_selector.selectors]]
+type = "k_opt_move_selector"
+k = 3
+min_segment_len = 1
+max_nearby = 10
+entity_class = "Vehicle"
+variable_name = "delivery_order"
+
+[[phases.move_selector.selectors]]
+type = "limited_neighborhood"
+selected_count_limit = 500
+
+[phases.move_selector.selectors.selector]
+type = "sublist_change_move_selector"
+min_sublist_size = 1
+max_sublist_size = 3
+entity_class = "Vehicle"
+variable_name = "delivery_order"

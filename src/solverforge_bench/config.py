@@ -46,6 +46,7 @@ BENCHMARK_KEYS = {
     "employee-scheduling": {"dataset_set", "datasets"},
     "job-shop-scheduling": {"dataset_set", "datasets"},
     "hospital-scale": {"dataset_set", "datasets", "time_limits"},
+    "delivery-scale": {"dataset_set", "datasets", "time_limits"},
 }
 RUN_KIND_CHOICES = ("quick", "candidate", "tag")
 

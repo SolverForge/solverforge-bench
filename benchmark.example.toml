@@ -33,3 +33,7 @@ datasets = ["ft06"]
 [benchmarks.hospital-scale]
 dataset_set = "quick"
 time_limits = [300]
+
+[benchmarks.delivery-scale]
+dataset_set = "quick"
+time_limits = [300]

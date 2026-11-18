@@ -18,6 +18,7 @@ SOLVER_ROOTS = [
     / "scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver",
     REPO_ROOT / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver",
     REPO_ROOT / "huge-scale/hospital-scale/src/hospital_scale_bench/solver",
+    REPO_ROOT / "huge-scale/delivery-scale/src/delivery_scale_bench/solver",
 ]
 
 SOURCE_SUFFIXES = {
@@ -91,6 +92,9 @@ PYTHON_SOLVER_WRAPPERS = [
     REPO_ROOT
     / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/solverforge.py",
     REPO_ROOT / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/timefold.py",
+    REPO_ROOT
+    / "huge-scale/delivery-scale/src/delivery_scale_bench/solver/solverforge.py",
+    REPO_ROOT / "huge-scale/delivery-scale/src/delivery_scale_bench/solver/timefold.py",
 ]
 
 
@@ -238,6 +242,23 @@ def check_positive_start_shapes() -> list[Violation]:
         )
     )
     violations.extend(check_hospital_scale_timefold_constructor())
+    violations.extend(
+        require_contains(
+            REPO_ROOT
+            / "huge-scale/delivery-scale/src/delivery_scale_bench/solver/solverforge_deliveries/src/adapter.rs",
+            "delivery_order: Vec::new()",
+            "delivery-scale SolverForge routes must start empty",
+        )
+    )
+    violations.extend(
+        require_contains(
+            REPO_ROOT
+            / "huge-scale/delivery-scale/src/delivery_scale_bench/solver/timefold/src/main/java/com/solverforgebench/deliveries/domain/Vehicle.java",
+            "private List<Delivery> deliveries = new ArrayList<>();",
+            "delivery-scale Timefold routes must start empty",
+        )
+    )
+    violations.extend(check_delivery_scale_timefold_constructors())
 
     return violations
 
@@ -454,6 +475,53 @@ def check_hospital_scale_timefold_constructor() -> list[Violation]:
                 "hospital-scale Timefold constructor must not preload employee assignments",
             )
         )
+    return violations
+
+
+def check_delivery_scale_timefold_constructors() -> list[Violation]:
+    domain = (
+        REPO_ROOT
+        / "huge-scale/delivery-scale/src/delivery_scale_bench/solver/timefold/src/main/java/com/solverforgebench/deliveries/domain"
+    )
+    checks = (
+        (
+            domain / "Vehicle.java",
+            "public Vehicle(int index,",
+            "\n    public int getIndex()",
+            "deliveries",
+        ),
+        (
+            domain / "Delivery.java",
+            "public Delivery(int index,",
+            "\n    public int getIndex()",
+            "vehicle",
+        ),
+    )
+    violations: list[Violation] = []
+    for path, start, end, field in checks:
+        if not path.exists():
+            violations.append(
+                Violation(path, 1, "delivery-scale Timefold domain file missing")
+            )
+            continue
+        text = path.read_text()
+        body = extract_between(text, start, end)
+        if body is None:
+            violations.append(
+                Violation(
+                    path, 1, "delivery-scale Timefold constructor boundary not found"
+                )
+            )
+            continue
+        assignment = constructor_assignment(body, field)
+        if assignment is not None:
+            violations.append(
+                Violation(
+                    path,
+                    line_number_for(text, assignment),
+                    f"delivery-scale Timefold constructor must not preload {field}",
+                )
+            )
     return violations
 
 

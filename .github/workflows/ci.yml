@@ -13,7 +13,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  BENCH_PYTHONPATH: src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src:huge-scale/hospital-scale/src
+  BENCH_PYTHONPATH: src:list-variable/cvrp/src:scalar-variable/employee-scheduling/src:scalar-variable/job-shop-scheduling/src:huge-scale/hospital-scale/src:huge-scale/delivery-scale/src
 
 jobs:
   python-github:
@@ -36,7 +36,7 @@ jobs:
           make install-python-deps HOST_PYTHON="${{ steps.setup-python.outputs.python-path }}"
 
       - name: Check Python syntax
-        run: python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src huge-scale/hospital-scale/src scripts
+        run: python -m compileall -q src list-variable/cvrp/src scalar-variable/employee-scheduling/src scalar-variable/job-shop-scheduling/src huge-scale/hospital-scale/src huge-scale/delivery-scale/src scripts
 
       - name: Validate TOML configuration examples
         run: |
@@ -82,6 +82,16 @@ jobs:
           PYTHONPATH: ${{ env.BENCH_PYTHONPATH }}
         run: make validate-hospital-scale-model-parity
 
+      - name: Validate delivery-scale corpus and witnesses
+        env:
+          PYTHONPATH: ${{ env.BENCH_PYTHONPATH }}
+        run: make validate-delivery-scale
+
+      - name: Validate delivery-scale model parity
+        env:
+          PYTHONPATH: ${{ env.BENCH_PYTHONPATH }}
+        run: make validate-delivery-scale-model-parity
+
   rust-github:
     name: GitHub Rust Adapters
     runs-on: ubuntu-latest
@@ -95,6 +105,7 @@ jobs:
           - scalar-variable/employee-scheduling/src/employee_scheduling_bench/solver/solverforge_nrp
           - scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/solverforge_jssp
           - huge-scale/hospital-scale/src/hospital_scale_bench/solver/solverforge_hospital
+          - huge-scale/delivery-scale/src/delivery_scale_bench/solver/solverforge_deliveries
 
     steps:
       - name: Checkout repository

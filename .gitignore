@@ -30,6 +30,8 @@ scalar-variable/job-shop-scheduling/data/benchmark*.csv
 scalar-variable/job-shop-scheduling/data/artifacts/
 huge-scale/hospital-scale/data/benchmark*.csv
 huge-scale/hospital-scale/data/artifacts/
+huge-scale/delivery-scale/data/benchmark*.csv
+huge-scale/delivery-scale/data/artifacts/
 
 # Dashboard runtime state (Rails metadata SQLite, logs, temp files, secrets)
 dash/storage/
