@@ -10,7 +10,7 @@ dependencies = [
     "pyvrp>=0.14.1",
     "vrplib>=1.5.1",
     "hygese>=0.1.0",
-    "highspy==1.15.1",
+    "highspy==1.16.0",
     "psycopg[binary]>=3.2.0",
     "solverforge==0.7.2",
 ]
