@@ -198,10 +198,10 @@ Every module in `src/solverforge_bench/` and its single ownership:
 - Native solver builds are rooted in `solver/ortools/` (C++ Routing library
   executable with `PATH_CHEAPEST_ARC` + `GUIDED_LOCAL_SEARCH` and the time
   limit applied inside `RoutingSearchParameters`), `solver/rustvrp/`,
-  `solver/vroom/`, `solver/timefold/` (Java, Timefold `2.7.1`), and
+  `solver/vroom/`, `solver/timefold/` (Java, Timefold `2.8.0`), and
   `solver/solverforge/` (Rust/PyO3).
 - The SolverForge CVRP manifest and committed registry lockfile target
-  SolverForge `0.26.1`. `solve_cvrp` takes
+  SolverForge `0.31.2`. `solve_cvrp` takes
   an optional `move_threads` evaluator count and reports
   `solverforge_telemetry` (thread count, elapsed time, steps, generated,
   evaluated, speculative, and applied moves, generation and evaluation time),
@@ -264,7 +264,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `ortools`, and `highs`. `instance_json.py` is the shared native-payload serializer
   that emits `optimal` shift slots per requirement with `is_minimum` flags.
 - The SolverForge NRP manifest and committed registry lockfile target
-  SolverForge `0.26.1`, with `serde`
+  SolverForge `0.31.2`, with `serde`
   enabled. `solve_nrp` takes an optional `move_threads` evaluator count, and
   its `solverforge_telemetry` adds the thread count, elapsed time, speculative
   moves, and generation and evaluation time. `solver/solver.py` registers the
@@ -330,7 +330,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `ortools`, and `highs`. `instance_json.py` serializes the native payload.
 - The SolverForge JSSP manifest and committed registry lockfile target the
   published SolverForge facade, SolverForge Core, and SolverForge Scoring
-  `0.26.1` crates.
+  `0.31.2` crates.
 - Its list model declares each operation's fixed machine owner with
   `element_owner_fn`; SolverForge construction and list neighborhoods must not
   move an operation to a non-required machine.
@@ -397,13 +397,13 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `solver/output.py` rejects any roster with an unassigned shift as
   `NoSolutionFoundError` before validation.
 - `solver/solverforge_hospital/` is the Rust/PyO3 model on the published
-  SolverForge `0.26.1` crates with a committed registry lockfile. It defines
+  SolverForge `0.31.2` crates with a committed registry lockfile. It defines
   nine named constraints with weights mirrored in Timefold, per-skill candidate
   values, constant-time nearby meters, and a bounded same-skill neighbourhood of
   16 shifts on each side for nearby swaps. `solver.toml` sets only the seed and
   `non_reproducible` mode, so construction and local search are the
   SolverForge defaults.
-- `solver/timefold/` is the Java fat JAR on Timefold `2.7.1`: an
+- `solver/timefold/` is the Java fat JAR on Timefold `2.8.0`: an
   `allowsUnassigned` employee variable with the shared per-skill value range,
   stock default phases, seed `1`, and a `spentLimit` termination.
 - `scripts/verify_model_parity.py`
@@ -433,13 +433,13 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `NoSolutionFoundError`, and an unknown or repeated delivery as an adapter
   error, before validation.
 - `solver/solverforge_deliveries/` is the Rust/PyO3 model on the stock
-  `solverforge::cvrp` routing model (dense `ProblemData` matrices built from
+  `solverforge::cvrp` routing model (a `DenseMatrix` metric built from
   coordinates, which caps the suite at 20,000 stops on this host) with the
   solverforge-deliveries constraints and cascading route shadows. Its
   Clarke-Wright hooks check `route_feasible`. `solver.toml` is the
   solverforge-deliveries policy with construction switched to
   `list_cheapest_insertion` and the ruin move selector removed.
-- `solver/timefold/` is the Java fat JAR on Timefold `2.7.1`: a
+- `solver/timefold/` is the Java fat JAR on Timefold `2.8.0`: a
   `@PlanningListVariable` route per vehicle, travel computed from coordinates,
   stock default phases, seed `1`, and a `spentLimit` termination.
 - `scripts/verify_model_parity.py`
@@ -462,10 +462,10 @@ Every module in `src/solverforge_bench/` and its single ownership:
   `make verify-fair-start-rows RUN_ID=<uuid>`.
 - Runtime provenance hashes the actually invoked distribution, executable,
   native binary, or JAR; manifest declarations alone are not provenance. The
-  per-solver pins are: native SolverForge `0.26.1` for CVRP, employee,
+  per-solver pins are: native SolverForge `0.31.2` for CVRP, employee,
   job-shop, hospital-scale, and delivery-scale with committed registry lockfiles (a git-locked dependency would
   report `<version>+git.<commit>`), Python `solverforge==0.7.2`,
-  Timefold `2.7.1` (all four `pom.xml` files), OR-Tools `9.15.6755`
+  Timefold `2.8.0` (all five `pom.xml` files), OR-Tools `9.15.6755`
   (`ORTOOLS_VERSION` in the root Makefile).
 - Native and Python SolverForge adapters keep separate configuration files per
   workload; `make verify-solverforge-config-parity` enforces semantic
@@ -762,7 +762,7 @@ Dashboard:
   `cargo build --locked` for the CVRP SolverForge adapter, CVRP rustvrp
   adapter, employee SolverForge adapter, job-shop SolverForge adapter, and
   both huge-scale SolverForge adapters. All five SolverForge manifests and
-  lockfiles target SolverForge `0.26.1`.
+  lockfiles target SolverForge `0.31.2`.
 - The dashboard has no CI jobs yet; adding Rails checks to both workflows is
   the known follow-up.
 

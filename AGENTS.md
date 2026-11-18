@@ -63,7 +63,7 @@
 - `make install-python-deps` creates or refreshes that root `.venv` from the
   Makefile.
 - The CVRP, employee-scheduling, job-shop, hospital-scale, and delivery-scale native
-  SolverForge adapters are pinned to the published SolverForge `0.26.1` crates and committed registry
+  SolverForge adapters are pinned to the published SolverForge `0.31.2` crates and committed registry
   lockfiles. A git-locked SolverForge dependency reports
   `<version>+git.<commit>` in provenance. The `solverforge-py` adapters use the
   exact published `solverforge==0.7.2` Python wheel.

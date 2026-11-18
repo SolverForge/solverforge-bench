@@ -17,7 +17,7 @@ See `WIREFRAME.md` for the current as-built repository map.
   integrations, Timefold, and the SolverForge CVRP
   list-variable runtime. `solverforge` is the native Rust/PyO3 adapter and
   `solverforge-py` is the public Python-binding model path. `highs` runs the
-  HiGHS C++ core through the pinned `highspy==1.15.1` wheel on a two-index
+  HiGHS C++ core through the pinned `highspy==1.16.0` wheel on a two-index
   MILP with single-commodity load flows over the rounded edge-weight matrix.
 - `scalar-variable/employee-scheduling/` is the nurse rostering benchmark. It
   uses the bundled INRC-II TXT corpus and compares `solverforge`,
@@ -104,7 +104,7 @@ the exact published `solverforge==0.7.2` wheel into the same `.venv`, so
 sibling checkout.
 
 The CVRP, employee-scheduling, job-shop, hospital-scale, and delivery-scale
-native SolverForge adapters are pinned to the exact published SolverForge `0.26.1` crates with committed
+native SolverForge adapters are pinned to the exact published SolverForge `0.31.2` crates with committed
 registry lockfiles. A git-locked SolverForge dependency, when an adapter
 temporarily tracks unreleased work, reports its version as
 `<crate version>+git.<commit>`. The `solverforge-py` adapters require the exact
@@ -233,7 +233,7 @@ the corpus and model-parity validators of both huge-scale suites. The parity scr
 
 The Rust jobs keep `--locked` resolution strict. The CVRP, employee,
 job-shop, hospital-scale, and delivery-scale SolverForge manifests and
-lockfiles target SolverForge `0.26.1`. The jobs set the PyO3 Python
+lockfiles target SolverForge `0.31.2`. The jobs set the PyO3 Python
 environment from `actions/setup-python`, then run formatting,
 `cargo clippy --locked --all-targets -- -D warnings`, and `cargo build --locked`
 for the CVRP SolverForge adapter, CVRP rustvrp adapter, employee scheduling
