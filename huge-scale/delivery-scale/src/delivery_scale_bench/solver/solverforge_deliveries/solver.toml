@@ -1,11 +1,25 @@
-# The solverforge-deliveries search policy with two changes:
-# - Construction is list_cheapest_insertion instead of list_clarke_wright +
-#   list_k_opt. With a fixed fleet and merges that must respect capacity and
-#   time windows, SolverForge 0.26.1's Clarke-Wright left every delivery of the
-#   2,000-stop quick instance unassigned.
-# - No list_ruin_move_selector. At 10,000 stops each ruin-and-recreate move
-#   costs about 48 ms, so local search made 511 steps in 188 s and ended
-#   infeasible; without it, 57,831 steps and a feasible plan.
+# The solverforge-deliveries search policy, measured on ds-s10000 at 300 s
+# (SolverForge 0.31.2, four runs in parallel on separate physical cores, same
+# conditions for every row):
+#
+#   construction                         local search            cost
+#   cheapest insertion                   this file's selectors   1,477,795
+#   SolverForge defaults (no phases)     default                   852,168
+#   Clarke-Wright + insertion + 2-opt    this file's selectors     765,965
+#
+# - Construction is list_clarke_wright, then list_cheapest_insertion for the
+#   stops the savings merges cannot place on the fixed fleet (about 6,400 of
+#   10,000), then list_k_opt. Cheapest insertion from an empty plan spends
+#   about 150 s building a worse start. Bounding the savings with
+#   savings_neighbors cuts Clarke-Wright from 91 s to 19 s but leaves more
+#   stops to insertion and ends worse (835,716 at 40; at 100 the 2-opt pass
+#   ran 155 s and the plan ended infeasible).
+# - No list_ruin_move_selector. Every local search with ruin moves (these
+#   selectors plus the CVRP ruin pair, or the default local search) made a few
+#   hundred steps in 150 s and ended with time windows or capacity violated.
+# - The forager stays first_last_step_score_improving: the CVRP forager
+#   (accepted_count 4, rotating round robin) scored 1,705,989 after the same
+#   insertion start.
 # The harness supplies the termination budget.
 
 environment_mode = "reproducible"
@@ -13,7 +27,20 @@ random_seed = 42
 
 [[phases]]
 type = "construction_heuristic"
+construction_heuristic_type = "list_clarke_wright"
+entity_class = "Vehicle"
+variable_name = "delivery_order"
+
+[[phases]]
+type = "construction_heuristic"
 construction_heuristic_type = "list_cheapest_insertion"
+entity_class = "Vehicle"
+variable_name = "delivery_order"
+
+[[phases]]
+type = "construction_heuristic"
+construction_heuristic_type = "list_k_opt"
+k = 2
 entity_class = "Vehicle"
 variable_name = "delivery_order"
 
