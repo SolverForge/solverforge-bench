@@ -70,7 +70,7 @@
   SolverForge adapters are pinned to the published SolverForge `0.31.2` crates and committed registry
   lockfiles. A git-locked SolverForge dependency reports
   `<version>+git.<commit>` in provenance. The `solverforge-py` adapters use the
-  exact published `solverforge==0.7.2` Python wheel.
+  exact published `solverforge==0.8.1` Python wheel.
 - `make thread-study` runs native SolverForge against itself at 1, 2, and 4
   move threads (`benchmark.thread-study.toml`) with every run pinned to
   `THREAD_STUDY_CPUS`, and writes `build/thread-study/report.md`. The
