@@ -9,13 +9,14 @@ from hospital_scale_bench.domain.models import Instance
 from solverforge_bench.model import SolverResult, SolverVersion
 from solverforge_bench.solver_versions import (
     cargo_dependency_version,
+    executable_version,
     maven_property_version,
     versions_for_solvers,
 )
 
 SolverFn = Callable[[Instance, int], SolverResult]
-AVAILABLE_METHODS = ["solverforge", "timefold"]
-DEFAULT_METHODS = ["solverforge", "timefold"]
+AVAILABLE_METHODS = ["solverforge", "timefold", "ortools"]
+DEFAULT_METHODS = ["solverforge", "timefold", "ortools"]
 _SOLVER_DIR = Path(__file__).resolve().parent
 
 
@@ -29,6 +30,12 @@ def _load_timefold() -> SolverFn:
     from hospital_scale_bench.solver.timefold import solve_with_timefold
 
     return solve_with_timefold
+
+
+def _load_ortools() -> SolverFn:
+    from hospital_scale_bench.solver.ortools import solve_with_ortools
+
+    return solve_with_ortools
 
 
 def solver_versions(methods: Iterable[str]) -> dict[str, SolverVersion]:
@@ -47,6 +54,9 @@ def solver_versions(methods: Iterable[str]) -> dict[str, SolverVersion]:
             / "target"
             / "timefold-hospital-scale.jar",
         ),
+        "ortools": executable_version(
+            _SOLVER_DIR / "ortools" / "target" / "hospital_scale_ortools"
+        ),
     }
     return versions_for_solvers(methods, resolvers)
 
@@ -56,6 +66,8 @@ def create_solver(method: str, *, time_limit: int = 60) -> SolverFn:
         return _load_solverforge()
     if method == "timefold":
         return _load_timefold()
+    if method == "ortools":
+        return _load_ortools()
     raise ValueError(
         f"Unknown method '{method}'. Available: {', '.join(AVAILABLE_METHODS)}"
     )

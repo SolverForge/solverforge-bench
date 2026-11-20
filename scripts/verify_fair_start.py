@@ -93,8 +93,13 @@ PYTHON_SOLVER_WRAPPERS = [
     / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/solverforge.py",
     REPO_ROOT / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/timefold.py",
     REPO_ROOT
+    / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/ortools/__init__.py",
+    REPO_ROOT
     / "huge-scale/delivery-scale/src/delivery_scale_bench/solver/solverforge.py",
     REPO_ROOT / "huge-scale/delivery-scale/src/delivery_scale_bench/solver/timefold.py",
+    REPO_ROOT
+    / "huge-scale/delivery-scale/src/delivery_scale_bench/solver/ortools/__init__.py",
+    REPO_ROOT / "huge-scale/delivery-scale/src/delivery_scale_bench/solver/pyvrp.py",
 ]
 
 
@@ -318,6 +323,33 @@ def check_runtime_witness_wrappers() -> list[Violation]:
             / "scalar-variable/job-shop-scheduling/src/job_shop_bench/solver/ortools/main.cc",
             "proto.solution_hint().vars_size()",
             "JSSP OR-Tools must inspect CP-SAT hint fields in native witness",
+        )
+    )
+    hospital_ortools = (
+        REPO_ROOT
+        / "huge-scale/hospital-scale/src/hospital_scale_bench/solver/ortools/main.cc"
+    )
+    for needle, message in (
+        (
+            "proto.solution_hint().vars_size()",
+            "hospital-scale OR-Tools must inspect CP-SAT hint fields in native witness",
+        ),
+        (
+            "parameters.set_num_search_workers(1)",
+            "hospital-scale OR-Tools must use one search worker",
+        ),
+        (
+            "parameters.set_random_seed(1)",
+            "hospital-scale OR-Tools must use the shared deterministic seed",
+        ),
+    ):
+        violations.extend(require_contains(hospital_ortools, needle, message))
+    violations.extend(
+        require_contains(
+            REPO_ROOT
+            / "huge-scale/delivery-scale/src/delivery_scale_bench/solver/ortools/main.cc",
+            'witness["routing_assignment_hint_present"] = false;',
+            "delivery-scale OR-Tools must report the routing hint check in its native witness",
         )
     )
     return violations

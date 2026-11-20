@@ -81,9 +81,11 @@ JOBSHOP_ORTOOLS_DIR := $(JOBSHOP_ROOT)/src/job_shop_bench/solver/ortools
 HOSPITAL_SCALE_ROOT := huge-scale/hospital-scale
 HOSPITAL_SCALE_SOLVERFORGE_DIR := $(HOSPITAL_SCALE_ROOT)/src/hospital_scale_bench/solver/solverforge_hospital
 HOSPITAL_SCALE_TIMEFOLD_POM := $(HOSPITAL_SCALE_ROOT)/src/hospital_scale_bench/solver/timefold/pom.xml
+HOSPITAL_SCALE_ORTOOLS_DIR := $(HOSPITAL_SCALE_ROOT)/src/hospital_scale_bench/solver/ortools
 DELIVERY_SCALE_ROOT := huge-scale/delivery-scale
 DELIVERY_SCALE_SOLVERFORGE_DIR := $(DELIVERY_SCALE_ROOT)/src/delivery_scale_bench/solver/solverforge_deliveries
 DELIVERY_SCALE_TIMEFOLD_POM := $(DELIVERY_SCALE_ROOT)/src/delivery_scale_bench/solver/timefold/pom.xml
+DELIVERY_SCALE_ORTOOLS_DIR := $(DELIVERY_SCALE_ROOT)/src/delivery_scale_bench/solver/ortools
 DASH_ROOT := dash
 ORTOOLS_VERSION ?= 9.15.6755
 ORTOOLS_ARCHIVE ?= or-tools_amd64_opensuse-leap_cpp_v$(ORTOOLS_VERSION).tar.gz
@@ -111,9 +113,9 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-job-shop-scheduling-quick bench-job-shop-scheduling-quick-db \
 	bench-job-shop-scheduling-solverforge bench-job-shop-scheduling-solverforge-db \
 	bench-job-shop-scheduling-solverforge-quick bench-job-shop-scheduling-solverforge-quick-db \
-	build-hospital-scale build-hospital-scale-solverforge build-hospital-scale-timefold \
+	build-hospital-scale build-hospital-scale-solverforge build-hospital-scale-timefold build-hospital-scale-ortools \
 	bench-hospital-scale bench-hospital-scale-db bench-hospital-scale-quick bench-hospital-scale-quick-db \
-	build-delivery-scale build-delivery-scale-solverforge build-delivery-scale-timefold \
+	build-delivery-scale build-delivery-scale-solverforge build-delivery-scale-timefold build-delivery-scale-ortools \
 	bench-delivery-scale bench-delivery-scale-db bench-delivery-scale-quick bench-delivery-scale-quick-db \
 	bench-nightly-db \
 	reaudit-legacy-publication \
@@ -408,7 +410,7 @@ bench-job-shop-scheduling-solverforge-quick-db: build-job-shop-scheduling-solver
 validate-job-shop-scheduling: banner
 	cd $(JOBSHOP_ROOT) && PYTHONPATH=../../src:src "$(PYTHON)" scripts/validate_all.py
 
-build-hospital-scale: banner install-python-deps build-hospital-scale-solverforge build-hospital-scale-timefold
+build-hospital-scale: banner install-python-deps build-hospital-scale-solverforge build-hospital-scale-timefold build-hospital-scale-ortools
 
 build-hospital-scale-solverforge: banner install-python-deps
 	cd $(HOSPITAL_SCALE_SOLVERFORGE_DIR) && maturin build --release --locked -i "$(PYTHON)"
@@ -416,6 +418,12 @@ build-hospital-scale-solverforge: banner install-python-deps
 
 build-hospital-scale-timefold: banner
 	$(MAVEN_ENV) mvn -f $(HOSPITAL_SCALE_TIMEFOLD_POM) package -q
+
+build-hospital-scale-ortools: banner $(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake
+	cmake -S $(HOSPITAL_SCALE_ORTOOLS_DIR) -B build/hospital-scale-ortools -DCMAKE_PREFIX_PATH="$(ORTOOLS_ROOT)" -DORTOOLS_ROOT="$(ORTOOLS_ROOT)"
+	cmake --build build/hospital-scale-ortools --parallel
+	mkdir -p $(HOSPITAL_SCALE_ORTOOLS_DIR)/target
+	cp build/hospital-scale-ortools/hospital_scale_ortools $(HOSPITAL_SCALE_ORTOOLS_DIR)/target/
 
 bench-hospital-scale: build-hospital-scale
 	$(PINNED_HOSPITAL_SCALE_BENCH) "$(PYTHON)" scripts/run_benchmark.py hospital-scale $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 300 $(BENCH_ARGS)
@@ -436,7 +444,7 @@ validate-hospital-scale: banner
 validate-hospital-scale-model-parity: banner
 	PYTHONPATH=src:$(HOSPITAL_SCALE_ROOT)/src "$(PYTHON)" $(HOSPITAL_SCALE_ROOT)/scripts/verify_model_parity.py
 
-build-delivery-scale: banner install-python-deps build-delivery-scale-solverforge build-delivery-scale-timefold
+build-delivery-scale: banner install-python-deps build-delivery-scale-solverforge build-delivery-scale-timefold build-delivery-scale-ortools
 
 build-delivery-scale-solverforge: banner install-python-deps
 	cd $(DELIVERY_SCALE_SOLVERFORGE_DIR) && maturin build --release --locked -i "$(PYTHON)"
@@ -444,6 +452,12 @@ build-delivery-scale-solverforge: banner install-python-deps
 
 build-delivery-scale-timefold: banner
 	$(MAVEN_ENV) mvn -f $(DELIVERY_SCALE_TIMEFOLD_POM) package -q
+
+build-delivery-scale-ortools: banner $(ORTOOLS_ROOT)/lib64/cmake/ortools/ortoolsConfig.cmake
+	cmake -S $(DELIVERY_SCALE_ORTOOLS_DIR) -B build/delivery-scale-ortools -DCMAKE_PREFIX_PATH="$(ORTOOLS_ROOT)" -DORTOOLS_ROOT="$(ORTOOLS_ROOT)"
+	cmake --build build/delivery-scale-ortools --parallel
+	mkdir -p $(DELIVERY_SCALE_ORTOOLS_DIR)/target
+	cp build/delivery-scale-ortools/delivery_scale_ortools $(DELIVERY_SCALE_ORTOOLS_DIR)/target/
 
 bench-delivery-scale: build-delivery-scale
 	$(PINNED_DELIVERY_SCALE_BENCH) "$(PYTHON)" scripts/run_benchmark.py delivery-scale $(BENCH_CONFIG_ARG) --dataset-set canonical --time-limits 300 $(BENCH_ARGS)
