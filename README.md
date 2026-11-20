@@ -41,13 +41,14 @@ See `WIREFRAME.md` for the current as-built repository map.
   provide benchmark-local search helpers or warm-start schedules.
 - `huge-scale/hospital-scale/` is the huge-scale category (`huge_scale`): a
   synthetic hospital rostering problem with the solverforge-hospital ruleset at
-  up to 100,000 shifts and 10,000 employees. It compares native `solverforge`
-  and `timefold` only. Instances are generated, not official, so rows carry no
-  reference value and compare on validator cost.
+  up to 100,000 shifts and 10,000 employees. It compares native `solverforge`,
+  `timefold`, and `ortools` (CP-SAT). Instances are generated, not official, so
+  rows carry no reference value and compare on validator cost.
 - `huge-scale/delivery-scale/` is the second huge-scale benchmark: synthetic
   delivery routing with time windows under the solverforge-deliveries ruleset,
   at 10,000 stops on a fixed fleet. It compares native `solverforge` (the stock
-  SolverForge routing model) and `timefold`. 20,000 stops is the ceiling for
+  SolverForge routing model), `timefold`, `ortools` (the routing library), and
+  `pyvrp`. 20,000 stops is the ceiling for
   SolverForge's routing model on this host: it holds two full stop-to-stop
   matrices, 6.4 GB at 20,000 stops and 40 GB at 50,000.
 
@@ -122,9 +123,9 @@ rejects semantic drift and also rejects replacing both files with an equally
 weaker policy. Hospital-scale has no Python adapter, so its single native
 `solver.toml` sets only the seed and leaves phases to the SolverForge defaults.
 Delivery-scale has no Python adapter either; its `solver.toml` is the
-solverforge-deliveries policy with construction switched to
-`list_cheapest_insertion` and the ruin move selector removed (see
-Delivery-Scale Commands).
+solverforge-deliveries policy with Clarke-Wright construction completed by
+cheapest insertion and the ruin move selector removed (see Delivery-Scale
+Commands).
 
 Benchmark run targets execute the shared harness through `taskset` with
 different default pinned cores: `CVRP_BENCH_CPU ?= 0`,
@@ -354,15 +355,16 @@ metadata provides them.
 ## Hospital-Scale Commands
 
 Check that the committed corpus reproduces from its generator and that every
-instance has a hard-feasible hidden witness, then check that both solver models
-encode the validator's ruleset:
+instance has a hard-feasible hidden witness, then check that every solver model
+encodes the validator's ruleset:
 
 ```sh
 make validate-hospital-scale
 make validate-hospital-scale-model-parity
 ```
 
-Build both integrations and run the quick or canonical benchmark:
+Build the SolverForge, Timefold, and OR-Tools integrations and run the quick or
+canonical benchmark:
 
 ```sh
 make build-hospital-scale
@@ -390,9 +392,18 @@ required skill held, no overlapping shifts, at least 10 hours of rest between
 shifts, at most one shift per calendar day touched, and no shift touching an
 unavailable day. Soft cost: +10 per undesired day touched, -10 per desired day
 touched, and the sum over employees of the squared shift count. The squared
-count replaces solverforge-hospital's standard-deviation balance so that both
-solvers and the validator compute the same integer. Both models receive the same
+count replaces solverforge-hospital's standard-deviation balance so that every
+solver and the validator compute the same integer. Every model receives the same
 per-skill candidate domain from the shared input document.
+
+OR-Tools solves the same rules as a CP-SAT model. Shifts with the same start,
+end, and skill are interchangeable under every rule, so the model decides which
+employees staff each such slot type (about 2,000 types, 1.6 million booleans
+at canonical size instead of 90 million per-shift pairs) and the adapter hands
+them to that type's shifts in instance order. Hard rules are constraints, an
+unavailable employee never enters a slot's domain, and the squared count is a
+product constraint. It runs one search worker with seed 1, like the other
+CP-SAT adapters.
 
 Every hospital-scale run, quick, canonical, and nightly, uses one 300-second
 budget. `[benchmarks.hospital-scale]` accepts its own `time_limits`, which
@@ -420,7 +431,7 @@ by `manifest.json` like hospital-scale:
 
 Stops lie on a 30 km by 30 km plane around one central depot, mostly in 60
 neighbourhood clusters. Travel time is the Euclidean distance at 10 m/s,
-rounded half up to whole seconds; the validator and both models compute it the
+rounded half up to whole seconds; the validator and every model compute it the
 same way. `generator.py` builds a hidden fleet plan first: it sweeps around the
 depot, cuts routes by capacity 200, 45 stops, and a 22:00 day end, and orders
 each route by nearest neighbour. It then places every time window around that
@@ -438,16 +449,36 @@ hooks) with one deliberate wiring choice and one policy change:
   The stock `domain = "cvrp"` savings hooks check route structure only, so
   their merges ignore both; the CVRP benchmark adapter wires the same strict
   hooks.
-- Construction is `list_cheapest_insertion`. With a fixed fleet and strict
-  merges, SolverForge 0.26.1's Clarke-Wright left every delivery of the
-  2,000-stop instance unassigned.
+- Construction is `list_clarke_wright`, then `list_cheapest_insertion` for the
+  stops the strict merges cannot place on the fixed fleet (about 6,400 of
+  10,000), then `list_k_opt` with k = 2. On `ds-s10000` at 300 seconds this
+  start ends at 765,965 against 1,477,795 for cheapest insertion from an
+  empty plan and 852,168 for the SolverForge defaults, measured side by side.
 - Local search is the solverforge-deliveries policy without the ruin move
-  selector. At 10,000 stops each ruin-and-recreate move costs about 48 ms and
-  starved local search (511 steps in 188 s, infeasible); without it local
-  search makes about 58,000 steps.
+  selector. Every local search with ruin moves at 10,000 stops made a few
+  hundred steps in 150 seconds and ended with time windows or capacity
+  violated.
+- `solver.toml` records the full comparison, including the bounded
+  `savings_neighbors` and CVRP-forager variants that ended worse.
 
 Timefold computes travel from coordinates on demand and runs its default
-phases. Every run uses one 300-second budget.
+phases.
+
+OR-Tools uses its routing library with the same travel callback, a capacity
+dimension, and a time dimension whose cumul is the service start (window
+`[min_start, max_end - service]`, waiting as slack, departure fixed). Every stop
+sits in a disjunction with the shared 1,000,000 unassigned-delivery penalty, so
+a stop the search cannot place leaves the run a `no_solution` row instead of
+failing it outright. Construction is parallel cheapest insertion and local
+search is guided local search: path-cheapest-arc construction left 72 of the
+10,000 canonical stops unplaced after 300 seconds.
+
+PyVRP builds the full travel-seconds matrix (about 800 MB at 10,000 stops) and
+uses it for both distance and duration, so its distance objective is total
+travel time. A stop's latest service start is `max_end - service`, and every
+vehicle leaves the depot at the departure time.
+
+Every run uses one 300-second budget.
 
 ## Thread Study
 
@@ -748,7 +779,8 @@ applies migrations once, then calls `scripts/run_benchmark.py` directly for
 CVRP, employee scheduling, job-shop scheduling, hospital-scale, and
 delivery-scale in parallel on their per-suite pinned cores. The two huge-scale
 suites run their single 300-second budget from their own `[benchmarks.*]`
-tables; each takes about 10 minutes. By default it uses `benchmark.nightly.example.toml`;
+tables; hospital-scale runs three solvers and delivery-scale four, at about 5
+minutes per solver. By default it uses `benchmark.nightly.example.toml`;
 set `BENCH_CONFIG` for a different nightly config, or append explicit child
 harness overrides with `NIGHTLY_ARGS`. It does not pass `--solver`, so each
 benchmark uses its full problem-specific default solver set, including both

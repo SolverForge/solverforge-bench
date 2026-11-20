@@ -179,8 +179,8 @@ Every module in `src/solverforge_bench/` and its single ownership:
 | `cvrp` | `list_variable` | `pyvrp`, `ortools`, `vroom`, `timefold`, `rustvrp`, `pyhygese`, `highs`, `solverforge`, `solverforge-py` | `pyvrp`, `ortools`, `timefold`, `pyhygese`, `highs`, `solverforge`, `solverforge-py` | `1`, `10`, `60` | none |
 | `employee-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools`, `highs` | same as registered | `1`, `10`, `60` | `nurses`, `weeks`, `validator_model_delta`, `score_drift` |
 | `job-shop-scheduling` | `scalar_variable` | `solverforge`, `solverforge-py`, `timefold`, `ortools`, `highs` | same as registered | `1`, `10`, `60` | `num_jobs`, `num_machines`, `num_operations`, `source_family`, `known_best_makespan`, `lower_bound_makespan`, `upper_bound_makespan`, `makespan_gap_to_best`, `makespan_gap_to_reference` |
-| `hospital-scale` | `huge_scale` | `solverforge`, `timefold` | same as registered | `300` | `employees`, `shifts`, `generator_version`, `validator_model_delta`, `score_drift`, `unassigned_shifts`, `solver_metadata` |
-| `delivery-scale` | `huge_scale` | `solverforge`, `timefold` | same as registered | `300` | `deliveries`, `vehicles`, `generator_version`, `validator_model_delta`, `score_drift`, `unassigned_deliveries`, `solver_metadata` |
+| `hospital-scale` | `huge_scale` | `solverforge`, `timefold`, `ortools` | same as registered | `300` | `employees`, `shifts`, `generator_version`, `validator_model_delta`, `score_drift`, `unassigned_shifts`, `solver_metadata` |
+| `delivery-scale` | `huge_scale` | `solverforge`, `timefold`, `ortools`, `pyvrp` | same as registered | `300` | `deliveries`, `vehicles`, `generator_version`, `validator_model_delta`, `score_drift`, `unassigned_deliveries`, `solver_metadata` |
 
 ## CVRP Adapter Shape
 
@@ -393,7 +393,7 @@ Every module in `src/solverforge_bench/` and its single ownership:
   +10 per undesired day, -10 per desired day, plus the sum of squared
   per-employee shift counts.
 - `solver/instance_json.py` emits the single solver-input document, including
-  the per-skill `skill_candidates` domain both models read.
+  the per-skill `skill_candidates` domain every model reads.
   `solver/output.py` rejects any roster with an unassigned shift as
   `NoSolutionFoundError` before validation.
 - `solver/solverforge_hospital/` is the Rust/PyO3 model on the published
@@ -406,13 +406,25 @@ Every module in `src/solverforge_bench/` and its single ownership:
 - `solver/timefold/` is the Java fat JAR on Timefold `2.8.0`: an
   `allowsUnassigned` employee variable with the shared per-skill value range,
   stock default phases, seed `1`, and a `spentLimit` termination.
+- `solver/ortools/` is the C++ CP-SAT executable on OR-Tools `9.15`. It groups
+  shifts with identical start, end, and skill into slot types and decides one
+  boolean per (slot type, eligible employee); employees whose unavailable days
+  the slot touches are left out of its domain. Coverage is an equality per slot
+  type, one shift per day an at-most-one per employee and day, overlap and
+  short rest across days a pairwise at-most-one, and the squared count a
+  product constraint. The decoder hands each slot type's staff to its shifts in
+  instance order and re-scores the roster natively (`fresh_cost`). One search
+  worker, seed `1`; the wrapper maps `UNKNOWN`/`INFEASIBLE` to
+  `NoSolutionFoundError`.
 - `scripts/verify_model_parity.py`
-  (`make validate-hospital-scale-model-parity`) requires both models to name
-  the same nine constraints, carry the validator's weight constants, and read
-  `skill_candidates`.
+  (`make validate-hospital-scale-model-parity`) requires the SolverForge and
+  Timefold models to name the same nine constraints and carry the validator's
+  weight constants, the OR-Tools model to carry the validator's rest and
+  preference constants, and all three to read `skill_candidates`.
 - SolverForge starts every shift with `employee_idx: None`; the Timefold
-  `Shift` constructor never sets `employee`. Both wrappers emit the fair-start
-  witness before solving.
+  `Shift` constructor never sets `employee`; the CP-SAT model carries no
+  solution hint, which its native witness reports. Every wrapper emits the
+  fair-start witness before solving.
 
 ## Delivery-Scale Adapter Shape
 
@@ -437,17 +449,32 @@ Every module in `src/solverforge_bench/` and its single ownership:
   coordinates, which caps the suite at 20,000 stops on this host) with the
   solverforge-deliveries constraints and cascading route shadows. Its
   Clarke-Wright hooks check `route_feasible`. `solver.toml` is the
-  solverforge-deliveries policy with construction switched to
-  `list_cheapest_insertion` and the ruin move selector removed.
+  solverforge-deliveries policy with Clarke-Wright construction completed by
+  cheapest insertion and 2-opt, and the ruin move selector removed; its header
+  records the measured comparison.
 - `solver/timefold/` is the Java fat JAR on Timefold `2.8.0`: a
   `@PlanningListVariable` route per vehicle, travel computed from coordinates,
   stock default phases, seed `1`, and a `spentLimit` termination.
+- `solver/ortools/` is the C++ routing executable on OR-Tools `9.15`: travel
+  computed from coordinates in the arc callback, a capacity dimension, a time
+  dimension whose cumul is the service start (`[min_start, max_end - service]`,
+  slack for waiting, start fixed at the departure time), and one disjunction
+  per stop at the shared unassigned-delivery weight. Parallel cheapest
+  insertion construction and guided local search. It re-scores the returned
+  routes natively (`fresh_cost`).
+- `solver/pyvrp.py` builds PyVRP `ProblemData` directly: one travel-seconds
+  matrix (built in row blocks) as both distance and duration, client
+  `tw_late = max_end - service`, and one vehicle type with the fleet size,
+  capacity, and a fixed departure. An infeasible PyVRP best goes to the
+  validator and fails there.
 - `scripts/verify_model_parity.py`
-  (`make validate-delivery-scale-model-parity`) requires both models to name
-  the same four constraints, carry the same unassigned-delivery weight, and use
-  the validator's travel rule.
-- Both models start every route empty; `make verify-fair-start` checks the
-  SolverForge `Vec::new()` routes and the Timefold constructors.
+  (`make validate-delivery-scale-model-parity`) requires the SolverForge and
+  Timefold models to name the same four constraints, those two and OR-Tools to
+  carry the same unassigned-delivery weight, and all four models to use the
+  validator's travel rule.
+- The SolverForge and Timefold models start every route empty;
+  `make verify-fair-start` checks the SolverForge `Vec::new()` routes, the
+  Timefold constructors, and the OR-Tools native witness's routing-hint check.
 
 ## Cross-Cutting Fairness, Witness, and Provenance Contract
 
@@ -593,9 +620,10 @@ Builds:
 - `make build-job-shop-scheduling` builds Python dependencies plus job-shop
   Timefold, SolverForge, and OR-Tools integrations.
 - `make build-hospital-scale` builds Python dependencies plus the hospital-scale
-  SolverForge wheel and Timefold JAR.
-- `make build-delivery-scale` builds the delivery-scale SolverForge wheel and
-  Timefold JAR.
+  SolverForge wheel, Timefold JAR, and OR-Tools executable.
+- `make build-delivery-scale` builds the delivery-scale SolverForge wheel,
+  Timefold JAR, and OR-Tools executable; PyVRP comes from the Python
+  dependencies.
 
 Contract gates:
 

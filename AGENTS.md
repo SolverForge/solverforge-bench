@@ -35,15 +35,19 @@
   synthetic hospital rostering with the solverforge-hospital ruleset at up to
   100,000 shifts and 10,000 employees. Source lives in `src/hospital_scale_bench/`,
   the hash-pinned generated corpus and hidden witnesses under `data/hospital/`,
-  a SolverForge Rust/PyO3 adapter under `solver/solverforge_hospital/`, and a
-  Timefold Java adapter under `solver/timefold/`. It compares only native
-  `solverforge` and `timefold`.
+  a SolverForge Rust/PyO3 adapter under `solver/solverforge_hospital/`, a
+  Timefold Java adapter under `solver/timefold/`, and an OR-Tools C++ CP-SAT
+  adapter under `solver/ortools/`. It compares native `solverforge`,
+  `timefold`, and `ortools`.
 - `huge-scale/delivery-scale/` is the second huge-scale benchmark: synthetic
   delivery routing with time windows under the solverforge-deliveries ruleset
   at 10,000 stops. Source lives in `src/delivery_scale_bench/`, the hash-pinned
   corpus and hidden witnesses under `data/deliveries/`, a SolverForge Rust/PyO3
-  adapter on the stock routing model under `solver/solverforge_deliveries/`, and
-  a Timefold Java adapter under `solver/timefold/`. 20,000 stops is the ceiling
+  adapter on the stock routing model under `solver/solverforge_deliveries/`, a
+  Timefold Java adapter under `solver/timefold/`, an OR-Tools C++ routing
+  adapter under `solver/ortools/`, and a PyVRP adapter in `solver/pyvrp.py`.
+  It compares native `solverforge`, `timefold`, `ortools`, and `pyvrp`.
+  20,000 stops is the ceiling
   of SolverForge's dense routing matrices on this host; do not raise it.
   Corpus hashing and gzip JSON encoding for both huge-scale suites live in
   `src/solverforge_bench/corpus.py`.
@@ -113,8 +117,8 @@
   run to PostgreSQL.
 - `make validate-hospital-scale` checks the hospital-scale corpus reproduces
   byte-for-byte from its generator and that every hidden witness is
-  hard-feasible. `make validate-hospital-scale-model-parity` checks that both
-  solver models carry the validator's ruleset. `make build-hospital-scale`,
+  hard-feasible. `make validate-hospital-scale-model-parity` checks that every
+  solver model carries the validator's ruleset. `make build-hospital-scale`,
   `make bench-hospital-scale-quick`, and `make bench-hospital-scale` (with
   `-db` variants) build and run the suite. Every run uses one 300-second
   budget.
@@ -277,9 +281,9 @@ an unassigned callback-required employee shift, and a JSSP operation that is
 missing, duplicated, wrong-owner, cyclic, or otherwise unassigned. They must
 not return a prior best after cancellation. Such output is a failed solver
 invocation, not a solution to send to the validator. Optional employee shifts
-may remain unassigned. Both hospital-scale wrappers reject any unassigned shift
-the same way; every hospital-scale shift is required. Both delivery-scale
-wrappers reject a plan that misses or repeats a delivery.
+may remain unassigned. Every hospital-scale wrapper rejects any unassigned shift
+the same way; every hospital-scale shift is required. Every delivery-scale
+wrapper rejects a plan that misses or repeats a delivery.
 
 Hospital-scale and delivery-scale instances are synthetic: they carry no
 reference value, and no
