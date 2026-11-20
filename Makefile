@@ -99,7 +99,7 @@ JAVA_HOME_FOR_MAVEN ?= $(shell dirname "$$(dirname "$$(readlink -f "$$(command -
 MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin:$(PATH)"
 
 .PHONY: \
-	banner venv install-python-deps build-cvrp build-cvrp-python-deps build-cvrp-solverforge build-cvrp-timefold build-cvrp-ortools build-cvrp-rustvrp build-cvrp-vroom \
+	help banner venv install-python-deps build-cvrp build-cvrp-python-deps build-cvrp-solverforge build-cvrp-timefold build-cvrp-ortools build-cvrp-rustvrp build-cvrp-vroom \
 	build-employee-scheduling build-employee-scheduling-solverforge build-employee-scheduling-timefold build-employee-scheduling-ortools \
 	build-job-shop-scheduling build-job-shop-scheduling-solverforge build-job-shop-scheduling-timefold build-job-shop-scheduling-ortools \
 	bench-cvrp bench-cvrp-db bench-cvrp-quick bench-cvrp-quick-db \
@@ -129,7 +129,69 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	dash-setup dash-server dash-warehouse-check dash-smoke dash-test
 
 # ============== Default Target ==============
-.DEFAULT_GOAL := venv
+.DEFAULT_GOAL := help
+
+# $(call status,message) prints a progress line.
+status = @printf -- "$(CYAN)$(ARROW)$(RESET) %s\n" "$(1)"
+
+# $(call help_item,target,description) prints one help row.
+help_item = printf -- "  $(GREEN)%-48s$(RESET) %s\n" "$(1)" "$(2)"
+help_section = printf -- "\n$(CYAN)$(BOLD)%s$(RESET)\n" "$(1)"
+
+help: banner
+	@$(call help_section,Setup)
+	@$(call help_item,install-python-deps,Create or refresh the root .venv)
+	@$(call help_item,venv,Create the root .venv only)
+	@$(call help_section,CVRP)
+	@$(call help_item,validate-cvrp,Validate bundled .vrp/.sol pairs)
+	@$(call help_item,build-cvrp,Build all CVRP solver integrations)
+	@$(call help_item,bench-cvrp-quick[-db],Quick CVRP sample run)
+	@$(call help_item,bench-cvrp-solverforge-quick[-db],SolverForge-only CVRP smoke run)
+	@$(call help_item,bench-cvrp[-db],Full CVRP suite)
+	@$(call help_section,Employee scheduling)
+	@$(call help_item,validate-employee-scheduling,Validate INRC2 datasets)
+	@$(call help_item,validate-employee-model-parity,Check validator/solver model parity)
+	@$(call help_item,build-employee-scheduling,Build all employee solver integrations)
+	@$(call help_item,bench-employee-scheduling-quick[-db],Quick INRC2 sample run)
+	@$(call help_item,bench-employee-scheduling-solverforge-quick[-db],SolverForge-only smoke run)
+	@$(call help_item,bench-employee-scheduling[-db],Full employee-scheduling suite)
+	@$(call help_section,Job-shop scheduling)
+	@$(call help_item,validate-job-shop-scheduling,Validate JSPLIB manifest and parser)
+	@$(call help_item,build-job-shop-scheduling,Build all JSSP solver integrations)
+	@$(call help_item,bench-job-shop-scheduling-quick[-db],Quick JSPLIB run)
+	@$(call help_item,bench-job-shop-scheduling-solverforge-quick[-db],SolverForge-only smoke run)
+	@$(call help_item,bench-job-shop-scheduling[-db],Full job-shop suite)
+	@$(call help_section,Huge-scale)
+	@$(call help_item,validate-hospital-scale[-model-parity],Check hospital corpus / model parity)
+	@$(call help_item,build-hospital-scale,Build hospital-scale integrations)
+	@$(call help_item,bench-hospital-scale[-quick][-db],Hospital-scale run (300s budget))
+	@$(call help_item,validate-delivery-scale[-model-parity],Check delivery corpus / model parity)
+	@$(call help_item,build-delivery-scale,Build delivery-scale integrations)
+	@$(call help_item,bench-delivery-scale[-quick][-db],Delivery-scale run (300s budget))
+	@$(call help_section,Nightly and studies)
+	@$(call help_item,bench-nightly-db,Build everything and persist all suites)
+	@$(call help_item,thread-study,SolverForge 1/2/4 move-thread study)
+	@$(call help_item,thread-study-report,Regenerate the thread-study report)
+	@$(call help_section,Verification gates)
+	@$(call help_item,verify-benchmark-contracts,Harness contract tests)
+	@$(call help_item,verify-fair-start,Static fair-start check)
+	@$(call help_item,verify-fair-start-rows RUN_ID=<uuid>,Fair-start check on persisted rows)
+	@$(call help_item,verify-solverforge-config-parity,Native/Python config parity)
+	@$(call help_item,verify-reference-catalogs,Reference catalogs reproduce from source)
+	@$(call help_item,verify-stock-solverforge-guardrails,Stock SolverForge guardrails)
+	@$(call help_item,verify-solverforge-py-guardrail-contract,solverforge-py guardrail contract)
+	@$(call help_item,verify-solverforge-py-smoke,solverforge-py smoke gate)
+	@$(call help_item,verify-solverforge-py-comparison,solverforge-py comparison gate)
+	@$(call help_item,verify-solverforge-py-release,solverforge-py release gate)
+	@$(call help_section,Warehouse)
+	@$(call help_item,db-check / db-create / db-migrate / db-reset,Manage the PostgreSQL warehouse)
+	@$(call help_item,load-reference-catalogs,Load reference catalogs into the warehouse)
+	@$(call help_item,reaudit-legacy-publication,Re-audit legacy publishable runs)
+	@$(call help_item,normalize-results INPUT=... OUTPUT=...,Normalize result CSVs via Polars)
+	@$(call help_section,Dashboard)
+	@$(call help_item,dash-setup / dash-server,Set up / serve the Rails dashboard)
+	@$(call help_item,dash-warehouse-check / dash-smoke / dash-test,Dashboard checks)
+	@printf -- "\n$(GRAY)Variables: BENCH_ARGS  BENCH_CONFIG  NIGHTLY_ARGS  BENCH_CPU  DATABASE_URL$(RESET)\n\n"
 
 # ============== Banner ==============
 banner:
