@@ -20,6 +20,7 @@ from solverforge_bench.logging import (
 )
 from solverforge_bench.matrix import BenchmarkMatrix, BenchmarkMatrixTracker
 from solverforge_bench.model import BenchmarkRow, BenchmarkSpec, Evaluation
+from solverforge_bench.pins import case_key
 from solverforge_bench.postgres import PostgresResultWriter, make_postgres_config
 from solverforge_bench.validation import (
     validate_solver_versions,
@@ -50,6 +51,11 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
         time_limits_seconds=time_limits,
     )
     matrix_tracker = BenchmarkMatrixTracker(matrix)
+    # Hashed once per case: the same digest is the fair-start witness's input
+    # hash and the instance version the warehouse pins for the run.
+    input_hashes = {
+        case_key(case): stable_input_hash(case.payload) for case in matrix.cases
+    }
     solvers = list(matrix.solvers)
     time_limits = list(matrix.time_limits_seconds)
     solver_versions = spec.solver_versions(solvers)
@@ -102,6 +108,7 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
                             solver_versions=solver_versions,
                             time_limits=time_limits,
                             matrix=matrix,
+                            input_hashes=input_hashes,
                         )
                     )
                 )
@@ -109,7 +116,7 @@ def run_benchmark(spec: BenchmarkSpec, args: Any) -> Path:
                 LOGGER.info("postgres_run_opened run_id=%s", args.postgres_run_id)
 
             for case in matrix.cases:
-                case_input_hash = stable_input_hash(case.payload)
+                case_input_hash = input_hashes[case_key(case)]
                 LOGGER.info(
                     "case_start dataset=%s dataset_set=%s instance=%s "
                     "instance_size=%s",

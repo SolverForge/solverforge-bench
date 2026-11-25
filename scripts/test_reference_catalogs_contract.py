@@ -250,29 +250,37 @@ class ReferenceCatalogContractTest(unittest.TestCase):
         self.assertEqual(parsed["X-n101-k25"]["reference"], 27591.0)
 
     def test_loader_exposes_every_catalog_value_for_the_warehouse(self) -> None:
-        loader = _load_module(
-            ROOT / "scripts/load_reference_catalog.py", "load_reference_catalog"
-        )
-        rows = loader.catalog_rows()
-        by_problem: dict[str, int] = {}
-        for benchmark_name, _dataset, _instance, *_rest in rows:
-            by_problem[benchmark_name] = by_problem.get(benchmark_name, 0) + 1
-        for name, (_, _, path) in CATALOGS.items():
+        from solverforge_bench.pins import reference_catalog_snapshot
+        from solverforge_bench.references import reference_for
+
+        snapshot = reference_catalog_snapshot(ROOT)
+        by_problem = snapshot.counts()
+        for name, (data_dir, dataset, path) in CATALOGS.items():
             with self.subTest(problem=name):
                 expected = len(json.loads(path.read_text())["instances"])
                 self.assertEqual(by_problem[name], expected)
+        # The warehouse must carry exactly what evaluation resolves, kind included.
+        for entry in snapshot.entries:
+            data_dir, dataset, _path = CATALOGS[entry["benchmark_name"]]
+            reference = reference_for(data_dir, entry["instance"])
+            self.assertEqual(entry["dataset"], dataset)
+            self.assertEqual(entry["reference_cost"], reference.reference_cost)
+            self.assertEqual(entry["reference_kind"], reference.kind)
+            self.assertEqual(entry["source_revision"], reference.source_revision)
+        keys = [
+            (e["benchmark_name"], e["dataset"], e["instance"]) for e in snapshot.entries
+        ]
+        self.assertEqual(len(keys), len(set(keys)))
 
-    def test_loader_sql_escapes_quotes(self) -> None:
-        loader = _load_module(
-            ROOT / "scripts/load_reference_catalog.py", "load_reference_catalog_sql"
-        )
-        self.assertEqual(loader._literal("it's"), "'it''s'")
-        sql = loader.build_sql(
-            [("p", "d", "i", 1.0, "known_optimum", "it's source", "rev")]
-        )
-        self.assertIn("'it''s source'", sql)
-        self.assertIn("BEGIN;", sql)
-        self.assertIn("ON CONFLICT", sql)
+    def test_loader_and_run_path_share_the_warehouse_function(self) -> None:
+        """Values travel as bound JSON parameters to one warehouse function."""
+        source = (ROOT / "src/solverforge_bench/pins.py").read_text()
+        self.assertIn("SELECT benchmark_sync_reference_catalog(%s, %s)", source)
+        loader = (ROOT / "scripts/load_reference_catalog.py").read_text()
+        self.assertIn("sync_reference_catalog(conn, snapshot)", loader)
+        writer = (ROOT / "src/solverforge_bench/postgres.py").read_text()
+        self.assertIn("sync_reference_catalog(", writer)
+        self.assertIn("record_run_instances(", writer)
 
 
 if __name__ == "__main__":

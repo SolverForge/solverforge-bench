@@ -216,6 +216,7 @@ verify-benchmark-contracts: banner venv
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_reference_catalog.py
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_reference_catalogs_contract.py
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_warehouse_references.py
+	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/test_warehouse_pins.py
 
 verify-reference-catalogs: banner venv
 	$(call status,Verifying reference catalogs reproduce from their pinned sources)

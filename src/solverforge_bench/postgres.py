@@ -12,12 +12,20 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from solverforge_bench.etl import benchmark_rows_to_postgres_frame
+from solverforge_bench.fair_start import stable_input_hash
 from solverforge_bench.matrix import (
     BenchmarkMatrix,
     BenchmarkMatrixKey,
     BenchmarkMatrixTracker,
 )
 from solverforge_bench.model import BenchmarkRow, SolverVersion
+from solverforge_bench.pins import (
+    case_key,
+    record_run_instances,
+    reference_catalog_snapshot,
+    run_instance_records,
+    sync_reference_catalog,
+)
 from solverforge_bench.redaction import redact_sensitive_command_args
 from solverforge_bench.validation import (
     validate_solver_versions,
@@ -48,6 +56,7 @@ class PostgresConfig:
     command_args: list[str]
     repo_root: Path
     metadata: dict[str, Any]
+    instance_records: tuple[dict[str, Any], ...]
 
     def __post_init__(self) -> None:
         validate_unique_solvers(self.solvers)
@@ -58,6 +67,14 @@ class PostgresConfig:
             raise ValueError("PostgreSQL matrix solvers do not match run metadata")
         if tuple(self.time_limits_seconds) != self.matrix.time_limits_seconds:
             raise ValueError("PostgreSQL matrix time limits do not match run metadata")
+        pinned = {
+            (record["dataset"], record["dataset_set"], record["instance"])
+            for record in self.instance_records
+        }
+        if pinned != {case_key(case) for case in self.matrix.cases} or len(
+            pinned
+        ) != len(self.instance_records):
+            raise ValueError("PostgreSQL instance hashes do not match the matrix cases")
 
 
 class PostgresResultWriter:
@@ -75,9 +92,18 @@ class PostgresResultWriter:
         self._conn = psycopg.connect(self.config.database_url, autocommit=True)
         run_inserted = False
         try:
-            self._insert_run()
+            # The catalog sync comes first: the run row references the catalog
+            # version it is graded against, and a warehouse that cannot pin one
+            # must refuse the run before it starts.
+            reference_catalog_sha256 = sync_reference_catalog(
+                self._conn, reference_catalog_snapshot(self.config.repo_root)
+            )
+            self._insert_run(reference_catalog_sha256)
             run_inserted = True
             self._insert_expected_matrix()
+            record_run_instances(
+                self._conn, self.run_id, list(self.config.instance_records)
+            )
             self._insert_solver_versions()
         except BaseException as exc:
             if run_inserted:
@@ -287,7 +313,7 @@ class PostgresResultWriter:
                 rows,
             )
 
-    def _insert_run(self) -> None:
+    def _insert_run(self, reference_catalog_sha256: str) -> None:
         if self._conn is None:
             raise RuntimeError("PostgresResultWriter is not open")
 
@@ -315,6 +341,7 @@ class PostgresResultWriter:
                     python_version,
                     expected_result_count,
                     expected_matrix_sha256,
+                    reference_catalog_sha256,
                     metadata
                 )
                 VALUES (
@@ -337,6 +364,7 @@ class PostgresResultWriter:
                     %(python_version)s,
                     %(expected_result_count)s,
                     %(expected_matrix_sha256)s,
+                    %(reference_catalog_sha256)s,
                     %(metadata)s
                 )
                 """,
@@ -362,6 +390,7 @@ class PostgresResultWriter:
                     "python_version": sys.version,
                     "expected_result_count": self.config.matrix.expected_count,
                     "expected_matrix_sha256": self.config.matrix.sha256,
+                    "reference_catalog_sha256": reference_catalog_sha256,
                     "metadata": self._jsonb(_json_safe(self.config.metadata)),
                 },
             )
@@ -435,7 +464,12 @@ def make_postgres_config(
     solver_versions: dict[str, SolverVersion],
     time_limits: Iterable[int],
     matrix: BenchmarkMatrix,
+    input_hashes: dict[tuple[str, str, str], str] | None = None,
 ) -> PostgresConfig:
+    if input_hashes is None:
+        input_hashes = {
+            case_key(case): stable_input_hash(case.payload) for case in matrix.cases
+        }
     return PostgresConfig(
         database_url=database_url_from_args(args),
         run_kind=args.run_kind,
@@ -453,6 +487,7 @@ def make_postgres_config(
         matrix=matrix,
         command_args=redact_sensitive_command_args(getattr(args, "argv", [])),
         repo_root=Path(args.repo_root),
+        instance_records=tuple(run_instance_records(matrix.cases, input_hashes)),
         metadata={
             "dataset_set": getattr(args, "dataset_set", None),
             "datasets": getattr(args, "datasets", None),
