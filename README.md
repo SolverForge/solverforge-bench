@@ -823,7 +823,7 @@ themselves for warehouse diagnostics. Public consumers must use
 `publishable_benchmark_runs`, `publishable_benchmark_result_facts`, or their
 `latest_publishable_*` counterparts. Those views admit only completed runs from
 a clean, identified commit with an exact expected/observed matrix, valid
-fair-start witnesses, and complete runtime provenance. Solver failure rows are
+fair-start witnesses, complete runtime provenance, and pinned inputs. Solver failure rows are
 allowed in an otherwise complete matrix; they reduce feasibility and never
 contribute a fabricated quality value. The latest-run views keep normal and
 nightly runs separate.
@@ -892,14 +892,43 @@ matches the source it claims:
 
 ```sh
 make verify-reference-catalogs     # every catalog reproduces from its source
+make refresh-reference-sources     # re-read the official sources from upstream
 make load-reference-catalogs       # carry the committed values into PostgreSQL
 ```
 
 `verify-reference-catalogs` fails when a committed value no longer regenerates,
-so a hand-edited reference cannot reach the warehouse. Loading is an idempotent
-upsert into `benchmark_reference_catalog`; `benchmark_reference_resolved` then
-reports the effective reference per result, preferring the pinned official value
-and falling back to whatever the run recorded when the catalog has no entry.
+so a hand-edited reference cannot reach the warehouse.
+
+`refresh-reference-sources` (`scripts/refresh_reference_sources.py`) re-reads the
+ScheduleOpt catalogue at the head of its default branch and the CVRPLIB Set X
+table, rewrites the committed source files only when a value the benchmark uses
+moved, and regenerates the affected catalogs. INRC-II values are frozen since
+the competition closed, so employee scheduling has nothing to refresh. Pass
+`REFRESH_ARGS=--check` to report without writing. The Forgejo workflow
+`.forgejo/workflows/refresh-references.yml` runs it every Monday and opens or
+updates a pull request on `refresh/reference-sources` when upstream moved; a new
+value reaches runs only once that pull request is merged.
+
+Every run opened with `--save-postgres` syncs the warehouse to the committed
+catalogs before it starts, through the warehouse function
+`benchmark_sync_reference_catalog`: `benchmark_reference_catalog` becomes
+exactly the committed values, and the catalog is recorded as an immutable
+version in `benchmark_reference_catalog_versions`, whose SHA-256 the run stores
+in `benchmark_runs.reference_catalog_sha256`. `load-reference-catalogs` performs
+the same sync on demand. `benchmark_reference_resolved` reports the effective
+reference per result, preferring the current official value and falling back to
+whatever the run recorded when the catalog has no entry.
+
+The run also pins its instances. The harness hashes each loaded instance once
+(the same SHA-256 the fair-start witness carries as `solver_input_hash`) and
+`benchmark_record_run_instances` stores it in `benchmark_run_instances`, with
+every distinct version in `benchmark_instances`. A trigger refuses a result row
+for an instance the run did not pin, and `benchmark_instance_versions` flags an
+instance name that has been run with more than one hash. Publication requires a
+known catalog version, one pinned hash per matrix instance, every recorded
+`reference_cost` equal to the pinned catalog value, and every witness input hash
+equal to the pinned instance hash. Runs recorded before pinning existed carry
+`input_pinning_required = false` and are audited as before.
 
 The bundled CVRP `.sol` files hold one feasible tour per instance and are not
 official values, so they are not used as references. Employee scheduling runs

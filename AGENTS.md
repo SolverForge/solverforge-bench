@@ -7,7 +7,9 @@
   repository/data-flow map. Keep both aligned with this file when public
   behavior or structure changes.
 - `.github/workflows/ci.yml` contains the GitHub-hosted CI workflow.
-  `.forgejo/workflows/ci.yml` contains the local Forgejo CI workflow. Keep
+  `.forgejo/workflows/ci.yml` contains the local Forgejo CI workflow.
+  `.forgejo/workflows/refresh-references.yml` re-reads the official reference
+  sources weekly and opens a review pull request when upstream moved. Keep
   the exact SolverForge registry versions and committed adapter lockfiles
   aligned. The Rust jobs run Cargo checks with `--locked`; the Python jobs must
   create the root `.venv` with `make install-python-deps` before parity
@@ -271,10 +273,17 @@ committed catalog must regenerate from its published source, which
 `make verify-reference-catalogs` enforces. A reference carries its source and
 revision and whether it is a proven optimum or a best known upper bound --
 do not compare across those kinds, and do not substitute a solver's own best
-result for a missing official value.
+result for a missing official value. Upstream sources are re-read only by
+`scripts/refresh_reference_sources.py`, whose output is a reviewed diff; the
+warehouse never fetches a reference itself. Every PostgreSQL run syncs the
+committed catalogs through `benchmark_sync_reference_catalog` before it starts,
+records the catalog version it is graded against, and pins one input hash per
+matrix instance through `benchmark_record_run_instances`; that logic lives in
+`src/solverforge_bench/pins.py` and the warehouse functions, not in adapters.
 
 `publishable_benchmark_runs` and `publishable_benchmark_result_facts` have
-passed the clean-commit, exact-matrix, fair-start, and runtime-provenance gate.
+passed the clean-commit, exact-matrix, fair-start, runtime-provenance, and
+pinned-input gate.
 
 SolverForge adapters must reject a CVRP customer assignment that is not exact,
 an unassigned callback-required employee shift, and a JSSP operation that is

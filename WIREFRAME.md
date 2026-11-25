@@ -78,6 +78,8 @@ Every tracked file at the repository root and its role:
   (see Warehouse Schema and Migration Ledger).
 - `.github/workflows/ci.yml` is the GitHub-hosted CI workflow.
 - `.forgejo/workflows/ci.yml` is the local Forgejo CI workflow.
+- `.forgejo/workflows/refresh-references.yml` re-reads the official reference
+  sources weekly and opens a review pull request when upstream moved.
 - `archive/` holds historical reports and older standalone scripts only
   (`benchmark_meeting_scheduling.py`, `benchmark_vehicle_routing.py`,
   `report.md`, `results_meeting-scheduling.md`, `results_vehicle-routing.md`,
@@ -347,6 +349,10 @@ Every module in `src/solverforge_bench/` and its single ownership:
   every problem's official reference from the `references.json` beside its
   instances, and `scripts/generate_reference_catalog.py` regenerates each
   catalog from its published source (`make verify-reference-catalogs`).
+  `scripts/refresh_reference_sources.py` re-reads those sources from upstream
+  (`make refresh-reference-sources`), and `src/solverforge_bench/pins.py`
+  syncs the committed catalogs into the warehouse and pins each run's instance
+  hashes when a PostgreSQL run opens.
 - SolverForge and Timefold JSSP machine operation lists start empty. Known best
   bounds and validation data stay in specs and validators, not in solver-start
   incumbents.
@@ -548,6 +554,7 @@ Migrations apply through `make db-migrate` (SQLx). In ledger order:
 | `20260718000000_add_publication_integrity.sql` | expected-matrix catalog, SHA attestation columns, publication audit and `publishable_*` views |
 | `20260904000000_add_official_reference_metrics.sql` | official job-shop reference metrics (known best, bounds, gaps) |
 | `20261001000000_add_reference_catalog.sql` | `benchmark_reference_catalog` (official value, kind, source per instance) and `benchmark_reference_resolved` |
+| `20261125000000_pin_reference_catalog_and_instances.sql` | `benchmark_reference_catalog_versions`, `benchmark_instances`, `benchmark_run_instances`, `benchmark_instance_versions`; the sync and record functions; the unpinned-instance trigger; run pins in the publication audit |
 | `20260915203000_retract_misrepresenting_employee_runs.sql` | retracts employee-scheduling runs measured by superseded adapter versions or by the pre-fix OR-Tools employee binary; run-granularity deletion keeps exact-matrix attestation intact |
 
 Tables:
@@ -566,6 +573,13 @@ Tables:
   case/solver/time-limit catalog per run.
 - `benchmark_solver_versions` — one row per solver per run with the resolved
   version string, version source, and runtime artifact provenance metadata.
+- `benchmark_reference_catalog` — the current official reference per instance;
+  `benchmark_reference_catalog_versions` keeps every synced catalog by SHA-256,
+  and `benchmark_runs.reference_catalog_sha256` names the one a run used.
+- `benchmark_instances` / `benchmark_run_instances` — every distinct instance
+  version (SHA-256 of the loaded solver input) and the version each run loaded.
+  `benchmark_runs.input_pinning_required` is false only for runs recorded
+  before pinning existed.
 
 Views:
 
@@ -577,8 +591,14 @@ Views:
   and `latest_publishable_benchmark_result_facts` are the only public
   publication surface. Publication requires a completed run from a clean,
   identified commit with an exact expected/observed matrix, valid fair-start
-  witnesses, and complete runtime provenance. Solver failure rows are allowed
-  inside an otherwise complete matrix.
+  witnesses, complete runtime provenance, and, for pinned runs, a known
+  catalog version, one instance hash per matrix instance, recorded references
+  equal to the pinned catalog, and witness input hashes equal to the pinned
+  instance hashes (`reference_catalog_unpinned`, `instances_unpinned`,
+  `reference_cost_mismatch`, `instance_hash_mismatch`). Solver failure rows are
+  allowed inside an otherwise complete matrix.
+- Instances: `benchmark_instance_versions` lists each instance version with its
+  runs; `changed` marks a name run with more than one input hash.
 - Source-tree provenance: `git_dirty` is true when tracked files differ from
   `HEAD` or untracked files exist under a harness source root (`src/`,
   `scripts/`, `list-variable/`, `scalar-variable/`, `huge-scale/`); untracked
