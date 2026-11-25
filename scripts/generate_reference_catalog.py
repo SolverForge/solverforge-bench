@@ -43,6 +43,9 @@ EMPLOYEE_DIR = ROOT / "scalar-variable/employee-scheduling/data/inrc2"
 
 CVRPLIB_SOURCE_NAME = "CVRPLIB (Uchoa et al. 2017 Set X)"
 DEFAULT_CVRP_TABLE = ROOT / "list-variable/cvrp/data/X/cvrplib-set-x.txt"
+#: Where and when the committed table was read. The refresh script rewrites it
+#: together with the table, so the revision always names the table it describes.
+CVRP_TABLE_SOURCE = ROOT / "list-variable/cvrp/data/X/cvrplib-set-x.source.json"
 
 #: The competition's validated-results workbook, kept beside the corpus it scores.
 PUBLISHED_RESULTS_FILE = "inrc2-validated-results.xlsx"
@@ -184,11 +187,12 @@ def generate_cvrp(check: bool, table_path: Path) -> int:
     if extra:
         raise SystemExit(f"cvrp: table lists instances we do not bundle: {extra}")
 
+    table_source = _load(CVRP_TABLE_SOURCE)
     payload = {
         "source": {
             "name": CVRPLIB_SOURCE_NAME,
-            "revision": "cvrplib-set-x-live-2026-10-01",
-            "url": "https://galgos.inf.puc-rio.br/cvrplib/index.php/en/instances",
+            "revision": table_source["revision"],
+            "url": table_source["url"],
             "note": (
                 "Values read from the CVRPLIB Set X table; the Opt column decides "
                 "whether a value is a proven optimum or a best known bound."

@@ -119,7 +119,7 @@ MAVEN_ENV := JAVA_HOME="$(JAVA_HOME_FOR_MAVEN)" PATH="$(JAVA_HOME_FOR_MAVEN)/bin
 	bench-delivery-scale bench-delivery-scale-db bench-delivery-scale-quick bench-delivery-scale-quick-db \
 	bench-nightly-db \
 	reaudit-legacy-publication \
-	verify-benchmark-contracts verify-reference-catalogs load-reference-catalogs verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
+	verify-benchmark-contracts verify-reference-catalogs refresh-reference-sources load-reference-catalogs verify-fair-start verify-fair-start-rows verify-solverforge-config-parity verify-stock-solverforge-guardrails \
 	verify-solverforge-py-guardrail-contract verify-solverforge-py-smoke verify-solverforge-py-comparison verify-solverforge-py-release \
 	validate-cvrp validate-employee-scheduling validate-employee-model-parity validate-job-shop-scheduling \
 	validate-hospital-scale validate-hospital-scale-model-parity \
@@ -178,6 +178,7 @@ help: banner
 	@$(call help_item,verify-fair-start-rows RUN_ID=<uuid>,Fair-start check on persisted rows)
 	@$(call help_item,verify-solverforge-config-parity,Native/Python config parity)
 	@$(call help_item,verify-reference-catalogs,Reference catalogs reproduce from source)
+	@$(call help_item,refresh-reference-sources,Re-read official references from upstream)
 	@$(call help_item,verify-stock-solverforge-guardrails,Stock SolverForge guardrails)
 	@$(call help_item,verify-solverforge-py-guardrail-contract,solverforge-py guardrail contract)
 	@$(call help_item,verify-solverforge-py-smoke,solverforge-py smoke gate)
@@ -223,6 +224,10 @@ verify-reference-catalogs: banner venv
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/generate_reference_catalog.py jssp --check
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/generate_reference_catalog.py cvrp --check
 	PYTHONPATH=$(BENCH_PYTHONPATH) "$(PYTHON)" scripts/generate_reference_catalog.py employee --check
+
+refresh-reference-sources: banner
+	$(call status,Refreshing official reference sources from upstream)
+	python3 scripts/refresh_reference_sources.py $(REFRESH_ARGS)
 
 load-reference-catalogs: banner venv
 	$(call status,Loading official reference catalogs into the warehouse)

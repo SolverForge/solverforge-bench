@@ -272,6 +272,41 @@ class ReferenceCatalogContractTest(unittest.TestCase):
         ]
         self.assertEqual(len(keys), len(set(keys)))
 
+    def test_refresh_renders_cvrplib_rows_in_the_committed_table_format(self) -> None:
+        """A refreshed table must parse exactly as the committed one does."""
+        refresh = _load_module(
+            ROOT / "scripts/refresh_reference_sources.py", "refresh_reference_sources"
+        )
+        generator = _load_module(
+            ROOT / "scripts/generate_reference_catalog.py", "gen_reference_catalog_fmt"
+        )
+        page = """
+        <tr class="collapse border-bottom" id="set-17">
+          <td class="text-center"><a href="/i/158">
+              X-n101-k25
+          </a></td>
+          <td class="text-end">$100$</td>
+          <td class="text-end">$25$</td>
+          <td class="text-end">$206$</td>
+          <td class="text-end"><a href="/b/158"><!-- note -->
+              <span class="pe-none">$27{,}591$</span></a></td>
+          <td class="text-center"><span class="badge">yes</span></td>
+          <td class="text-nowrap"><a>file</a></td>
+        </tr>
+        <tr class="collapse border-bottom" id="set-3">
+          <td>A-n32-k5</td><td>$31$</td><td>$5$</td><td>$100$</td>
+          <td>$784$</td><td>yes</td>
+        </tr>
+        """
+        rows = refresh.parse_cvrplib_page(page)
+        self.assertEqual(rows, {"X-n101-k25": "X-n101-k25 100 25 206 27,591.00 yes"})
+        committed = (ROOT / "list-variable/cvrp/data/X/cvrplib-set-x.txt").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(rows["X-n101-k25"], committed.splitlines())
+        parsed = generator.parse_cvrplib_table(rows["X-n101-k25"])
+        self.assertEqual(parsed["X-n101-k25"]["reference"], 27591.0)
+
     def test_loader_and_run_path_share_the_warehouse_function(self) -> None:
         """Values travel as bound JSON parameters to one warehouse function."""
         source = (ROOT / "src/solverforge_bench/pins.py").read_text()

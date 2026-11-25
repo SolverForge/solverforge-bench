@@ -1,0 +1,88 @@
+name: Refresh reference sources
+
+# Re-reads the official reference sources from upstream once a week and, when a
+# value the benchmark uses has moved, opens (or updates) a pull request with the
+# regenerated catalogs. Nothing changes a run or the warehouse until a human
+# merges it; runs recorded before the merge keep the catalog version they were
+# pinned to.
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: refresh-reference-sources
+  cancel-in-progress: false
+
+env:
+  REFRESH_BRANCH: refresh/reference-sources
+
+jobs:
+  refresh:
+    name: Refresh official reference sources
+    runs-on: python
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Refresh sources from upstream
+        run: python3 scripts/refresh_reference_sources.py --summary "${RUNNER_TEMP}/refresh-summary.md"
+
+      - name: Verify the regenerated catalogs reproduce
+        run: |
+          python3 scripts/generate_reference_catalog.py jssp --check
+          python3 scripts/generate_reference_catalog.py cvrp --check
+
+      - name: Open or update the review pull request
+        env:
+          TOKEN: ${{ github.token }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Upstream values are unchanged; nothing to review."
+            exit 0
+          fi
+          git status --short
+
+          api="${SERVER_URL}/api/v1/repos/${REPOSITORY}"
+          auth="Authorization: token ${TOKEN}"
+          base="$(curl -fsS -H "${auth}" "${api}" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["default_branch"])')"
+          summary="${RUNNER_TEMP}/refresh-summary.md"
+
+          git config user.name "solverforge-bench reference refresh"
+          git config user.email "reference-refresh@solverforge.invalid"
+          git checkout -B "${REFRESH_BRANCH}"
+          git add -A list-variable/cvrp/data/X scalar-variable/job-shop-scheduling/data/jsplib
+          git commit -q \
+            -m "chore(references): refresh official reference sources" \
+            -m "$(cat "${summary}")"
+          git push --force origin "HEAD:refs/heads/${REFRESH_BRANCH}"
+
+          existing="$(curl -fsS -H "${auth}" "${api}/pulls?state=open&limit=50" \
+            | python3 -c 'import json, os, sys; print(next((str(p["number"]) for p in json.load(sys.stdin) if p["head"]["ref"] == os.environ["REFRESH_BRANCH"]), ""))')"
+          payload="$(python3 - "${summary}" "${base}" <<'PY'
+          import json, os, sys
+          summary, base = sys.argv[1], sys.argv[2]
+          print(json.dumps({
+              "title": "chore(references): refresh official reference sources",
+              "head": os.environ["REFRESH_BRANCH"],
+              "base": base,
+              "body": open(summary, encoding="utf-8").read(),
+          }))
+          PY
+          )"
+          if [ -z "${existing}" ]; then
+            number="$(curl -fsS -X POST -H "${auth}" -H 'Content-Type: application/json' \
+              --data "${payload}" "${api}/pulls" \
+              | python3 -c 'import json, sys; print(json.load(sys.stdin)["number"])')"
+            echo "Opened pull request #${number}"
+          else
+            curl -fsS -X PATCH -H "${auth}" -H 'Content-Type: application/json' \
+              --data "${payload}" "${api}/pulls/${existing}" > /dev/null
+            echo "Updated pull request #${existing}"
+          fi
